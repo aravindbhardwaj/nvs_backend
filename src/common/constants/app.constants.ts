@@ -1,0 +1,17 @@
+export const APP_CONSTANTS = {
+    PAGINATION: {
+      DEFAULT_PAGE: 1,
+      DEFAULT_LIMIT: 20,
+      MAX_LIMIT: 100,
+    },
+  
+    AUTH: {
+      MAX_LOGIN_ATTEMPTS: 5,
+      ACCESS_TOKEN_EXPIRY: '30m',
+      REFRESH_TOKEN_EXPIRY: '30d',
+    },
+  
+    UPLOAD: {
+      MAX_FILE_SIZE: 20 * 1024 * 1024,
+    },
+  } as const;
