@@ -12,6 +12,7 @@ import { PagesModule } from './pages/pages.module';
 import { MediaModule } from './media/media.module';
 import { FormsModule } from './forms/forms.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import configuration from './config';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
       isGlobal: true,
       cache: true,
       expandVariables: true,
-      load: [jwtConfig],
+      load: configuration,
     }),
     PrismaModule, AuthModule, UsersModule, OrganizationsModule, ContentTypesModule, MediaTypesModule, PagesModule, MediaModule, FormsModule, AuditLogsModule
   ],

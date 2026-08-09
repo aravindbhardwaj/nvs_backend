@@ -244,7 +244,7 @@ model User {
 
   lockedUntil DateTime? @map("locked_until")
 
-  lastLogin DateTime? @map("last_login")
+  lastLoginAt DateTime? @map("last_login")
 
   passwordChangedAt DateTime? @map("password_changed_at")
 
@@ -266,6 +266,7 @@ model User {
   @@index([role])
   @@index([status])
   @@index([email])
+  @@index([organizationId, status])
   @@map("nvs_users")
 }
 

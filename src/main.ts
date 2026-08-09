@@ -7,6 +7,7 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaService } from './prisma/prisma.service';
+import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -35,7 +36,11 @@ async function bootstrap() {
 
   await app.listen(port);
 
-  console.log(`Application started on http://localhost:${port}`);
+  const logger = new Logger('Bootstrap');
+
+  logger.log(
+    `Application started on http://localhost:${port}`,
+  );
 }
 
 bootstrap();
