@@ -1,13 +1,652 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ENUMS
+//
+
+enum Role {
+  SUPER_ADMIN
+  HQ
+  RO
+  JNV
+  NLI
+}
+
+enum OrganizationType {
+  HEADQUARTERS
+  REGIONAL_OFFICE
+  NLI
+  JNV
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  APPROVE
+  PUBLISH
+  DOWNLOAD
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaStatus {
+  UPLOADED
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum FieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  EMAIL
+  PASSWORD
+  DATE
+  DATETIME
+  SELECT
+  MULTI_SELECT
+  RADIO
+  CHECKBOX
+  FILE
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  FAILED_LOGIN
+  LOCK_ACCOUNT
+  UNLOCK_ACCOUNT
+}
+
+//
+// REGION
+//
+
+model Region {
+  id Int @id @default(autoincrement())
+
+  regionCode String @unique @map("region_code")
+  regionName String @map("region_name")
+
+  displayOrder Int @default(0) @map("display_order")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  organizations Organization[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([regionName])
+  @@map("nvs_regions")
+}
+
+//
+// STATE
+//
+
+model State {
+  id Int @id @default(autoincrement())
+
+  stateCode String @unique @map("state_code")
+
+  stateName String @map("state_name")
+
+  displayOrder Int @default(0) @map("display_order")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  organizations Organization[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([stateName])
+  @@map("nvs_states")
+}
+
+//
+// ORGANIZATION
+//
+
+model Organization {
+  id Int @id @default(autoincrement())
+
+  organizationCode String @unique @map("organization_code")
+
+  organizationName String @map("organization_name")
+
+  organizationShortName String? @map("organization_short_name")
+
+  organizationType OrganizationType @map("organization_type")
+
+  parentOrganizationId Int? @map("parent_organization_id")
+
+  parentOrganization Organization? @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
+
+  childOrganizations Organization[] @relation("OrganizationHierarchy")
+
+  regionId Int? @map("region_id")
+
+  region Region? @relation(fields: [regionId], references: [id])
+
+  stateId Int? @map("state_id")
+
+  state State? @relation(fields: [stateId], references: [id])
+
+  logoMediaId Int? @map("logo_media_id")
+
+  address String? @db.Text
+
+  contactPerson String? @map("contact_person")
+
+  contactEmail String? @map("contact_email")
+
+  contactMobile String? @map("contact_mobile")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdById Int? @map("created_by")
+
+  updatedById Int? @map("updated_by")
+
+  deletedById Int? @map("deleted_by")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  //
+  // Relations
+  //
+
+  users User[]
+
+  pages Page[]
+
+  media Media[]
+
+  forms Form[]
+
+  formData FormData[]
+
+  @@index([organizationType])
+  @@index([parentOrganizationId])
+  @@index([regionId])
+  @@index([stateId])
+  @@index([organizationCode])
+  @@index([organizationName])
+  @@map("nvs_organizations")
+}
+
+model User {
+  id Int @id @default(autoincrement())
+
+  organizationId Int @map("organization_id")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  role Role
+
+  firstName String @map("first_name") @db.VarChar(100)
+
+  lastName String? @map("last_name") @db.VarChar(100)
+
+  email String @unique @db.VarChar(255)
+
+  mobile String? @unique @db.VarChar(20)
+
+  passwordHash String @map("password_hash")
+
+  passwordResetRequired Boolean @default(false) @map("password_reset_required")
+
+  status UserStatus @default(ACTIVE)
+
+  failedLoginAttempts Int @default(0) @map("failed_login_attempts")
+
+  lockedUntil DateTime? @map("locked_until")
+
+  lastLogin DateTime? @map("last_login")
+
+  passwordChangedAt DateTime? @map("password_changed_at")
+
+  refreshTokens RefreshToken[]
+
+  userPermissions UserPermission[]
+
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  submittedFormData FormData[] @relation("FormSubmittedBy")
+
+  @@index([organizationId])
+  @@index([role])
+  @@index([status])
+  @@index([email])
+  @@map("nvs_users")
+}
+
+model Permission {
+  id Int @id @default(autoincrement())
+
+  permissionCode String @unique @map("permission_code")
+
+  permissionName String @map("permission_name")
+
+  module String
+
+  action PermissionAction
+
+  description String? @db.Text
+
+  isActive Boolean @default(true) @map("is_active")
+
+  displayOrder Int @default(0) @map("display_order")
+
+  rolePermissions RolePermission[]
+
+  userPermissions UserPermission[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([module])
+  @@index([action])
+  @@map("nvs_permissions")
+}
+
+model RolePermission {
+  id Int @id @default(autoincrement())
+
+  role Role
+
+  permissionId Int @map("permission_id")
+
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@map("nvs_role_permissions")
+}
+
+model UserPermission {
+  id Int @id @default(autoincrement())
+
+  userId Int @map("user_id")
+
+  permissionId Int @map("permission_id")
+
+  user User @relation(fields: [userId], references: [id])
+
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  isAllowed Boolean @default(true) @map("is_allowed")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+  @@map("nvs_user_permissions")
+}
+
+model RefreshToken {
+  id Int @id @default(autoincrement())
+
+  userId Int @map("user_id")
+
+  user User @relation(fields: [userId], references: [id])
+
+  tokenHash String @map("token_hash")
+
+  expiresAt DateTime @map("expires_at")
+
+  revokedAt DateTime? @map("revoked_at")
+
+  ipAddress String? @map("ip_address")
+
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("nvs_refresh_tokens")
+}
+
+model AuditLog {
+  id Int @id @default(autoincrement())
+
+  userId Int? @map("user_id")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  action AuditAction
+
+  module String
+
+  entityName String @map("entity_name")
+
+  entityId Int? @map("entity_id")
+
+  oldValues Json? @map("old_values")
+
+  newValues Json? @map("new_values")
+
+  ipAddress String? @map("ip_address")
+
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([module])
+  @@index([entityName])
+  @@map("nvs_audit_logs")
+}
+
+model ContentType {
+  id Int @id @default(autoincrement())
+
+  contentTypeName String @unique @map("content_type_name")
+
+  description String? @db.Text
+
+  displayOrder Int @default(0) @map("display_order")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  pages Page[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([displayOrder])
+  @@map("nvs_content_types")
+}
+
+model MediaType {
+  id Int @id @default(autoincrement())
+
+  mediaTypeName String @unique @map("media_type_name")
+
+  description String? @db.Text
+
+  displayOrder Int @default(0) @map("display_order")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  media Media[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([displayOrder])
+  @@map("nvs_media_types")
+}
+
+model Page {
+  id Int @id @default(autoincrement())
+
+  organizationId Int @map("organization_id")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  contentTypeId Int @map("content_type_id")
+
+  contentType ContentType @relation(fields: [contentTypeId], references: [id])
+
+  title String @db.VarChar(255)
+
+  slug String @db.VarChar(255)
+
+  description String? @db.Text
+
+  content String? @db.Text
+
+  status PageStatus @default(DRAFT)
+
+  displayOrder Int @default(0) @map("display_order")
+
+  media Media[]
+
+  createdById Int? @map("created_by")
+
+  updatedById Int? @map("updated_by")
+
+  deletedById Int? @map("deleted_by")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, contentTypeId])
+  @@unique([organizationId, slug])
+  @@index([status])
+  @@index([organizationId])
+  @@index([contentTypeId])
+  @@map("nvs_pages")
+}
+
+model Media {
+  id Int @id @default(autoincrement())
+
+  organizationId Int @map("organization_id")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  pageId Int? @map("page_id")
+
+  page Page? @relation(fields: [pageId], references: [id])
+
+  mediaTypeId Int @map("media_type_id")
+
+  mediaType MediaType @relation(fields: [mediaTypeId], references: [id])
+
+  title String @db.VarChar(255)
+
+  description String? @db.Text
+
+  originalFileName String @map("original_file_name")
+
+  storedFileName String @map("stored_file_name")
+
+  filePath String @map("file_path")
+
+  mimeType String @map("mime_type")
+
+  fileExtension String @map("file_extension")
+
+  fileSize BigInt @map("file_size")
+
+  checksum String? @db.VarChar(255)
+
+  storageProvider String? @map("storage_provider")
+
+  bucketName String? @map("bucket_name")
+
+  status MediaStatus @default(UPLOADED)
+
+  uploadedById Int? @map("uploaded_by")
+
+  createdById Int? @map("created_by")
+
+  updatedById Int? @map("updated_by")
+
+  deletedById Int? @map("deleted_by")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([pageId])
+  @@index([mediaTypeId])
+  @@index([status])
+  @@map("nvs_media")
+}
+
+model Form {
+  id Int @id @default(autoincrement())
+
+  organizationId Int          @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  formCode String @unique @map("form_code")
+  formName String @map("form_name")
+
+  description String? @db.Text
+
+  version Int @default(1)
+
+  status FormStatus @default(DRAFT)
+
+  displayOrder Int @default(0) @map("display_order")
+
+  createdById Int? @map("created_by")
+  updatedById Int? @map("updated_by")
+  deletedById Int? @map("deleted_by")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fields      FormField[]
+  submissions FormData[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([formCode])
+  @@map("nvs_forms")
+}
+
+model FormField {
+  id Int @id @default(autoincrement())
+
+  formId Int  @map("form_id")
+  form   Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  fieldKey  String @map("field_key")
+  fieldName String @map("field_name")
+
+  fieldType FieldType @map("field_type")
+
+  placeholder String?
+
+  defaultValue String? @map("default_value")
+
+  validationJson Json? @map("validation_json")
+
+  isRequired Boolean @default(false) @map("is_required")
+
+  displayOrder Int @default(0) @map("display_order")
+
+  values FormDataValue[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([formId, fieldKey])
+  @@index([formId])
+  @@index([displayOrder])
+  @@map("nvs_form_fields")
+}
+
+model FormData {
+  id Int @id @default(autoincrement())
+
+  formId Int  @map("form_id")
+  form   Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  organizationId Int          @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  submittedById Int?  @map("submitted_by")
+  submittedBy   User? @relation("FormSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+
+  status SubmissionStatus @default(SUBMITTED)
+
+  values FormDataValue[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([formId])
+  @@index([organizationId])
+  @@index([submittedById])
+  @@map("nvs_form_data")
+}
+
+model FormDataValue {
+  id Int @id @default(autoincrement())
+
+  formDataId Int      @map("form_data_id")
+  formData   FormData @relation(fields: [formDataId], references: [id], onDelete: Cascade)
+
+  formFieldId Int       @map("form_field_id")
+  formField   FormField @relation(fields: [formFieldId], references: [id], onDelete: Cascade)
+
+  valueText String? @db.Text
+
+  valueJson Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([formDataId, formFieldId])
+  @@index([formDataId])
+  @@index([formFieldId])
+  @@map("nvs_form_data_values")
 }
