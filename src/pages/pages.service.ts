@@ -1,0 +1,463 @@
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Page, PageStatus, Prisma, Role } from '@prisma/client';
+
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { PaginationUtil } from '../common/utils/pagination.util';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreatePageDto } from './dto/create-page.dto';
+import { GetPagesQueryDto } from './dto/get-pages-query.dto';
+import { PageResponseDto } from './dto/page-response.dto';
+import { UpdatePageDto } from './dto/update-page.dto';
+
+@Injectable()
+export class PagesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(
+    dto: CreatePageDto,
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    this.assertOrganizationAccess(dto.organizationId, actor);
+    await this.ensureActiveOrganization(dto.organizationId);
+    await this.ensureActiveContentType(dto.contentTypeId);
+    await this.ensureOrganizationContentTypeIsAvailable(
+      dto.organizationId,
+      dto.contentTypeId,
+    );
+
+    const page = await this.prisma.$transaction(async (transaction) => {
+      const status = dto.status ?? PageStatus.DRAFT;
+      const createdPage = await transaction.page.create({
+        data: {
+          organizationId: dto.organizationId,
+          contentTypeId: dto.contentTypeId,
+          title: dto.title,
+          slug: await this.generateUniqueSlug(dto.title, transaction),
+          shortDescription: dto.shortDescription ?? null,
+          content: dto.content,
+          status,
+          displayOrder: dto.displayOrder ?? 0,
+          publishedAt: status === PageStatus.PUBLISHED ? new Date() : null,
+          createdById: actor.id,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(transaction, actor.id, 'CREATE', createdPage);
+      return createdPage;
+    });
+
+    return this.toResponse(page);
+  }
+
+  async findAll(
+    query: GetPagesQueryDto,
+    actor: AuthenticatedUser,
+  ): Promise<PaginatedResponseDto<PageResponseDto>> {
+    if (
+      actor.role !== Role.SUPER_ADMIN &&
+      query.organizationId &&
+      query.organizationId !== actor.organizationId
+    ) {
+      throw new ForbiddenException(
+        'You can only view pages belonging to your organization.',
+      );
+    }
+    const where = this.buildWhere(query, actor);
+    const orderBy: Prisma.PageOrderByWithRelationInput = {
+      [query.sort]: query.order,
+    };
+    const [pages, totalItems] = await this.prisma.$transaction([
+      this.prisma.page.findMany({
+        where,
+        orderBy,
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.page.count({ where }),
+    ]);
+    return {
+      items: pages.map((page) => this.toResponse(page)),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  async findOne(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    const page = await this.findActivePage(id);
+    this.assertOrganizationAccess(page.organizationId, actor);
+    return this.toResponse(page);
+  }
+
+  async findBySlug(
+    slug: string,
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    const page = await this.prisma.page.findFirst({
+      where: { slug, isDeleted: false },
+    });
+    if (!page) throw new NotFoundException('Page not found.');
+    this.assertOrganizationAccess(page.organizationId, actor);
+    return this.toResponse(page);
+  }
+
+  async update(
+    id: number,
+    dto: UpdatePageDto,
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    const existingPage = await this.findActivePage(id);
+    this.assertOrganizationAccess(existingPage.organizationId, actor);
+    const organizationId = dto.organizationId ?? existingPage.organizationId;
+    const contentTypeId = dto.contentTypeId ?? existingPage.contentTypeId;
+    this.assertOrganizationAccess(organizationId, actor);
+    await this.ensureActiveOrganization(organizationId);
+    await this.ensureActiveContentType(contentTypeId);
+    if (
+      organizationId !== existingPage.organizationId ||
+      contentTypeId !== existingPage.contentTypeId
+    ) {
+      await this.ensureOrganizationContentTypeIsAvailable(
+        organizationId,
+        contentTypeId,
+        id,
+      );
+    }
+
+    const page = await this.prisma.$transaction(async (transaction) => {
+      const updatedPage = await transaction.page.update({
+        where: { id },
+        data: {
+          organizationId,
+          contentTypeId,
+          ...(dto.title
+            ? {
+                title: dto.title,
+                slug: await this.generateUniqueSlug(dto.title, transaction, id),
+              }
+            : {}),
+          ...(dto.shortDescription !== undefined
+            ? { shortDescription: dto.shortDescription }
+            : {}),
+          ...(dto.content !== undefined ? { content: dto.content } : {}),
+          ...(dto.displayOrder !== undefined
+            ? { displayOrder: dto.displayOrder }
+            : {}),
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(
+        transaction,
+        actor.id,
+        'UPDATE',
+        updatedPage,
+        existingPage,
+      );
+      return updatedPage;
+    });
+    return this.toResponse(page);
+  }
+
+  async publish(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    return this.updatePublication(id, PageStatus.PUBLISHED, 'PUBLISH', actor);
+  }
+
+  async unpublish(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    return this.updatePublication(id, PageStatus.DRAFT, 'UNPUBLISH', actor);
+  }
+
+  async remove(id: number, actor: AuthenticatedUser): Promise<PageResponseDto> {
+    const page = await this.prisma.$transaction(async (transaction) => {
+      const existingPage = await transaction.page.findFirst({
+        where: { id, isDeleted: false },
+      });
+      if (!existingPage)
+        throw new NotFoundException(
+          'Page not found or has already been deleted.',
+        );
+      this.assertOrganizationAccess(existingPage.organizationId, actor);
+      const deletedPage = await transaction.page.update({
+        where: { id },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedById: actor.id,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(
+        transaction,
+        actor.id,
+        'DELETE',
+        deletedPage,
+        existingPage,
+      );
+      return deletedPage;
+    });
+    return this.toResponse(page);
+  }
+
+  async restore(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    const page = await this.prisma.$transaction(async (transaction) => {
+      const existingPage = await transaction.page.findFirst({
+        where: { id, isDeleted: true },
+      });
+      if (!existingPage) throw new NotFoundException('Deleted page not found.');
+      this.assertOrganizationAccess(existingPage.organizationId, actor);
+      await this.ensureActiveOrganization(existingPage.organizationId);
+      await this.ensureActiveContentType(existingPage.contentTypeId);
+      const restoredPage = await transaction.page.update({
+        where: { id },
+        data: {
+          isDeleted: false,
+          deletedAt: null,
+          deletedById: null,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(
+        transaction,
+        actor.id,
+        'RESTORE',
+        restoredPage,
+        existingPage,
+      );
+      return restoredPage;
+    });
+    return this.toResponse(page);
+  }
+
+  private async updatePublication(
+    id: number,
+    status: PageStatus,
+    action: 'PUBLISH' | 'UNPUBLISH',
+    actor: AuthenticatedUser,
+  ): Promise<PageResponseDto> {
+    const page = await this.prisma.$transaction(async (transaction) => {
+      const existingPage = await transaction.page.findFirst({
+        where: { id, isDeleted: false },
+      });
+      if (!existingPage)
+        throw new NotFoundException('Page not found or has been deleted.');
+      this.assertOrganizationAccess(existingPage.organizationId, actor);
+      const updatedPage = await transaction.page.update({
+        where: { id },
+        data: {
+          status,
+          publishedAt: status === PageStatus.PUBLISHED ? new Date() : null,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(
+        transaction,
+        actor.id,
+        action,
+        updatedPage,
+        existingPage,
+      );
+      return updatedPage;
+    });
+    return this.toResponse(page);
+  }
+
+  private async findActivePage(id: number): Promise<Page> {
+    const page = await this.prisma.page.findFirst({
+      where: { id, isDeleted: false },
+    });
+    if (!page)
+      throw new NotFoundException('Page not found or has been deleted.');
+    return page;
+  }
+
+  private async ensureActiveOrganization(id: number): Promise<void> {
+    const organization = await this.prisma.organization.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true },
+    });
+    if (!organization)
+      throw new NotFoundException(
+        'Organization not found or has been deleted.',
+      );
+  }
+
+  private async ensureActiveContentType(id: number): Promise<void> {
+    const contentType = await this.prisma.contentType.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true },
+    });
+    if (!contentType)
+      throw new NotFoundException(
+        'Content type not found or has been deleted.',
+      );
+  }
+
+  private async ensureOrganizationContentTypeIsAvailable(
+    organizationId: number,
+    contentTypeId: number,
+    excludedId?: number,
+  ): Promise<void> {
+    const duplicate = await this.prisma.page.findFirst({
+      where: {
+        organizationId,
+        contentTypeId,
+        ...(excludedId ? { id: { not: excludedId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (duplicate)
+      throw new ConflictException(
+        'An organization can only have one page for each content type.',
+      );
+  }
+
+  private buildWhere(
+    query: GetPagesQueryDto,
+    actor: AuthenticatedUser,
+  ): Prisma.PageWhereInput {
+    const where: Prisma.PageWhereInput = {
+      isDeleted: query.isDeleted ?? false,
+      ...(query.contentTypeId ? { contentTypeId: query.contentTypeId } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(actor.role === Role.SUPER_ADMIN
+        ? query.organizationId
+          ? { organizationId: query.organizationId }
+          : {}
+        : { organizationId: actor.organizationId }),
+    };
+    if (query.search?.trim()) {
+      where.OR = [
+        { title: { contains: query.search.trim(), mode: 'insensitive' } },
+        { slug: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          shortDescription: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
+        { content: { contains: query.search.trim(), mode: 'insensitive' } },
+      ];
+    }
+    return where;
+  }
+
+  private assertOrganizationAccess(
+    organizationId: number,
+    actor: AuthenticatedUser,
+  ): void {
+    if (
+      actor.role !== Role.SUPER_ADMIN &&
+      actor.organizationId !== organizationId
+    ) {
+      throw new ForbiddenException(
+        'You can only manage pages belonging to your organization.',
+      );
+    }
+  }
+
+  private async generateUniqueSlug(
+    title: string,
+    transaction: Prisma.TransactionClient,
+    excludedId?: number,
+  ): Promise<string> {
+    const baseSlug = this.slugify(title) || 'page';
+    let slug = baseSlug;
+    let suffix = 2;
+    while (true) {
+      const duplicate = await transaction.page.findFirst({
+        where: { slug, ...(excludedId ? { id: { not: excludedId } } : {}) },
+        select: { id: true },
+      });
+      if (!duplicate) return slug;
+
+      const suffixValue = `-${suffix++}`;
+      slug = `${baseSlug.slice(0, 255 - suffixValue.length)}${suffixValue}`;
+    }
+  }
+
+  private slugify(value: string): string {
+    return value
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 255);
+  }
+
+  private async createAuditLog(
+    transaction: Prisma.TransactionClient,
+    userId: number,
+    action: string,
+    newPage: Page,
+    previousPage?: Page,
+  ): Promise<void> {
+    await transaction.auditLog.create({
+      data: {
+        userId,
+        module: 'PAGE',
+        entity: 'PAGE',
+        entityId: newPage.id,
+        action,
+        ...(previousPage
+          ? { previousValues: this.toAuditValues(previousPage) }
+          : {}),
+        newValues: this.toAuditValues(newPage),
+      },
+    });
+  }
+
+  private toResponse(page: Page): PageResponseDto {
+    return {
+      id: page.id,
+      organizationId: page.organizationId,
+      contentTypeId: page.contentTypeId,
+      title: page.title,
+      slug: page.slug,
+      shortDescription: page.shortDescription,
+      content: page.content,
+      status: page.status,
+      displayOrder: page.displayOrder,
+      publishedAt: page.publishedAt,
+      createdAt: page.createdAt,
+      updatedAt: page.updatedAt,
+    };
+  }
+
+  private toAuditValues(page: Page): Prisma.InputJsonValue {
+    return {
+      id: page.id,
+      organizationId: page.organizationId,
+      contentTypeId: page.contentTypeId,
+      title: page.title,
+      slug: page.slug,
+      shortDescription: page.shortDescription,
+      content: page.content,
+      status: page.status,
+      displayOrder: page.displayOrder,
+      publishedAt: page.publishedAt?.toISOString() ?? null,
+      createdAt: page.createdAt.toISOString(),
+      updatedAt: page.updatedAt.toISOString(),
+      createdById: page.createdById,
+      updatedById: page.updatedById,
+      isDeleted: page.isDeleted,
+      deletedAt: page.deletedAt?.toISOString() ?? null,
+      deletedById: page.deletedById,
+    };
+  }
+}

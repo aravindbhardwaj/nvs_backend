@@ -38,7 +38,34 @@ const defaultRolePermissionKeys: Record<Role, readonly string[]> = {
   [Role.JNV]: businessPermissionKeys,
 };
 
+const mediaTypes = [
+  'Notice',
+  'Circular',
+  'Tender',
+  'Office Memorandum',
+  'Office Order',
+  'Notification',
+  'Guideline',
+  'Policy',
+  'Manual',
+  'Report',
+  'Recruitment',
+  'Training Material',
+  'Form',
+  'Other',
+] as const;
+
 async function main(): Promise<void> {
+  await Promise.all(
+    mediaTypes.map((name, displayOrder) =>
+      prisma.mediaType.upsert({
+        where: { name },
+        update: {},
+        create: { name, displayOrder },
+      }),
+    ),
+  );
+
   await Promise.all(
     permissions.map(([permissionKey, module, action, description]) =>
       prisma.permission.upsert({
