@@ -13,8 +13,11 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { TokenRefreshResponseDto } from './dto/token-refresh-response.dto';
 
 import { PasswordService } from './services/password.service';
+import { RefreshTokenService } from './services/refresh-token.service';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +26,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly passwordService: PasswordService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
   private async findUserByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
@@ -188,11 +192,13 @@ export class AuthService {
     const payload = this.buildJwtPayload(user);
 
     const accessToken = await this.generateAccessToken(payload);
+    const refreshToken = await this.refreshTokenService.issue(user.id);
 
     await this.createAuthenticationAuditLog(user.id, 'LOGIN_SUCCESS');
 
     return {
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -201,5 +207,22 @@ export class AuthService {
         organizationId: user.organizationId,
       },
     };
+  }
+
+  async refresh(dto: RefreshTokenDto): Promise<TokenRefreshResponseDto> {
+    const validatedToken = await this.refreshTokenService.validate(
+      dto.refreshToken,
+    );
+    await this.refreshTokenService.cleanupExpiredTokens();
+    const accessToken = await this.generateAccessToken(
+      this.buildJwtPayload(validatedToken.user),
+    );
+    const refreshToken = await this.refreshTokenService.rotate(validatedToken);
+
+    return { accessToken, refreshToken };
+  }
+
+  async logout(dto: RefreshTokenDto, userId: number): Promise<void> {
+    await this.refreshTokenService.revoke(dto.refreshToken, userId);
   }
 }

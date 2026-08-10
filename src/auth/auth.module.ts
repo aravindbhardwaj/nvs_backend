@@ -5,6 +5,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordService } from './services/password.service';
+import { RefreshTokenRepositoryService } from './services/refresh-token.repository.service';
+import { RefreshTokenService } from './services/refresh-token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaModule } from '../prisma/prisma.module';
 
@@ -27,6 +29,8 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [
     AuthService,
     PasswordService,
+    RefreshTokenRepositoryService,
+    RefreshTokenService,
     JwtStrategy,
   ],
 
