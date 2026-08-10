@@ -1,4 +1,10 @@
 import { Module } from '@nestjs/common';
 
-@Module({})
+import { ContentTypesController } from './content-types.controller';
+import { ContentTypesService } from './content-types.service';
+
+@Module({
+  controllers: [ContentTypesController],
+  providers: [ContentTypesService],
+})
 export class ContentTypesModule {}
