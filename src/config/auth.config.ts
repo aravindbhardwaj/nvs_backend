@@ -2,7 +2,7 @@ import { registerAs } from '@nestjs/config';
 
 export default registerAs('auth', () => ({
   bcrypt: {
-    rounds: 12,
+    rounds: Number(process.env.BCRYPT_ROUNDS ?? 12),
   },
 
   password: {
@@ -15,7 +15,7 @@ export default registerAs('auth', () => ({
   },
 
   login: {
-    maxAttempts: 5,
-    lockMinutes: 30,
+    maxAttempts: Number(process.env.MAX_LOGIN_ATTEMPTS ?? 5),
+    lockMinutes: Number(process.env.ACCOUNT_LOCK_MINUTES ?? 30),
   },
 }));

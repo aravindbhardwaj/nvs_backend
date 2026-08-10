@@ -1,6 +1,12 @@
+import { Role } from '@prisma/client';
+
 export class AuthResponseDto {
-    accessToken: string;
-    refreshToken: string;
-    tokenType = 'Bearer';
-    expiresIn: number;
-  }
+  accessToken: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: Role;
+    organizationId: number;
+  };
+}

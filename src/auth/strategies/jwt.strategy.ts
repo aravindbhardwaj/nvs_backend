@@ -26,17 +26,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: payload.userId },
     });
 
     if (
       !user ||
+      user.isDeleted ||
       user.deletedAt ||
       user.status !== UserStatus.ACTIVE ||
-      (user.lockedUntil && user.lockedUntil > new Date()) ||
-      (user.passwordChangedAt &&
-        (!payload.iat ||
-          user.passwordChangedAt.getTime() >= payload.iat * 1000))
+      (user.lockedUntil && user.lockedUntil > new Date())
     ) {
       throw new UnauthorizedException('User session is no longer valid.');
     }
