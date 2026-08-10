@@ -7,23 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//
-// ENUMS
-//
-
 enum Role {
   SUPER_ADMIN
-  HQ
-  RO
-  JNV
+  HEADQUARTER
   NLI
+  REGIONAL
+  JNV
 }
 
 enum OrganizationType {
-  HEADQUARTERS
-  REGIONAL_OFFICE
+  HEADQUARTER
   NLI
+  REGIONAL_OFFICE
   JNV
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
 }
 
 enum UserStatus {
@@ -32,304 +33,322 @@ enum UserStatus {
   LOCKED
 }
 
-enum PermissionAction {
-  CREATE
-  READ
-  UPDATE
-  DELETE
-  APPROVE
-  PUBLISH
-  DOWNLOAD
-}
-
-enum PageStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-enum MediaStatus {
-  UPLOADED
-  APPROVED
-  REJECTED
-  ARCHIVED
-}
-
-enum FormStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-enum SubmissionStatus {
-  DRAFT
-  SUBMITTED
-}
-
-enum FieldType {
-  TEXT
-  TEXTAREA
-  NUMBER
-  EMAIL
-  PASSWORD
-  DATE
-  DATETIME
-  SELECT
-  MULTI_SELECT
-  RADIO
-  CHECKBOX
-  FILE
-}
-
-enum AuditAction {
-  LOGIN
-  LOGOUT
-  CREATE
-  UPDATE
-  DELETE
-  RESTORE
-  FAILED_LOGIN
-  LOCK_ACCOUNT
-  UNLOCK_ACCOUNT
-}
-
-//
-// REGION
-//
-
 model Region {
-  id Int @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
+  regionName  String    @unique @map("region_name") @db.VarChar(150)
+  regionCode  String    @unique @map("region_code") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById Int?      @map("created_by")
+  updatedById Int?      @map("updated_by")
+  isDeleted   Boolean   @default(false) @map("is_deleted")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedById Int?      @map("deleted_by")
 
-  regionCode String @unique @map("region_code")
-  regionName String @map("region_name")
-
-  displayOrder Int @default(0) @map("display_order")
-
-  isActive Boolean @default(true) @map("is_active")
-
+  createdBy     User?          @relation("RegionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?          @relation("RegionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy     User?          @relation("RegionDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   organizations Organization[]
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([regionName])
+  @@index([regionCode])
+  @@index([isDeleted])
   @@map("nvs_regions")
 }
 
-//
-// STATE
-//
-
 model State {
-  id Int @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
+  stateName   String    @unique @map("state_name") @db.VarChar(150)
+  stateCode   String    @unique @map("state_code") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById Int?      @map("created_by")
+  updatedById Int?      @map("updated_by")
+  isDeleted   Boolean   @default(false) @map("is_deleted")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedById Int?      @map("deleted_by")
 
-  stateCode String @unique @map("state_code")
-
-  stateName String @map("state_name")
-
-  displayOrder Int @default(0) @map("display_order")
-
-  isActive Boolean @default(true) @map("is_active")
-
+  createdBy     User?          @relation("StateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?          @relation("StateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy     User?          @relation("StateDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   organizations Organization[]
 
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([stateName])
+  @@index([stateCode])
+  @@index([isDeleted])
   @@map("nvs_states")
 }
 
-//
-// ORGANIZATION
-//
-
 model Organization {
-  id Int @id @default(autoincrement())
+  id                   Int              @id @default(autoincrement())
+  organizationName     String           @map("organization_name") @db.VarChar(255)
+  organizationCode     String           @unique @map("organization_code") @db.VarChar(30)
+  organizationType     OrganizationType @map("organization_type")
+  parentOrganizationId Int?             @map("parent_organization_id")
+  regionId             Int?             @map("region_id")
+  stateId              Int?             @map("state_id")
+  address              String?          @db.Text
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  createdById          Int?             @map("created_by")
+  updatedById          Int?             @map("updated_by")
+  isDeleted            Boolean          @default(false) @map("is_deleted")
+  deletedAt            DateTime?        @map("deleted_at")
+  deletedById          Int?             @map("deleted_by")
 
-  organizationCode String @unique @map("organization_code")
-
-  organizationName String @map("organization_name")
-
-  organizationShortName String? @map("organization_short_name")
-
-  organizationType OrganizationType @map("organization_type")
-
-  parentOrganizationId Int? @map("parent_organization_id")
-
-  parentOrganization Organization? @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
-
+  parentOrganization Organization?  @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id], onDelete: Restrict)
   childOrganizations Organization[] @relation("OrganizationHierarchy")
+  region             Region?        @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  state              State?         @relation(fields: [stateId], references: [id], onDelete: Restrict)
+  createdBy          User?          @relation("OrganizationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy          User?          @relation("OrganizationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy          User?          @relation("OrganizationDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  users              User[]         @relation("UserOrganization")
+  pages              Page[]
+  media              Media[]
 
-  regionId Int? @map("region_id")
-
-  region Region? @relation(fields: [regionId], references: [id])
-
-  stateId Int? @map("state_id")
-
-  state State? @relation(fields: [stateId], references: [id])
-
-  logoMediaId Int? @map("logo_media_id")
-
-  address String? @db.Text
-
-  contactPerson String? @map("contact_person")
-
-  contactEmail String? @map("contact_email")
-
-  contactMobile String? @map("contact_mobile")
-
-  isActive Boolean @default(true) @map("is_active")
-
-  createdById Int? @map("created_by")
-
-  updatedById Int? @map("updated_by")
-
-  deletedById Int? @map("deleted_by")
-
-  deletedAt DateTime? @map("deleted_at")
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  //
-  // Relations
-  //
-
-  users User[]
-
-  pages Page[]
-
-  media Media[]
-
-  forms Form[]
-
-  formData FormData[]
-
+  @@index([organizationCode])
   @@index([organizationType])
   @@index([parentOrganizationId])
   @@index([regionId])
   @@index([stateId])
-  @@index([organizationCode])
-  @@index([organizationName])
+  @@index([isDeleted])
   @@map("nvs_organizations")
 }
 
 model User {
-  id Int @id @default(autoincrement())
+  id                    Int        @id @default(autoincrement())
+  name                  String     @db.VarChar(150)
+  email                 String     @unique @db.VarChar(255)
+  passwordHash          String     @map("password") @db.VarChar(255)
+  mobile                String?    @db.VarChar(20)
+  address               String?    @db.Text
+  role                  Role
+  organizationId        Int        @map("organization_id")
+  status                UserStatus @default(ACTIVE)
+  failedLoginAttempts   Int        @default(0) @map("failed_login_attempts")
+  lockedUntil           DateTime?  @map("locked_until")
+  lastLoginAt           DateTime?  @map("last_login_at")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+  createdById           Int?       @map("created_by")
+  updatedById           Int?       @map("updated_by")
+  isDeleted             Boolean    @default(false) @map("is_deleted")
+  deletedAt             DateTime?  @map("deleted_at")
+  deletedById           Int?       @map("deleted_by")
+  passwordResetRequired Boolean    @default(false) @map("password_reset_required")
+  passwordChangedAt     DateTime?  @map("password_changed_at")
 
-  organizationId Int @map("organization_id")
-
-  organization Organization @relation(fields: [organizationId], references: [id])
-
-  role Role
-
-  firstName String @map("first_name") @db.VarChar(100)
-
-  lastName String? @map("last_name") @db.VarChar(100)
-
-  email String @unique @db.VarChar(255)
-
-  mobile String? @unique @db.VarChar(20)
-
-  passwordHash String @map("password_hash")
-
-  passwordResetRequired Boolean @default(false) @map("password_reset_required")
-
-  status UserStatus @default(ACTIVE)
-
-  failedLoginAttempts Int @default(0) @map("failed_login_attempts")
-
-  lockedUntil DateTime? @map("locked_until")
-
-  lastLoginAt DateTime? @map("last_login")
-
-  passwordChangedAt DateTime? @map("password_changed_at")
-
-  refreshTokens RefreshToken[]
-
-  userPermissions UserPermission[]
-
-  auditLogs AuditLog[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  deletedAt DateTime? @map("deleted_at")
-
-  submittedFormData FormData[] @relation("FormSubmittedBy")
+  organization           Organization     @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy              User?            @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy              User?            @relation("UserUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy              User?            @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  createdUsers           User[]           @relation("UserCreatedBy")
+  updatedUsers           User[]           @relation("UserUpdatedBy")
+  deletedUsers           User[]           @relation("UserDeletedBy")
+  createdRegions         Region[]         @relation("RegionCreatedBy")
+  updatedRegions         Region[]         @relation("RegionUpdatedBy")
+  deletedRegions         Region[]         @relation("RegionDeletedBy")
+  createdStates          State[]          @relation("StateCreatedBy")
+  updatedStates          State[]          @relation("StateUpdatedBy")
+  deletedStates          State[]          @relation("StateDeletedBy")
+  createdOrganizations   Organization[]   @relation("OrganizationCreatedBy")
+  updatedOrganizations   Organization[]   @relation("OrganizationUpdatedBy")
+  deletedOrganizations   Organization[]   @relation("OrganizationDeletedBy")
+  createdContentTypes    ContentType[]    @relation("ContentTypeCreatedBy")
+  updatedContentTypes    ContentType[]    @relation("ContentTypeUpdatedBy")
+  deletedContentTypes    ContentType[]    @relation("ContentTypeDeletedBy")
+  createdMediaTypes      MediaType[]      @relation("MediaTypeCreatedBy")
+  updatedMediaTypes      MediaType[]      @relation("MediaTypeUpdatedBy")
+  deletedMediaTypes      MediaType[]      @relation("MediaTypeDeletedBy")
+  createdPages           Page[]           @relation("PageCreatedBy")
+  updatedPages           Page[]           @relation("PageUpdatedBy")
+  deletedPages           Page[]           @relation("PageDeletedBy")
+  createdMedia           Media[]          @relation("MediaCreatedBy")
+  updatedMedia           Media[]          @relation("MediaUpdatedBy")
+  deletedMedia           Media[]          @relation("MediaDeletedBy")
+  createdUserPermissions UserPermission[] @relation("UserPermissionCreatedBy")
+  refreshTokens          RefreshToken[]
+  userPermissions        UserPermission[] @relation("UserPermissionUser")
+  auditLogs              AuditLog[]
 
   @@index([organizationId])
   @@index([role])
   @@index([status])
-  @@index([email])
-  @@index([organizationId, status])
+  @@index([isDeleted])
   @@map("nvs_users")
 }
 
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @map("refresh_token") @db.VarChar(500)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("nvs_refresh_tokens")
+}
+
+model ContentType {
+  id           Int       @id @default(autoincrement())
+  name         String    @unique @db.VarChar(150)
+  description  String?   @db.Text
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdById  Int?      @map("created_by")
+  updatedById  Int?      @map("updated_by")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedById  Int?      @map("deleted_by")
+
+  createdBy User?  @relation("ContentTypeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?  @relation("ContentTypeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy User?  @relation("ContentTypeDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  pages     Page[]
+
+  @@index([displayOrder])
+  @@index([isDeleted])
+  @@map("nvs_content_types")
+}
+
+model MediaType {
+  id           Int       @id @default(autoincrement())
+  name         String    @unique @db.VarChar(150)
+  description  String?   @db.Text
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdById  Int?      @map("created_by")
+  updatedById  Int?      @map("updated_by")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedById  Int?      @map("deleted_by")
+
+  createdBy User?   @relation("MediaTypeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?   @relation("MediaTypeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy User?   @relation("MediaTypeDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  media     Media[]
+
+  @@index([displayOrder])
+  @@index([isDeleted])
+  @@map("nvs_media_types")
+}
+
+model Page {
+  id               Int        @id @default(autoincrement())
+  organizationId   Int        @map("organization_id")
+  contentTypeId    Int        @map("content_type_id")
+  title            String     @db.VarChar(255)
+  slug             String     @unique @db.VarChar(255)
+  shortDescription String?    @map("short_description") @db.Text
+  content          String     @db.Text
+  status           PageStatus @default(DRAFT)
+  displayOrder     Int        @default(0) @map("display_order")
+  publishedAt      DateTime?  @map("published_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+  createdById      Int?       @map("created_by")
+  updatedById      Int?       @map("updated_by")
+  isDeleted        Boolean    @default(false) @map("is_deleted")
+  deletedAt        DateTime?  @map("deleted_at")
+  deletedById      Int?       @map("deleted_by")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  contentType  ContentType  @relation(fields: [contentTypeId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?        @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy    User?        @relation("PageDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, contentTypeId])
+  @@index([organizationId])
+  @@index([contentTypeId])
+  @@index([status])
+  @@index([displayOrder])
+  @@index([isDeleted])
+  @@map("nvs_pages")
+}
+
+model Media {
+  id               Int       @id @default(autoincrement())
+  organizationId   Int       @map("organization_id")
+  mediaTypeId      Int       @map("media_type_id")
+  title            String    @db.VarChar(255)
+  description      String?   @db.Text
+  originalFilename String    @map("original_filename") @db.VarChar(255)
+  storedFilename   String    @unique @map("stored_filename") @db.VarChar(255)
+  filePath         String    @map("file_path") @db.VarChar(500)
+  mimeType         String    @map("mime_type") @db.VarChar(100)
+  extension        String    @db.VarChar(20)
+  fileSize         BigInt    @map("file_size")
+  checksum         String?   @db.VarChar(255)
+  uploadedAt       DateTime  @default(now()) @map("uploaded_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdById      Int?      @map("created_by")
+  updatedById      Int?      @map("updated_by")
+  isDeleted        Boolean   @default(false) @map("is_deleted")
+  deletedAt        DateTime? @map("deleted_at")
+  deletedById      Int?      @map("deleted_by")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  mediaType    MediaType    @relation(fields: [mediaTypeId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("MediaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?        @relation("MediaUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy    User?        @relation("MediaDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([mediaTypeId])
+  @@index([mimeType])
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@map("nvs_media")
+}
+
 model Permission {
-  id Int @id @default(autoincrement())
-
-  permissionCode String @unique @map("permission_code")
-
-  permissionName String @map("permission_name")
-
-  module String
-
-  action PermissionAction
-
-  description String? @db.Text
-
-  isActive Boolean @default(true) @map("is_active")
-
-  displayOrder Int @default(0) @map("display_order")
+  id            Int      @id @default(autoincrement())
+  permissionKey String   @unique @map("permission_key") @db.VarChar(150)
+  module        String   @db.VarChar(100)
+  action        String   @db.VarChar(100)
+  description   String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
 
   rolePermissions RolePermission[]
-
   userPermissions UserPermission[]
 
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
+  @@index([permissionKey])
   @@index([module])
-  @@index([action])
   @@map("nvs_permissions")
 }
 
 model RolePermission {
-  id Int @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
+  role         Role
+  permissionId Int      @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  role Role
-
-  permissionId Int @map("permission_id")
-
-  permission Permission @relation(fields: [permissionId], references: [id])
-
-  createdAt DateTime @default(now()) @map("created_at")
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
 
   @@unique([role, permissionId])
   @@index([role])
+  @@index([permissionId])
   @@map("nvs_role_permissions")
 }
 
 model UserPermission {
-  id Int @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  permissionId Int      @map("permission_id")
+  allowed      Boolean  @map("allowed")
+  createdAt    DateTime @default(now()) @map("created_at")
+  createdById  Int?     @map("created_by")
 
-  userId Int @map("user_id")
-
-  permissionId Int @map("permission_id")
-
-  user User @relation(fields: [userId], references: [id])
-
-  permission Permission @relation(fields: [permissionId], references: [id])
-
-  isAllowed Boolean @default(true) @map("is_allowed")
-
-  createdAt DateTime @default(now()) @map("created_at")
+  user       User       @relation("UserPermissionUser", fields: [userId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+  createdBy  User?      @relation("UserPermissionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@unique([userId, permissionId])
   @@index([userId])
@@ -337,317 +356,26 @@ model UserPermission {
   @@map("nvs_user_permissions")
 }
 
-model RefreshToken {
-  id Int @id @default(autoincrement())
-
-  userId Int @map("user_id")
-
-  user User @relation(fields: [userId], references: [id])
-
-  tokenHash String @map("token_hash")
-
-  expiresAt DateTime @map("expires_at")
-
-  revokedAt DateTime? @map("revoked_at")
-
-  ipAddress String? @map("ip_address")
-
-  userAgent String? @map("user_agent")
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("nvs_refresh_tokens")
-}
-
 model AuditLog {
-  id Int @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
+  userId         Int      @map("user_id")
+  module         String   @db.VarChar(100)
+  entity         String   @db.VarChar(100)
+  entityId       Int?     @map("entity_id")
+  action         String   @db.VarChar(100)
+  previousValues Json?    @map("previous_values")
+  newValues      Json?    @map("new_values")
+  ipAddress      String?  @map("ip_address") @db.VarChar(100)
+  userAgent      String?  @map("user_agent") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  userId Int? @map("user_id")
-
-  user User? @relation(fields: [userId], references: [id])
-
-  action AuditAction
-
-  module String
-
-  entityName String @map("entity_name")
-
-  entityId Int? @map("entity_id")
-
-  oldValues Json? @map("old_values")
-
-  newValues Json? @map("new_values")
-
-  ipAddress String? @map("ip_address")
-
-  userAgent String? @map("user_agent")
-
-  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([module])
-  @@index([entityName])
+  @@index([entity])
+  @@index([entityId])
+  @@index([action])
+  @@index([createdAt])
   @@map("nvs_audit_logs")
-}
-
-model ContentType {
-  id Int @id @default(autoincrement())
-
-  contentTypeName String @unique @map("content_type_name")
-
-  description String? @db.Text
-
-  displayOrder Int @default(0) @map("display_order")
-
-  isActive Boolean @default(true) @map("is_active")
-
-  pages Page[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([displayOrder])
-  @@map("nvs_content_types")
-}
-
-model MediaType {
-  id Int @id @default(autoincrement())
-
-  mediaTypeName String @unique @map("media_type_name")
-
-  description String? @db.Text
-
-  displayOrder Int @default(0) @map("display_order")
-
-  isActive Boolean @default(true) @map("is_active")
-
-  media Media[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([displayOrder])
-  @@map("nvs_media_types")
-}
-
-model Page {
-  id Int @id @default(autoincrement())
-
-  organizationId Int @map("organization_id")
-
-  organization Organization @relation(fields: [organizationId], references: [id])
-
-  contentTypeId Int @map("content_type_id")
-
-  contentType ContentType @relation(fields: [contentTypeId], references: [id])
-
-  title String @db.VarChar(255)
-
-  slug String @db.VarChar(255)
-
-  description String? @db.Text
-
-  content String? @db.Text
-
-  status PageStatus @default(DRAFT)
-
-  displayOrder Int @default(0) @map("display_order")
-
-  media Media[]
-
-  createdById Int? @map("created_by")
-
-  updatedById Int? @map("updated_by")
-
-  deletedById Int? @map("deleted_by")
-
-  deletedAt DateTime? @map("deleted_at")
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@unique([organizationId, contentTypeId])
-  @@unique([organizationId, slug])
-  @@index([status])
-  @@index([organizationId])
-  @@index([contentTypeId])
-  @@map("nvs_pages")
-}
-
-model Media {
-  id Int @id @default(autoincrement())
-
-  organizationId Int @map("organization_id")
-
-  organization Organization @relation(fields: [organizationId], references: [id])
-
-  pageId Int? @map("page_id")
-
-  page Page? @relation(fields: [pageId], references: [id])
-
-  mediaTypeId Int @map("media_type_id")
-
-  mediaType MediaType @relation(fields: [mediaTypeId], references: [id])
-
-  title String @db.VarChar(255)
-
-  description String? @db.Text
-
-  originalFileName String @map("original_file_name")
-
-  storedFileName String @map("stored_file_name")
-
-  filePath String @map("file_path")
-
-  mimeType String @map("mime_type")
-
-  fileExtension String @map("file_extension")
-
-  fileSize BigInt @map("file_size")
-
-  checksum String? @db.VarChar(255)
-
-  storageProvider String? @map("storage_provider")
-
-  bucketName String? @map("bucket_name")
-
-  status MediaStatus @default(UPLOADED)
-
-  uploadedById Int? @map("uploaded_by")
-
-  createdById Int? @map("created_by")
-
-  updatedById Int? @map("updated_by")
-
-  deletedById Int? @map("deleted_by")
-
-  deletedAt DateTime? @map("deleted_at")
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([organizationId])
-  @@index([pageId])
-  @@index([mediaTypeId])
-  @@index([status])
-  @@map("nvs_media")
-}
-
-model Form {
-  id Int @id @default(autoincrement())
-
-  organizationId Int          @map("organization_id")
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-
-  formCode String @unique @map("form_code")
-  formName String @map("form_name")
-
-  description String? @db.Text
-
-  version Int @default(1)
-
-  status FormStatus @default(DRAFT)
-
-  displayOrder Int @default(0) @map("display_order")
-
-  createdById Int? @map("created_by")
-  updatedById Int? @map("updated_by")
-  deletedById Int? @map("deleted_by")
-
-  deletedAt DateTime? @map("deleted_at")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  fields      FormField[]
-  submissions FormData[]
-
-  @@index([organizationId])
-  @@index([status])
-  @@index([formCode])
-  @@map("nvs_forms")
-}
-
-model FormField {
-  id Int @id @default(autoincrement())
-
-  formId Int  @map("form_id")
-  form   Form @relation(fields: [formId], references: [id], onDelete: Cascade)
-
-  fieldKey  String @map("field_key")
-  fieldName String @map("field_name")
-
-  fieldType FieldType @map("field_type")
-
-  placeholder String?
-
-  defaultValue String? @map("default_value")
-
-  validationJson Json? @map("validation_json")
-
-  isRequired Boolean @default(false) @map("is_required")
-
-  displayOrder Int @default(0) @map("display_order")
-
-  values FormDataValue[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@unique([formId, fieldKey])
-  @@index([formId])
-  @@index([displayOrder])
-  @@map("nvs_form_fields")
-}
-
-model FormData {
-  id Int @id @default(autoincrement())
-
-  formId Int  @map("form_id")
-  form   Form @relation(fields: [formId], references: [id], onDelete: Cascade)
-
-  organizationId Int          @map("organization_id")
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-
-  submittedById Int?  @map("submitted_by")
-  submittedBy   User? @relation("FormSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
-
-  status SubmissionStatus @default(SUBMITTED)
-
-  values FormDataValue[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([formId])
-  @@index([organizationId])
-  @@index([submittedById])
-  @@map("nvs_form_data")
-}
-
-model FormDataValue {
-  id Int @id @default(autoincrement())
-
-  formDataId Int      @map("form_data_id")
-  formData   FormData @relation(fields: [formDataId], references: [id], onDelete: Cascade)
-
-  formFieldId Int       @map("form_field_id")
-  formField   FormField @relation(fields: [formFieldId], references: [id], onDelete: Cascade)
-
-  valueText String? @db.Text
-
-  valueJson Json?
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@unique([formDataId, formFieldId])
-  @@index([formDataId])
-  @@index([formFieldId])
-  @@map("nvs_form_data_values")
 }

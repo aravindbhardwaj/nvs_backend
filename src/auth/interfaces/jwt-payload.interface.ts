@@ -5,4 +5,5 @@ export interface JwtPayload {
   email: string;
   role: Role;
   organizationId?: number;
+  iat?: number;
 }

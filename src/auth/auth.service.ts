@@ -4,11 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-import {
-  RefreshToken,
-  User,
-  UserStatus,
-} from '@prisma/client';
+import { RefreshToken, User, UserStatus } from '@prisma/client';
 
 import { randomBytes } from 'crypto';
 
@@ -35,10 +31,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly passwordService: PasswordService,
-  ) { }
-  private async findUserByEmail(
-    email: string,
-  ): Promise<User | null> {
+  ) {}
+  private async findUserByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: {
         email: email.toLowerCase(),
@@ -46,40 +40,26 @@ export class AuthService {
     });
   }
 
-  private async ensureUserCanLogin(
-    user: User,
-  ): Promise<void> {
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new ForbiddenException(
-        'Account is not active.',
-      );
+  private async ensureUserCanLogin(user: User): Promise<void> {
+    if (user.deletedAt || user.status !== UserStatus.ACTIVE) {
+      throw new ForbiddenException('Account is not active.');
     }
 
-    if (
-      user.lockedUntil &&
-      user.lockedUntil > new Date()
-    ) {
-      throw new ForbiddenException(
-        'Account is temporarily locked.',
-      );
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new ForbiddenException('Account is temporarily locked.');
     }
   }
 
-  private async increaseFailedAttempts(
-    user: User,
-  ): Promise<void> {
-    const maxAttempts =
-      this.configService.getOrThrow<number>(
-        'auth.login.maxAttempts',
-      );
+  private async increaseFailedAttempts(user: User): Promise<void> {
+    const maxAttempts = this.configService.getOrThrow<number>(
+      'auth.login.maxAttempts',
+    );
 
-    const lockMinutes =
-      this.configService.getOrThrow<number>(
-        'auth.login.lockMinutes',
-      );
+    const lockMinutes = this.configService.getOrThrow<number>(
+      'auth.login.lockMinutes',
+    );
 
-    const attempts =
-      user.failedLoginAttempts + 1;
+    const attempts = user.failedLoginAttempts + 1;
 
     await this.prisma.user.update({
       where: {
@@ -89,18 +69,13 @@ export class AuthService {
         failedLoginAttempts: attempts,
         lockedUntil:
           attempts >= maxAttempts
-            ? new Date(
-              Date.now() +
-              lockMinutes * 60 * 1000,
-            )
+            ? new Date(Date.now() + lockMinutes * 60 * 1000)
             : null,
       },
     });
   }
 
-  private async resetFailedAttempts(
-    userId: number,
-  ): Promise<void> {
+  private async resetFailedAttempts(userId: number): Promise<void> {
     await this.prisma.user.update({
       where: {
         id: userId,
@@ -108,76 +83,106 @@ export class AuthService {
       data: {
         failedLoginAttempts: 0,
         lockedUntil: null,
-        lastLogin: new Date(),
+        lastLoginAt: new Date(),
       },
     });
   }
 
-  private buildJwtPayload(
-    user: User,
-  ): JwtPayload {
+  private buildJwtPayload(user: User): JwtPayload {
     return {
       sub: user.id,
       email: user.email,
       role: user.role,
-      organizationId:
-        user.organizationId,
+      organizationId: user.organizationId,
     };
   }
 
-  private async generateAccessToken(
-    payload: JwtPayload,
-  ): Promise<string> {
-    return this.jwtService.signAsync(
-      payload,
-    );
+  private async generateAccessToken(payload: JwtPayload): Promise<string> {
+    return this.jwtService.signAsync(payload);
   }
 
-  private generateRefreshToken(): string {
+  private generateRefreshTokenSecret(): string {
     return randomBytes(64).toString('hex');
   }
 
-  private async createRefreshToken(
-    userId: number,
-    refreshToken: string,
-  ): Promise<void> {
-    const tokenHash =
-      await this.passwordService.hash(
-        refreshToken,
-      );
+  private async createRefreshToken(userId: number): Promise<string> {
+    const secret = this.generateRefreshTokenSecret();
+    const tokenHash = await this.passwordService.hashSecret(secret);
 
-    const expiresAt = new Date();
+    const expiresAt = new Date(Date.now() + this.getRefreshTokenTtlMs());
 
-    expiresAt.setDate(
-      expiresAt.getDate() + 30,
-    );
-
-    await this.prisma.refreshToken.create({
+    const storedToken = await this.prisma.refreshToken.create({
       data: {
         userId,
         tokenHash,
         expiresAt,
       },
     });
+
+    return `${storedToken.id}.${secret}`;
   }
 
-  private async findRefreshToken(
-    userId: number,
-  ): Promise<RefreshToken | null> {
-    return this.prisma.refreshToken.findFirst({
+  private parseRefreshToken(
+    refreshToken: string,
+  ): { id: number; secret: string } | null {
+    const [idValue, secret, ...rest] = refreshToken.split('.');
+    const id = Number(idValue);
+
+    if (rest.length > 0 || !Number.isSafeInteger(id) || id < 1 || !secret) {
+      return null;
+    }
+
+    return { id, secret };
+  }
+
+  private getRefreshTokenTtlMs(): number {
+    const expiresIn = this.configService.getOrThrow<string>(
+      'jwt.refreshExpiresIn',
+    );
+    const match = /^(\d+)([smhd])$/.exec(expiresIn);
+
+    if (!match) {
+      throw new Error('JWT_REFRESH_EXPIRES_IN must use s, m, h, or d units.');
+    }
+
+    const [, amount, unit] = match;
+    const multiplier = {
+      s: 1000,
+      m: 60 * 1000,
+      h: 60 * 60 * 1000,
+      d: 24 * 60 * 60 * 1000,
+    }[unit as 's' | 'm' | 'h' | 'd'];
+
+    return Number(amount) * multiplier;
+  }
+
+  private getAccessTokenTtlSeconds(): number {
+    const expiresIn = this.configService.getOrThrow<string>(
+      'jwt.accessExpiresIn',
+    );
+    const match = /^(\d+)([smhd])$/.exec(expiresIn);
+
+    if (!match) {
+      throw new Error('JWT_ACCESS_EXPIRES_IN must use s, m, h, or d units.');
+    }
+
+    const [, amount, unit] = match;
+    const multiplier = { s: 1, m: 60, h: 60 * 60, d: 24 * 60 * 60 }[
+      unit as 's' | 'm' | 'h' | 'd'
+    ];
+
+    return Number(amount) * multiplier;
+  }
+
+  private async findRefreshToken(id: number): Promise<RefreshToken | null> {
+    return this.prisma.refreshToken.findUnique({
       where: {
-        userId,
-        revokedAt: null,
-      },
-      orderBy: {
-        createdAt: 'desc',
+        id,
       },
     });
   }
 
-  private async revokeRefreshToken(
-    id: number,
-  ): Promise<void> {
+  private async revokeRefreshToken(id: number): Promise<void> {
     await this.prisma.refreshToken.update({
       where: {
         id,
@@ -188,9 +193,7 @@ export class AuthService {
     });
   }
 
-  private async revokeAllRefreshTokens(
-    userId: number,
-  ): Promise<void> {
+  private async revokeAllRefreshTokens(userId: number): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: {
         userId,
@@ -202,9 +205,7 @@ export class AuthService {
     });
   }
 
-  private async findUserById(
-    id: number,
-  ): Promise<User | null> {
+  private async findUserById(id: number): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: {
         id,
@@ -212,205 +213,172 @@ export class AuthService {
     });
   }
 
-  async login(
-    dto: LoginDto,
-  ): Promise<AuthResponseDto> {
-    const user =
-      await this.findUserByEmail(
-        dto.email,
-      );
+  async login(dto: LoginDto): Promise<AuthResponseDto> {
+    const user = await this.findUserByEmail(dto.email);
 
     if (!user) {
-      throw new UnauthorizedException(
-        'Invalid email or password.',
-      );
+      throw new UnauthorizedException('Invalid email or password.');
     }
 
-    await this.ensureUserCanLogin(
-      user,
-    );
+    await this.ensureUserCanLogin(user);
 
-    const valid =
-      await this.passwordService.compare(
-        dto.password,
-        user.passwordHash,
-      );
+    const valid = await this.passwordService.compare(
+      dto.password,
+      user.passwordHash,
+    );
 
     if (!valid) {
-      await this.increaseFailedAttempts(
-        user,
-      );
+      await this.increaseFailedAttempts(user);
 
-      throw new UnauthorizedException(
-        'Invalid email or password.',
-      );
+      throw new UnauthorizedException('Invalid email or password.');
     }
 
-    await this.resetFailedAttempts(
-      user.id,
-    );
+    await this.resetFailedAttempts(user.id);
 
-    const payload =
-      this.buildJwtPayload(user);
+    const payload = this.buildJwtPayload(user);
 
-    const accessToken =
-      await this.generateAccessToken(
-        payload,
-      );
+    const accessToken = await this.generateAccessToken(payload);
 
-    const refreshToken =
-      this.generateRefreshToken();
-
-    await this.createRefreshToken(
-      user.id,
-      refreshToken,
-    );
+    const refreshToken = await this.createRefreshToken(user.id);
 
     return {
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
-      expiresIn: 1800,
+      expiresIn: this.getAccessTokenTtlSeconds(),
     };
   }
 
-  async refreshToken(
-    dto: RefreshTokenDto,
-  ): Promise<AuthResponseDto> {
-    const payload =
-      await this.jwtService.verifyAsync<JwtPayload>(
-        dto.refreshToken,
-      );
+  async refreshToken(dto: RefreshTokenDto): Promise<AuthResponseDto> {
+    const parsedToken = this.parseRefreshToken(dto.refreshToken);
 
-    const storedToken =
-      await this.findRefreshToken(
-        payload.sub,
-      );
-
-    if (!storedToken) {
-      throw new UnauthorizedException(
-        'Invalid refresh token.',
-      );
+    if (!parsedToken) {
+      throw new UnauthorizedException('Invalid refresh token.');
     }
 
-    if (
-      storedToken.expiresAt <
-      new Date()
-    ) {
-      throw new UnauthorizedException(
-        'Refresh token expired.',
-      );
+    const storedToken = await this.findRefreshToken(parsedToken.id);
+
+    if (!storedToken) {
+      throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    if (storedToken.expiresAt <= new Date()) {
+      throw new UnauthorizedException('Refresh token expired.');
     }
 
     if (storedToken.revokedAt) {
-      throw new UnauthorizedException(
-        'Refresh token revoked.',
-      );
+      throw new UnauthorizedException('Refresh token revoked.');
     }
 
-    const matches =
-      await this.passwordService.compare(
-        dto.refreshToken,
-        storedToken.tokenHash,
-      );
+    const matches = await this.passwordService.compare(
+      parsedToken.secret,
+      storedToken.tokenHash,
+    );
 
     if (!matches) {
-      throw new UnauthorizedException(
-        'Invalid refresh token.',
-      );
+      throw new UnauthorizedException('Invalid refresh token.');
     }
 
-    await this.revokeRefreshToken(
-      storedToken.id,
+    const user = await this.findUserById(storedToken.userId);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    await this.ensureUserCanLogin(user);
+
+    const refreshToken = await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.refreshToken.updateMany({
+        where: { id: storedToken.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      if (revoked.count !== 1) {
+        throw new UnauthorizedException('Refresh token has already been used.');
+      }
+
+      const secret = this.generateRefreshTokenSecret();
+      const tokenHash = await this.passwordService.hashSecret(secret);
+      const nextToken = await tx.refreshToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt: new Date(Date.now() + this.getRefreshTokenTtlMs()),
+        },
+      });
+
+      return `${nextToken.id}.${secret}`;
+    });
+
+    const accessToken = await this.generateAccessToken(
+      this.buildJwtPayload(user),
     );
-
-    const refreshToken =
-      this.generateRefreshToken();
-
-    await this.createRefreshToken(
-      payload.sub,
-      refreshToken,
-    );
-
-    const accessToken =
-      await this.generateAccessToken(
-        payload,
-      );
 
     return {
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
-      expiresIn: 1800,
+      expiresIn: this.getAccessTokenTtlSeconds(),
     };
   }
 
-  async logout(
-    refreshToken: string,
-  ): Promise<void> {
-    const payload =
-      await this.jwtService.verifyAsync<JwtPayload>(
-        refreshToken,
-      );
+  async logout(user: AuthenticatedUser, refreshToken: string): Promise<void> {
+    const parsedToken = this.parseRefreshToken(refreshToken);
 
-    const storedToken =
-      await this.findRefreshToken(
-        payload.sub,
-      );
-
-    if (!storedToken) {
-      return;
+    if (!parsedToken) {
+      throw new UnauthorizedException('Invalid refresh token.');
     }
 
-    await this.revokeRefreshToken(
-      storedToken.id,
+    const storedToken = await this.findRefreshToken(parsedToken.id);
+
+    if (
+      !storedToken ||
+      storedToken.userId !== user.id ||
+      storedToken.revokedAt
+    ) {
+      throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    const matches = await this.passwordService.compare(
+      parsedToken.secret,
+      storedToken.tokenHash,
     );
+
+    if (!matches) {
+      throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    await this.revokeRefreshToken(storedToken.id);
   }
 
   async changePassword(
     user: AuthenticatedUser,
     dto: ChangePasswordDto,
   ): Promise<void> {
-    const dbUser =
-      await this.findUserById(
-        user.id,
-      );
+    const dbUser = await this.findUserById(user.id);
 
     if (!dbUser) {
-      throw new UnauthorizedException(
-        'User not found.',
-      );
+      throw new UnauthorizedException('User not found.');
     }
 
-    const valid =
-      await this.passwordService.compare(
-        dto.currentPassword,
-        dbUser.passwordHash,
-      );
+    const valid = await this.passwordService.compare(
+      dto.currentPassword,
+      dbUser.passwordHash,
+    );
 
     if (!valid) {
-      throw new UnauthorizedException(
-        'Current password is incorrect.',
-      );
+      throw new UnauthorizedException('Current password is incorrect.');
     }
 
-    if (
-      dto.currentPassword ===
-      dto.newPassword
-    ) {
+    if (dto.currentPassword === dto.newPassword) {
       throw new ForbiddenException(
         'New password must be different from the current password.',
       );
     }
 
-    await this.passwordService.validate(
-      dto.newPassword,
-    );
+    await this.passwordService.validate(dto.newPassword);
 
-    const passwordHash =
-      await this.passwordService.hash(
-        dto.newPassword,
-      );
+    const passwordHash = await this.passwordService.hash(dto.newPassword);
 
     await this.prisma.user.update({
       where: {
@@ -418,17 +386,13 @@ export class AuthService {
       },
       data: {
         passwordHash,
-        passwordChangedAt:
-          new Date(),
-        passwordResetRequired:
-          false,
+        passwordChangedAt: new Date(),
+        passwordResetRequired: false,
         failedLoginAttempts: 0,
         lockedUntil: null,
       },
     });
 
-    await this.revokeAllRefreshTokens(
-      dbUser.id,
-    );
+    await this.revokeAllRefreshTokens(dbUser.id);
   }
 }
