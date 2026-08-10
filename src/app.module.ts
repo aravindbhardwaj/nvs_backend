@@ -12,6 +12,7 @@ import { PagesModule } from './pages/pages.module';
 import { MediaModule } from './media/media.module';
 import { FormsModule } from './forms/forms.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { PermissionsModule } from './permissions/permissions.module';
 import configuration from './config';
 
 @Module({
@@ -22,7 +23,17 @@ import configuration from './config';
       expandVariables: true,
       load: configuration,
     }),
-    PrismaModule, AuthModule, UsersModule, OrganizationsModule, ContentTypesModule, MediaTypesModule, PagesModule, MediaModule, FormsModule, AuditLogsModule
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    OrganizationsModule,
+    ContentTypesModule,
+    MediaTypesModule,
+    PagesModule,
+    MediaModule,
+    FormsModule,
+    AuditLogsModule,
+    PermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
