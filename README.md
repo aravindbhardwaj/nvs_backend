@@ -31,6 +31,16 @@
 $ npm install
 ```
 
+## Database seed
+
+After configuring `DATABASE_URL`, initialize the development data with:
+
+```bash
+npx prisma db seed
+```
+
+The seed is idempotent and creates regions, all Indian states and union territories, the organization hierarchy, permissions, default role permissions, five sample users, content types, media types, and sample pages. Set `SEED_USER_PASSWORD` to choose the initial password for newly created sample users; otherwise the documented development default is used. Re-running the seed preserves existing user password hashes.
+
 ## Compile and run the project
 
 ```bash
