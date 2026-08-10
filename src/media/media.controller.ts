@@ -1,0 +1,166 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Role } from '@prisma/client';
+import type { Response } from 'express';
+
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { GetMediaQueryDto } from './dto/get-media-query.dto';
+import { UpdateMediaDto } from './dto/update-media.dto';
+import { UploadMediaDto } from './dto/upload-media.dto';
+import { MAX_UPLOAD_SIZE } from './media.constants';
+import { MediaService } from './media.service';
+import { mediaStorage, validateMediaFile } from './media.storage';
+
+const uploadOptions = {
+  storage: mediaStorage,
+  limits: { fileSize: MAX_UPLOAD_SIZE },
+  fileFilter: (
+    _request: unknown,
+    file: Express.Multer.File,
+    callback: (error: Error | null, acceptFile: boolean) => void,
+  ) => {
+    try {
+      validateMediaFile(file);
+      callback(null, true);
+    } catch (error) {
+      callback(error as Error, false);
+    }
+  },
+};
+
+@Controller('api/media')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
+export class MediaController {
+  constructor(private readonly mediaService: MediaService) {}
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', uploadOptions))
+  async upload(
+    @Body() dto: UploadMediaDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!file) throw new BadRequestException('A document file is required.');
+    try {
+      return {
+        message: 'Document uploaded successfully.',
+        data: await this.mediaService.upload(dto, file, user),
+      };
+    } catch (error) {
+      await this.mediaService.cleanupUploadedFile(file);
+      throw error;
+    }
+  }
+
+  @Get()
+  async findAll(
+    @Query() query: GetMediaQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Media retrieved successfully.',
+      data: await this.mediaService.findAll(query, user),
+    };
+  }
+
+  @Get(':id/download')
+  async download(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() response: Response,
+  ): Promise<void> {
+    const document = await this.mediaService.download(id, user);
+    response.setHeader('Content-Type', document.mimeType);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(document.filename)}`,
+    );
+    document.stream.on('error', () => response.destroy());
+    document.stream.pipe(response);
+  }
+
+  @Get(':id')
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Media retrieved successfully.',
+      data: await this.mediaService.findOne(id, user),
+    };
+  }
+
+  @Put(':id/file')
+  @UseInterceptors(FileInterceptor('file', uploadOptions))
+  async replaceFile(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!file) throw new BadRequestException('A document file is required.');
+    try {
+      return {
+        message: 'Document replaced successfully.',
+        data: await this.mediaService.replaceFile(id, file, user),
+      };
+    } catch (error) {
+      await this.mediaService.cleanupUploadedFile(file);
+      throw error;
+    }
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateMediaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Media metadata updated successfully.',
+      data: await this.mediaService.update(id, dto, user),
+    };
+  }
+
+  @Delete(':id')
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Media deleted successfully.',
+      data: await this.mediaService.remove(id, user),
+    };
+  }
+
+  @Patch(':id/restore')
+  async restore(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Media restored successfully.',
+      data: await this.mediaService.restore(id, user),
+    };
+  }
+}
