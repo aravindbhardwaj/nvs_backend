@@ -16,6 +16,7 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { RolePermissionsModule } from './role-permissions/role-permissions.module';
 import { UserPermissionsModule } from './user-permissions/user-permissions.module';
 import { RegionsModule } from './regions/regions.module';
+import { StatesModule } from './states/states.module';
 import configuration from './config';
 
 @Module({
@@ -40,6 +41,7 @@ import configuration from './config';
     RolePermissionsModule,
     UserPermissionsModule,
     RegionsModule,
+    StatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
