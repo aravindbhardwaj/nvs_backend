@@ -17,15 +17,13 @@ import {
   import { CurrentUser } from './decorators/current-user.decorator';
   
   import type { AuthenticatedUser } from './interfaces/authenticated-user.interface';
-  import { Public } from '../common/decorators/public.decorator';
-  
+    
   @Controller('auth')
   export class AuthController {
     constructor(
       private readonly authService: AuthService,
     ) {}
   
-    @Public()
     @Post('login')
     @HttpCode(HttpStatus.OK)
     async login(
@@ -37,7 +35,6 @@ import {
       };
     }
   
-    @Public()
     @Post('refresh')
     @HttpCode(HttpStatus.OK)
     async refresh(
