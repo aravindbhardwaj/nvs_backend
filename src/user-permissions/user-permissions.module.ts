@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { AuthModule } from '../auth/auth.module';
 import { UserPermissionsController } from './user-permissions.controller';
 import { UserPermissionsService } from './user-permissions.service';
 
 @Module({
+  imports: [AuthModule],
   controllers: [UserPermissionsController],
-  providers: [UserPermissionsService, RolesGuard],
+  providers: [UserPermissionsService],
 })
 export class UserPermissionsModule {}

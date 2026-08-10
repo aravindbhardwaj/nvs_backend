@@ -11,14 +11,16 @@ import { Role } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { ReplaceRolePermissionsDto } from './dto/replace-role-permissions.dto';
 import { RolePermissionsService } from './role-permissions.service';
 
 @Controller('api/role-permissions')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles(Role.SUPER_ADMIN)
 export class RolePermissionsController {
   constructor(
@@ -26,6 +28,7 @@ export class RolePermissionsController {
   ) {}
 
   @Get(':role')
+  @RequirePermission('ORGANIZATION_VIEW')
   async findByRole(@Param('role', new ParseEnumPipe(Role)) role: Role) {
     return {
       message: 'Role permissions retrieved successfully.',
@@ -34,6 +37,7 @@ export class RolePermissionsController {
   }
 
   @Put(':role')
+  @RequirePermission('ORGANIZATION_UPDATE')
   async replace(
     @Param('role', new ParseEnumPipe(Role)) role: Role,
     @Body() dto: ReplaceRolePermissionsDto,

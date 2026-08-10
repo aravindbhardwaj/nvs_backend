@@ -15,7 +15,9 @@ import { Role } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { CreateMediaTypeDto } from './dto/create-media-type.dto';
@@ -24,12 +26,13 @@ import { UpdateMediaTypeDto } from './dto/update-media-type.dto';
 import { MediaTypesService } from './media-types.service';
 
 @Controller('api/media-types')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles(Role.SUPER_ADMIN)
 export class MediaTypesController {
   constructor(private readonly mediaTypesService: MediaTypesService) {}
 
   @Post()
+  @RequirePermission('ORGANIZATION_CREATE')
   async create(
     @Body() dto: CreateMediaTypeDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -41,6 +44,7 @@ export class MediaTypesController {
   }
 
   @Get()
+  @RequirePermission('ORGANIZATION_VIEW')
   async findAll(@Query() query: GetMediaTypesQueryDto) {
     return {
       message: 'Media types retrieved successfully.',
@@ -49,6 +53,7 @@ export class MediaTypesController {
   }
 
   @Get(':id')
+  @RequirePermission('ORGANIZATION_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return {
       message: 'Media type retrieved successfully.',
@@ -57,6 +62,7 @@ export class MediaTypesController {
   }
 
   @Put(':id')
+  @RequirePermission('ORGANIZATION_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMediaTypeDto,
@@ -69,6 +75,7 @@ export class MediaTypesController {
   }
 
   @Delete(':id')
+  @RequirePermission('ORGANIZATION_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -80,6 +87,7 @@ export class MediaTypesController {
   }
 
   @Patch(':id/restore')
+  @RequirePermission('ORGANIZATION_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

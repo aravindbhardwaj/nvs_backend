@@ -14,8 +14,12 @@ import {
 import { Role } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OrganizationOwned } from '../auth/decorators/organization-owned-resource.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationOwnershipGuard } from '../auth/guards/organization-ownership.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { CreatePageDto } from './dto/create-page.dto';
@@ -24,12 +28,14 @@ import { UpdatePageDto } from './dto/update-page.dto';
 import { PagesService } from './pages.service';
 
 @Controller('api/pages')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, OrganizationOwnershipGuard)
 @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
+@OrganizationOwned('page')
 export class PagesController {
   constructor(private readonly pagesService: PagesService) {}
 
   @Post()
+  @RequirePermission('PAGE_CREATE')
   async create(
     @Body() dto: CreatePageDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -41,6 +47,7 @@ export class PagesController {
   }
 
   @Get()
+  @RequirePermission('PAGE_VIEW')
   async findAll(
     @Query() query: GetPagesQueryDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -52,6 +59,7 @@ export class PagesController {
   }
 
   @Get('slug/:slug')
+  @RequirePermission('PAGE_VIEW')
   async findBySlug(
     @Param('slug') slug: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -63,6 +71,7 @@ export class PagesController {
   }
 
   @Get(':id')
+  @RequirePermission('PAGE_VIEW')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -74,6 +83,7 @@ export class PagesController {
   }
 
   @Put(':id')
+  @RequirePermission('PAGE_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePageDto,
@@ -86,6 +96,7 @@ export class PagesController {
   }
 
   @Patch(':id/publish')
+  @RequirePermission('PAGE_UPDATE')
   async publish(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -97,6 +108,7 @@ export class PagesController {
   }
 
   @Patch(':id/unpublish')
+  @RequirePermission('PAGE_UPDATE')
   async unpublish(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -108,6 +120,7 @@ export class PagesController {
   }
 
   @Delete(':id')
+  @RequirePermission('PAGE_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -119,6 +132,7 @@ export class PagesController {
   }
 
   @Patch(':id/restore')
+  @RequirePermission('PAGE_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

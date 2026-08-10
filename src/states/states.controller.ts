@@ -15,7 +15,9 @@ import { Role } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { CreateStateDto } from './dto/create-state.dto';
@@ -24,12 +26,13 @@ import { UpdateStateDto } from './dto/update-state.dto';
 import { StatesService } from './states.service';
 
 @Controller('api/states')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles(Role.SUPER_ADMIN)
 export class StatesController {
   constructor(private readonly statesService: StatesService) {}
 
   @Post()
+  @RequirePermission('ORGANIZATION_CREATE')
   async create(
     @Body() dto: CreateStateDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -41,6 +44,7 @@ export class StatesController {
   }
 
   @Get()
+  @RequirePermission('ORGANIZATION_VIEW')
   async findAll(@Query() query: GetStatesQueryDto) {
     return {
       message: 'States retrieved successfully.',
@@ -49,6 +53,7 @@ export class StatesController {
   }
 
   @Get(':id')
+  @RequirePermission('ORGANIZATION_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return {
       message: 'State retrieved successfully.',
@@ -57,6 +62,7 @@ export class StatesController {
   }
 
   @Put(':id')
+  @RequirePermission('ORGANIZATION_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateStateDto,
@@ -69,6 +75,7 @@ export class StatesController {
   }
 
   @Delete(':id')
+  @RequirePermission('ORGANIZATION_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -80,6 +87,7 @@ export class StatesController {
   }
 
   @Patch(':id/restore')
+  @RequirePermission('ORGANIZATION_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

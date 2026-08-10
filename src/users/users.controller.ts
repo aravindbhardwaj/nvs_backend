@@ -15,7 +15,9 @@ import { Role } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -24,12 +26,13 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
 @Controller('api/users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles(Role.SUPER_ADMIN)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @RequirePermission('USER_CREATE')
   async create(
     @Body() dto: CreateUserDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -41,6 +44,7 @@ export class UsersController {
   }
 
   @Get()
+  @RequirePermission('USER_VIEW')
   async findAll(@Query() query: GetUsersQueryDto) {
     return {
       message: 'Users retrieved successfully.',
@@ -49,6 +53,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @RequirePermission('USER_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return {
       message: 'User retrieved successfully.',
@@ -57,6 +62,7 @@ export class UsersController {
   }
 
   @Put(':id')
+  @RequirePermission('USER_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
@@ -69,6 +75,7 @@ export class UsersController {
   }
 
   @Patch(':id/activate')
+  @RequirePermission('USER_UPDATE')
   async activate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -80,6 +87,7 @@ export class UsersController {
   }
 
   @Patch(':id/deactivate')
+  @RequirePermission('USER_UPDATE')
   async deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -91,6 +99,7 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @RequirePermission('USER_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -102,6 +111,7 @@ export class UsersController {
   }
 
   @Patch(':id/restore')
+  @RequirePermission('USER_RESTORE')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

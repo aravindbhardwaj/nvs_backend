@@ -1,5 +1,4 @@
 import {
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -11,6 +10,7 @@ import { access, readFile, unlink } from 'node:fs/promises';
 import { basename, relative, resolve } from 'node:path';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -22,7 +22,10 @@ import { UPLOADS_ROOT, validateMediaFile } from './media.storage';
 
 @Injectable()
 export class MediaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ownership: OrganizationOwnershipService,
+  ) {}
 
   async upload(
     dto: UploadMediaDto,
@@ -59,15 +62,7 @@ export class MediaService {
     query: GetMediaQueryDto,
     actor: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<MediaResponseDto>> {
-    if (
-      actor.role !== Role.SUPER_ADMIN &&
-      query.organizationId &&
-      query.organizationId !== actor.organizationId
-    ) {
-      throw new ForbiddenException(
-        'You can only view media belonging to your organization.',
-      );
-    }
+    if (query.organizationId) this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
     const orderBy: Prisma.MediaOrderByWithRelationInput = {
       [query.sort]: query.order,
@@ -92,7 +87,7 @@ export class MediaService {
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
     const media = await this.findActiveMedia(id);
-    this.assertOrganizationAccess(media.organizationId, actor);
+    this.ownership.assertAccess(media.organizationId, actor);
     return this.toResponse(media);
   }
 
@@ -105,7 +100,7 @@ export class MediaService {
     mimeType: string;
   }> {
     const media = await this.findActiveMedia(id);
-    this.assertOrganizationAccess(media.organizationId, actor);
+    this.ownership.assertAccess(media.organizationId, actor);
     const filePath = this.absolutePath(media.filePath);
     try {
       await access(filePath);
@@ -125,7 +120,7 @@ export class MediaService {
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
     const existing = await this.findActiveMedia(id);
-    this.assertOrganizationAccess(existing.organizationId, actor);
+    this.ownership.assertAccess(existing.organizationId, actor);
     if (dto.mediaTypeId !== undefined)
       await this.ensureActiveMediaType(dto.mediaTypeId);
     const media = await this.prisma.$transaction(async (transaction) => {
@@ -152,7 +147,7 @@ export class MediaService {
   ): Promise<MediaResponseDto> {
     validateMediaFile(file);
     const existing = await this.findActiveMedia(id);
-    this.assertOrganizationAccess(existing.organizationId, actor);
+    this.ownership.assertAccess(existing.organizationId, actor);
     const replacementData = {
       originalFilename: this.sanitizeFilename(file.originalname),
       storedFilename: file.filename,
@@ -210,7 +205,7 @@ export class MediaService {
         throw new NotFoundException(
           'Media not found or has already been deleted.',
         );
-      this.assertOrganizationAccess(existing.organizationId, actor);
+      this.ownership.assertAccess(existing.organizationId, actor);
       const deletedMedia = await transaction.media.update({
         where: { id },
         data: {
@@ -241,7 +236,7 @@ export class MediaService {
         where: { id, isDeleted: true },
       });
       if (!existing) throw new NotFoundException('Deleted media not found.');
-      this.assertOrganizationAccess(existing.organizationId, actor);
+      this.ownership.assertAccess(existing.organizationId, actor);
       await this.ensureActiveMediaType(existing.mediaTypeId);
       const restoredMedia = await transaction.media.update({
         where: { id },
@@ -311,20 +306,6 @@ export class MediaService {
         },
       ];
     return where;
-  }
-
-  private assertOrganizationAccess(
-    organizationId: number,
-    actor: AuthenticatedUser,
-  ): void {
-    if (
-      actor.role !== Role.SUPER_ADMIN &&
-      actor.organizationId !== organizationId
-    ) {
-      throw new ForbiddenException(
-        'You can only manage media belonging to your organization.',
-      );
-    }
   }
 
   private async createAuditLog(

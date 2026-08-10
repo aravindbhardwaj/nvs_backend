@@ -1,12 +1,12 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Page, PageStatus, Prisma, Role } from '@prisma/client';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -17,13 +17,16 @@ import { UpdatePageDto } from './dto/update-page.dto';
 
 @Injectable()
 export class PagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ownership: OrganizationOwnershipService,
+  ) {}
 
   async create(
     dto: CreatePageDto,
     actor: AuthenticatedUser,
   ): Promise<PageResponseDto> {
-    this.assertOrganizationAccess(dto.organizationId, actor);
+    this.ownership.assertAccess(dto.organizationId, actor);
     await this.ensureActiveOrganization(dto.organizationId);
     await this.ensureActiveContentType(dto.contentTypeId);
     await this.ensureOrganizationContentTypeIsAvailable(
@@ -59,15 +62,7 @@ export class PagesService {
     query: GetPagesQueryDto,
     actor: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<PageResponseDto>> {
-    if (
-      actor.role !== Role.SUPER_ADMIN &&
-      query.organizationId &&
-      query.organizationId !== actor.organizationId
-    ) {
-      throw new ForbiddenException(
-        'You can only view pages belonging to your organization.',
-      );
-    }
+    if (query.organizationId) this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
     const orderBy: Prisma.PageOrderByWithRelationInput = {
       [query.sort]: query.order,
@@ -92,7 +87,7 @@ export class PagesService {
     actor: AuthenticatedUser,
   ): Promise<PageResponseDto> {
     const page = await this.findActivePage(id);
-    this.assertOrganizationAccess(page.organizationId, actor);
+    this.ownership.assertAccess(page.organizationId, actor);
     return this.toResponse(page);
   }
 
@@ -104,7 +99,7 @@ export class PagesService {
       where: { slug, isDeleted: false },
     });
     if (!page) throw new NotFoundException('Page not found.');
-    this.assertOrganizationAccess(page.organizationId, actor);
+    this.ownership.assertAccess(page.organizationId, actor);
     return this.toResponse(page);
   }
 
@@ -114,10 +109,10 @@ export class PagesService {
     actor: AuthenticatedUser,
   ): Promise<PageResponseDto> {
     const existingPage = await this.findActivePage(id);
-    this.assertOrganizationAccess(existingPage.organizationId, actor);
+    this.ownership.assertAccess(existingPage.organizationId, actor);
     const organizationId = dto.organizationId ?? existingPage.organizationId;
     const contentTypeId = dto.contentTypeId ?? existingPage.contentTypeId;
-    this.assertOrganizationAccess(organizationId, actor);
+    this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     await this.ensureActiveContentType(contentTypeId);
     if (
@@ -188,7 +183,7 @@ export class PagesService {
         throw new NotFoundException(
           'Page not found or has already been deleted.',
         );
-      this.assertOrganizationAccess(existingPage.organizationId, actor);
+      this.ownership.assertAccess(existingPage.organizationId, actor);
       const deletedPage = await transaction.page.update({
         where: { id },
         data: {
@@ -219,7 +214,7 @@ export class PagesService {
         where: { id, isDeleted: true },
       });
       if (!existingPage) throw new NotFoundException('Deleted page not found.');
-      this.assertOrganizationAccess(existingPage.organizationId, actor);
+      this.ownership.assertAccess(existingPage.organizationId, actor);
       await this.ensureActiveOrganization(existingPage.organizationId);
       await this.ensureActiveContentType(existingPage.contentTypeId);
       const restoredPage = await transaction.page.update({
@@ -255,7 +250,7 @@ export class PagesService {
       });
       if (!existingPage)
         throw new NotFoundException('Page not found or has been deleted.');
-      this.assertOrganizationAccess(existingPage.organizationId, actor);
+      this.ownership.assertAccess(existingPage.organizationId, actor);
       const updatedPage = await transaction.page.update({
         where: { id },
         data: {
@@ -354,20 +349,6 @@ export class PagesService {
       ];
     }
     return where;
-  }
-
-  private assertOrganizationAccess(
-    organizationId: number,
-    actor: AuthenticatedUser,
-  ): void {
-    if (
-      actor.role !== Role.SUPER_ADMIN &&
-      actor.organizationId !== organizationId
-    ) {
-      throw new ForbiddenException(
-        'You can only manage pages belonging to your organization.',
-      );
-    }
   }
 
   private async generateUniqueSlug(

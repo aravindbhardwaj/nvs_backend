@@ -20,8 +20,12 @@ import { Role } from '@prisma/client';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OrganizationOwned } from '../auth/decorators/organization-owned-resource.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationOwnershipGuard } from '../auth/guards/organization-ownership.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { GetMediaQueryDto } from './dto/get-media-query.dto';
@@ -49,12 +53,14 @@ const uploadOptions = {
 };
 
 @Controller('api/media')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, OrganizationOwnershipGuard)
 @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
+@OrganizationOwned('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
   @Post('upload')
+  @RequirePermission('MEDIA_UPLOAD')
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   async upload(
     @Body() dto: UploadMediaDto,
@@ -74,6 +80,7 @@ export class MediaController {
   }
 
   @Get()
+  @RequirePermission('MEDIA_VIEW')
   async findAll(
     @Query() query: GetMediaQueryDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -85,6 +92,7 @@ export class MediaController {
   }
 
   @Get(':id/download')
+  @RequirePermission('MEDIA_VIEW')
   async download(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -101,6 +109,7 @@ export class MediaController {
   }
 
   @Get(':id')
+  @RequirePermission('MEDIA_VIEW')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -112,6 +121,7 @@ export class MediaController {
   }
 
   @Put(':id/file')
+  @RequirePermission('MEDIA_UPLOAD')
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   async replaceFile(
     @Param('id', ParseIntPipe) id: number,
@@ -131,6 +141,7 @@ export class MediaController {
   }
 
   @Put(':id')
+  @RequirePermission('MEDIA_UPLOAD')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMediaDto,
@@ -143,6 +154,7 @@ export class MediaController {
   }
 
   @Delete(':id')
+  @RequirePermission('MEDIA_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -154,6 +166,7 @@ export class MediaController {
   }
 
   @Patch(':id/restore')
+  @RequirePermission('MEDIA_UPLOAD')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
