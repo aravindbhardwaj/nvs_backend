@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -22,6 +22,22 @@ const permissions = [
   ['AUDIT_LOG_VIEW', 'AUDIT_LOG', 'VIEW', 'View audit logs.'],
 ] as const;
 
+const businessPermissionKeys = [
+  'PAGE_VIEW',
+  'PAGE_CREATE',
+  'PAGE_UPDATE',
+  'MEDIA_UPLOAD',
+  'MEDIA_VIEW',
+] as const;
+
+const defaultRolePermissionKeys: Record<Role, readonly string[]> = {
+  [Role.SUPER_ADMIN]: permissions.map(([permissionKey]) => permissionKey),
+  [Role.HEADQUARTER]: businessPermissionKeys,
+  [Role.NLI]: businessPermissionKeys,
+  [Role.REGIONAL]: businessPermissionKeys,
+  [Role.JNV]: businessPermissionKeys,
+};
+
 async function main(): Promise<void> {
   await Promise.all(
     permissions.map(([permissionKey, module, action, description]) =>
@@ -30,6 +46,37 @@ async function main(): Promise<void> {
         update: {},
         create: { permissionKey, module, action, description },
       }),
+    ),
+  );
+
+  const seededPermissions = await prisma.permission.findMany({
+    select: { id: true, permissionKey: true },
+  });
+  const permissionsByKey = new Map(
+    seededPermissions.map((permission) => [
+      permission.permissionKey,
+      permission.id,
+    ]),
+  );
+
+  await prisma.$transaction(
+    Object.entries(defaultRolePermissionKeys).flatMap(
+      ([role, permissionKeys]) =>
+        permissionKeys.map((permissionKey) =>
+          prisma.rolePermission.upsert({
+            where: {
+              role_permissionId: {
+                role: role as Role,
+                permissionId: permissionsByKey.get(permissionKey)!,
+              },
+            },
+            update: {},
+            create: {
+              role: role as Role,
+              permissionId: permissionsByKey.get(permissionKey)!,
+            },
+          }),
+        ),
     ),
   );
 }

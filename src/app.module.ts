@@ -13,6 +13,7 @@ import { MediaModule } from './media/media.module';
 import { FormsModule } from './forms/forms.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { PermissionsModule } from './permissions/permissions.module';
+import { RolePermissionsModule } from './role-permissions/role-permissions.module';
 import configuration from './config';
 
 @Module({
@@ -34,6 +35,7 @@ import configuration from './config';
     FormsModule,
     AuditLogsModule,
     PermissionsModule,
+    RolePermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
