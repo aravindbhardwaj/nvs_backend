@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -19,15 +20,21 @@ import { RolesGuard } from './guards/roles.guard';
 @Module({
   imports: [
     PrismaModule,
+    ThrottlerModule.forRoot([
+      {
+        ttl: Number(process.env.AUTH_RATE_LIMIT_TTL_MS ?? 60_000),
+        limit: Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS ?? 5),
+      },
+    ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('jwt.secret'),
         signOptions: {
-          expiresIn: config.getOrThrow('jwt.accessExpiresIn') as `${number}${'s' | 'm' | 'h' | 'd'}`,
+          expiresIn: config.getOrThrow('jwt.accessExpiresIn'),
         },
       }),
-    })
+    }),
   ],
 
   controllers: [AuthController],

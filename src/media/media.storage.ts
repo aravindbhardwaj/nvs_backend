@@ -6,7 +6,7 @@ import { mkdirSync } from 'node:fs';
 
 import { ALLOWED_MEDIA_TYPES } from './media.constants';
 
-export const UPLOADS_ROOT = join(process.cwd(), 'uploads');
+export const UPLOADS_ROOT = join(process.cwd(), 'resources', 'media_uploads');
 
 export function validateMediaFile(file: Express.Multer.File): void {
   const extension = extname(file.originalname).slice(1).toLowerCase();

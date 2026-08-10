@@ -11,10 +11,6 @@ export const ALLOWED_MEDIA_TYPES: Readonly<Record<string, readonly string[]>> =
     pptx: [
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     ],
-    odt: ['application/vnd.oasis.opendocument.text'],
-    ods: ['application/vnd.oasis.opendocument.spreadsheet'],
-    odp: ['application/vnd.oasis.opendocument.presentation'],
-    txt: ['text/plain'],
   };
 
 const configuredUploadSize = Number(process.env.MAX_UPLOAD_SIZE);
