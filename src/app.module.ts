@@ -14,6 +14,7 @@ import { FormsModule } from './forms/forms.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { RolePermissionsModule } from './role-permissions/role-permissions.module';
+import { UserPermissionsModule } from './user-permissions/user-permissions.module';
 import configuration from './config';
 
 @Module({
@@ -36,6 +37,7 @@ import configuration from './config';
     AuditLogsModule,
     PermissionsModule,
     RolePermissionsModule,
+    UserPermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
