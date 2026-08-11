@@ -12,6 +12,12 @@ const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 export class UploadMediaDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  organizationId?: number;
+
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()

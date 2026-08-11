@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 const trimValue = ({ value }: { value: unknown }): unknown =>
@@ -16,6 +17,12 @@ const toBoolean = ({ value }: { value: unknown }): unknown =>
   value === undefined ? undefined : value === true || value === 'true';
 
 export class CreateBannerDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  organizationId?: number;
+
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()

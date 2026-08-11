@@ -33,11 +33,14 @@ export class MediaService {
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
     validateMediaFile(file);
+    const organizationId = dto.organizationId ?? actor.organizationId;
+    this.ownership.assertAccess(organizationId, actor);
+    await this.ensureActiveOrganization(organizationId);
     await this.ensureActiveMediaType(dto.mediaTypeId);
     const media = await this.prisma.$transaction(async (transaction) => {
       const createdMedia = await transaction.media.create({
         data: {
-          organizationId: actor.organizationId,
+          organizationId,
           mediaTypeId: dto.mediaTypeId,
           title: dto.title,
           description: dto.description ?? null,
@@ -62,7 +65,8 @@ export class MediaService {
     query: GetMediaQueryDto,
     actor: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<MediaResponseDto>> {
-    if (query.organizationId) this.ownership.assertAccess(query.organizationId, actor);
+    if (query.organizationId)
+      this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
     const orderBy: Prisma.MediaOrderByWithRelationInput = {
       [query.sort]: query.order,
@@ -279,6 +283,17 @@ export class MediaService {
     });
     if (!mediaType)
       throw new NotFoundException('Media type not found or has been deleted.');
+  }
+
+  private async ensureActiveOrganization(id: number): Promise<void> {
+    const organization = await this.prisma.organization.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true },
+    });
+    if (!organization)
+      throw new NotFoundException(
+        'Organization not found or has been deleted.',
+      );
   }
 
   private buildWhere(

@@ -35,10 +35,13 @@ export class GalleryService {
     actor: AuthenticatedUser,
   ): Promise<GalleryImageResponseDto> {
     await validateGalleryImage(file);
+    const organizationId = dto.organizationId ?? actor.organizationId;
+    this.ownership.assertAccess(organizationId, actor);
+    await this.ensureActiveOrganization(organizationId);
     const image = await this.prisma.$transaction(async (tx) => {
       const created = await tx.galleryImage.create({
         data: {
-          organizationId: actor.organizationId,
+          organizationId,
           title: dto.title,
           description: dto.description ?? null,
           altText: dto.altText ?? null,
@@ -65,12 +68,15 @@ export class GalleryService {
     actor: AuthenticatedUser,
   ): Promise<GalleryImageResponseDto[]> {
     await Promise.all(files.map(validateGalleryImage));
+    const organizationId = dto.organizationId ?? actor.organizationId;
+    this.ownership.assertAccess(organizationId, actor);
+    await this.ensureActiveOrganization(organizationId);
     const images = await this.prisma.$transaction(async (tx) =>
       Promise.all(
         files.map(async (file, index) => {
           const created = await tx.galleryImage.create({
             data: {
-              organizationId: actor.organizationId,
+              organizationId,
               title: dto.title || this.filenameTitle(file.originalname),
               description: dto.description ?? null,
               altText: dto.altText ?? null,
@@ -322,6 +328,16 @@ export class GalleryService {
         'Gallery image not found or has been deleted.',
       );
     return image;
+  }
+  private async ensureActiveOrganization(id: number): Promise<void> {
+    const organization = await this.prisma.organization.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true },
+    });
+    if (!organization)
+      throw new NotFoundException(
+        'Organization not found or has been deleted.',
+      );
   }
   private where(
     query: GetGalleryImagesQueryDto,

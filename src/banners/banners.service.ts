@@ -35,10 +35,13 @@ export class BannersService {
   ): Promise<BannerResponseDto> {
     await validateBannerImage(file);
     this.assertDisplayDates(dto.startDate, dto.endDate);
+    const organizationId = dto.organizationId ?? actor.organizationId;
+    this.ownership.assertAccess(organizationId, actor);
+    await this.ensureActiveOrganization(organizationId);
     const banner = await this.prisma.$transaction(async (transaction) => {
       const createdBanner = await transaction.banner.create({
         data: {
-          organizationId: actor.organizationId,
+          organizationId,
           title: dto.title,
           description: dto.description ?? null,
           altText: dto.altText ?? null,
@@ -242,6 +245,17 @@ export class BannersService {
     const banner = await this.prisma.banner.findFirst({ where: { id, isDeleted: false } });
     if (!banner) throw new NotFoundException('Banner not found or has been deleted.');
     return banner;
+  }
+
+  private async ensureActiveOrganization(id: number): Promise<void> {
+    const organization = await this.prisma.organization.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true },
+    });
+    if (!organization)
+      throw new NotFoundException(
+        'Organization not found or has been deleted.',
+      );
   }
 
   private buildWhere(query: GetBannersQueryDto, actor: AuthenticatedUser): Prisma.BannerWhereInput {
