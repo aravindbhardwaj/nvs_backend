@@ -261,6 +261,10 @@ export const PERMISSIONS = [
   ['MEDIA_UPLOAD', 'MEDIA', 'UPLOAD', 'Upload media.'],
   ['MEDIA_VIEW', 'MEDIA', 'VIEW', 'View media.'],
   ['MEDIA_DELETE', 'MEDIA', 'DELETE', 'Delete media.'],
+  ['BANNER_CREATE', 'BANNER', 'CREATE', 'Create banners.'],
+  ['BANNER_VIEW', 'BANNER', 'VIEW', 'View banners.'],
+  ['BANNER_UPDATE', 'BANNER', 'UPDATE', 'Update banners.'],
+  ['BANNER_DELETE', 'BANNER', 'DELETE', 'Delete banners.'],
   ['AUDIT_LOG_VIEW', 'AUDIT_LOG', 'VIEW', 'View audit logs.'],
 ] as const;
 
@@ -270,6 +274,10 @@ const BUSINESS_PERMISSION_KEYS = [
   'PAGE_UPDATE',
   'MEDIA_UPLOAD',
   'MEDIA_VIEW',
+  'BANNER_CREATE',
+  'BANNER_VIEW',
+  'BANNER_UPDATE',
+  'BANNER_DELETE',
 ] as const;
 
 export const ROLE_PERMISSIONS: Record<Role, readonly string[]> = {

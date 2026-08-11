@@ -1,0 +1,350 @@
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Banner, Prisma, Role } from '@prisma/client';
+import { createReadStream } from 'node:fs';
+import { access, unlink } from 'node:fs/promises';
+import { relative, resolve } from 'node:path';
+
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { PaginationUtil } from '../common/utils/pagination.util';
+import { PrismaService } from '../prisma/prisma.service';
+import { BANNER_UPLOADS_ROOT, validateBannerImage } from './banner.storage';
+import { BannerResponseDto, PublicBannerResponseDto } from './dto/banner-response.dto';
+import { CreateBannerDto } from './dto/create-banner.dto';
+import { GetBannersQueryDto } from './dto/get-banners-query.dto';
+import { GetPublicBannersQueryDto } from './dto/get-public-banners-query.dto';
+import { UpdateBannerDto } from './dto/update-banner.dto';
+
+@Injectable()
+export class BannersService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ownership: OrganizationOwnershipService,
+  ) {}
+
+  async create(
+    dto: CreateBannerDto,
+    file: Express.Multer.File,
+    actor: AuthenticatedUser,
+  ): Promise<BannerResponseDto> {
+    await validateBannerImage(file);
+    this.assertDisplayDates(dto.startDate, dto.endDate);
+    const banner = await this.prisma.$transaction(async (transaction) => {
+      const createdBanner = await transaction.banner.create({
+        data: {
+          organizationId: actor.organizationId,
+          title: dto.title,
+          description: dto.description ?? null,
+          altText: dto.altText ?? null,
+          storedFilename: file.filename,
+          imagePath: this.toStoredPath(file.path),
+          mimeType: file.mimetype,
+          extension: this.extensionOf(file.originalname),
+          fileSize: BigInt(file.size),
+          displayOrder: dto.displayOrder ?? 0,
+          isActive: dto.isActive ?? true,
+          startDate: dto.startDate ?? null,
+          endDate: dto.endDate ?? null,
+          createdById: actor.id,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(transaction, actor.id, 'CREATE', createdBanner);
+      return createdBanner;
+    });
+    return this.toResponse(banner);
+  }
+
+  async findAll(
+    query: GetBannersQueryDto,
+    actor: AuthenticatedUser,
+  ): Promise<PaginatedResponseDto<BannerResponseDto>> {
+    if (query.organizationId) this.ownership.assertAccess(query.organizationId, actor);
+    const where = this.buildWhere(query, actor);
+    const orderBy: Prisma.BannerOrderByWithRelationInput = { [query.sort]: query.order };
+    const [banners, totalItems] = await this.prisma.$transaction([
+      this.prisma.banner.findMany({
+        where,
+        orderBy,
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.banner.count({ where }),
+    ]);
+    return {
+      items: banners.map((banner) => this.toResponse(banner)),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  async findOne(id: number, actor: AuthenticatedUser): Promise<BannerResponseDto> {
+    const banner = await this.findActiveBanner(id);
+    this.ownership.assertAccess(banner.organizationId, actor);
+    return this.toResponse(banner);
+  }
+
+  async update(
+    id: number,
+    dto: UpdateBannerDto,
+    actor: AuthenticatedUser,
+  ): Promise<BannerResponseDto> {
+    const existing = await this.findActiveBanner(id);
+    this.ownership.assertAccess(existing.organizationId, actor);
+    this.assertDisplayDates(
+      dto.startDate === undefined ? existing.startDate : dto.startDate,
+      dto.endDate === undefined ? existing.endDate : dto.endDate,
+    );
+    const banner = await this.prisma.$transaction(async (transaction) => {
+      const updatedBanner = await transaction.banner.update({
+        where: { id },
+        data: { ...dto, updatedById: actor.id },
+      });
+      await this.createAuditLog(transaction, actor.id, 'UPDATE', updatedBanner, existing);
+      return updatedBanner;
+    });
+    return this.toResponse(banner);
+  }
+
+  async replaceImage(
+    id: number,
+    file: Express.Multer.File,
+    actor: AuthenticatedUser,
+  ): Promise<BannerResponseDto> {
+    await validateBannerImage(file);
+    const existing = await this.findActiveBanner(id);
+    this.ownership.assertAccess(existing.organizationId, actor);
+    const replacementData = {
+      storedFilename: file.filename,
+      imagePath: this.toStoredPath(file.path),
+      mimeType: file.mimetype,
+      extension: this.extensionOf(file.originalname),
+      fileSize: BigInt(file.size),
+      updatedById: actor.id,
+    };
+    const banner = await this.prisma.$transaction(async (transaction) => {
+      const updatedBanner = await transaction.banner.update({ where: { id }, data: replacementData });
+      await this.createAuditLog(transaction, actor.id, 'REPLACE_IMAGE', updatedBanner, existing);
+      return updatedBanner;
+    });
+    try {
+      await this.removePhysicalFile(existing.imagePath);
+    } catch {
+      await this.prisma.banner.update({
+        where: { id },
+        data: {
+          storedFilename: existing.storedFilename,
+          imagePath: existing.imagePath,
+          mimeType: existing.mimeType,
+          extension: existing.extension,
+          fileSize: existing.fileSize,
+          updatedById: existing.updatedById,
+        },
+      });
+      await this.removePhysicalFile(replacementData.imagePath).catch(() => undefined);
+      throw new InternalServerErrorException('Unable to replace the existing banner image.');
+    }
+    return this.toResponse(banner);
+  }
+
+  async setActive(id: number, isActive: boolean, actor: AuthenticatedUser): Promise<BannerResponseDto> {
+    const existing = await this.findActiveBanner(id);
+    this.ownership.assertAccess(existing.organizationId, actor);
+    const banner = await this.prisma.$transaction(async (transaction) => {
+      const updatedBanner = await transaction.banner.update({ where: { id }, data: { isActive, updatedById: actor.id } });
+      await this.createAuditLog(transaction, actor.id, isActive ? 'ACTIVATE' : 'DEACTIVATE', updatedBanner, existing);
+      return updatedBanner;
+    });
+    return this.toResponse(banner);
+  }
+
+  async remove(id: number, actor: AuthenticatedUser): Promise<BannerResponseDto> {
+    const banner = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.banner.findFirst({ where: { id, isDeleted: false } });
+      if (!existing) throw new NotFoundException('Banner not found or has already been deleted.');
+      this.ownership.assertAccess(existing.organizationId, actor);
+      const deletedBanner = await transaction.banner.update({
+        where: { id },
+        data: { isDeleted: true, deletedAt: new Date(), deletedById: actor.id, updatedById: actor.id },
+      });
+      await this.createAuditLog(transaction, actor.id, 'DELETE', deletedBanner, existing);
+      return deletedBanner;
+    });
+    return this.toResponse(banner);
+  }
+
+  async restore(id: number, actor: AuthenticatedUser): Promise<BannerResponseDto> {
+    const banner = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.banner.findFirst({ where: { id, isDeleted: true } });
+      if (!existing) throw new NotFoundException('Deleted banner not found.');
+      this.ownership.assertAccess(existing.organizationId, actor);
+      const restoredBanner = await transaction.banner.update({
+        where: { id },
+        data: { isDeleted: false, deletedAt: null, deletedById: null, updatedById: actor.id },
+      });
+      await this.createAuditLog(transaction, actor.id, 'RESTORE', restoredBanner, existing);
+      return restoredBanner;
+    });
+    return this.toResponse(banner);
+  }
+
+  async findDisplayable(
+    query: GetPublicBannersQueryDto,
+  ): Promise<PaginatedResponseDto<PublicBannerResponseDto>> {
+    const where = this.displayableWhere(query.organizationId);
+    const [banners, totalItems] = await this.prisma.$transaction([
+      this.prisma.banner.findMany({
+        where,
+        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.banner.count({ where }),
+    ]);
+    return {
+      items: banners.map((banner) => this.toPublicResponse(banner)),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  async imageStream(id: number, actor: AuthenticatedUser): Promise<{ stream: ReturnType<typeof createReadStream>; mimeType: string }> {
+    const banner = await this.findActiveBanner(id);
+    this.ownership.assertAccess(banner.organizationId, actor);
+    return this.openImage(banner);
+  }
+
+  async publicImageStream(id: number): Promise<{ stream: ReturnType<typeof createReadStream>; mimeType: string }> {
+    const banner = await this.prisma.banner.findFirst({ where: { id, ...this.displayableWhere() } });
+    if (!banner) throw new NotFoundException('Displayable banner not found.');
+    return this.openImage(banner);
+  }
+
+  async cleanupUploadedFile(file?: Express.Multer.File): Promise<void> {
+    if (file) await unlink(file.path).catch(() => undefined);
+  }
+
+  private async openImage(banner: Banner): Promise<{ stream: ReturnType<typeof createReadStream>; mimeType: string }> {
+    const imagePath = this.absolutePath(banner.imagePath);
+    try {
+      await access(imagePath);
+    } catch {
+      throw new NotFoundException('The banner image is no longer available.');
+    }
+    return { stream: createReadStream(imagePath), mimeType: banner.mimeType };
+  }
+
+  private async findActiveBanner(id: number): Promise<Banner> {
+    const banner = await this.prisma.banner.findFirst({ where: { id, isDeleted: false } });
+    if (!banner) throw new NotFoundException('Banner not found or has been deleted.');
+    return banner;
+  }
+
+  private buildWhere(query: GetBannersQueryDto, actor: AuthenticatedUser): Prisma.BannerWhereInput {
+    const where: Prisma.BannerWhereInput = {
+      isDeleted: query.isDeleted ?? false,
+      ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
+      ...(actor.role === Role.SUPER_ADMIN
+        ? query.organizationId ? { organizationId: query.organizationId } : {}
+        : { organizationId: actor.organizationId }),
+    };
+    if (query.search?.trim()) {
+      where.OR = [
+        { title: { contains: query.search.trim(), mode: 'insensitive' } },
+        { description: { contains: query.search.trim(), mode: 'insensitive' } },
+        { altText: { contains: query.search.trim(), mode: 'insensitive' } },
+      ];
+    }
+    return where;
+  }
+
+  private displayableWhere(organizationId?: number): Prisma.BannerWhereInput {
+    const now = new Date();
+    return {
+      isDeleted: false,
+      isActive: true,
+      ...(organizationId ? { organizationId } : {}),
+      AND: [
+        { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+        { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+      ],
+    };
+  }
+
+  private assertDisplayDates(startDate?: Date | null, endDate?: Date | null): void {
+    if (startDate && endDate && endDate < startDate) {
+      throw new BadRequestException('End date must not be earlier than start date.');
+    }
+  }
+
+  private async createAuditLog(transaction: Prisma.TransactionClient, userId: number, action: string, banner: Banner, previousBanner?: Banner): Promise<void> {
+    await transaction.auditLog.create({
+      data: {
+        userId,
+        module: 'BANNER',
+        entity: 'BANNER',
+        entityId: banner.id,
+        action,
+        ...(previousBanner ? { previousValues: this.toAuditValues(previousBanner) } : {}),
+        newValues: this.toAuditValues(banner),
+      },
+    });
+  }
+
+  private toResponse(banner: Banner): BannerResponseDto {
+    return {
+      id: banner.id, organizationId: banner.organizationId, title: banner.title,
+      description: banner.description, altText: banner.altText,
+      imageUrl: `/api/banners/${banner.id}/image`, mimeType: banner.mimeType,
+      extension: banner.extension, fileSize: banner.fileSize.toString(),
+      displayOrder: banner.displayOrder, isActive: banner.isActive,
+      startDate: banner.startDate, endDate: banner.endDate, createdAt: banner.createdAt,
+      updatedAt: banner.updatedAt, isDeleted: banner.isDeleted,
+    };
+  }
+
+  private toPublicResponse(banner: Banner): PublicBannerResponseDto {
+    return {
+      id: banner.id, organizationId: banner.organizationId, title: banner.title,
+      description: banner.description, altText: banner.altText,
+      imageUrl: `/api/public/banners/${banner.id}/image`, displayOrder: banner.displayOrder,
+      startDate: banner.startDate, endDate: banner.endDate,
+    };
+  }
+
+  private toAuditValues(banner: Banner): Prisma.InputJsonValue {
+    return {
+      id: banner.id, organizationId: banner.organizationId, title: banner.title,
+      description: banner.description, altText: banner.altText,
+      storedFilename: banner.storedFilename, imagePath: banner.imagePath,
+      mimeType: banner.mimeType, extension: banner.extension, fileSize: banner.fileSize.toString(),
+      displayOrder: banner.displayOrder, isActive: banner.isActive,
+      startDate: banner.startDate?.toISOString() ?? null, endDate: banner.endDate?.toISOString() ?? null,
+      isDeleted: banner.isDeleted, deletedAt: banner.deletedAt?.toISOString() ?? null,
+    };
+  }
+
+  private extensionOf(filename: string): string {
+    return filename.slice(filename.lastIndexOf('.') + 1).toLowerCase();
+  }
+
+  private toStoredPath(filePath: string): string {
+    return relative(process.cwd(), filePath);
+  }
+
+  private absolutePath(filePath: string): string {
+    const absolutePath = resolve(process.cwd(), filePath);
+    if (!absolutePath.startsWith(`${BANNER_UPLOADS_ROOT}/`)) {
+      throw new NotFoundException('Banner image not found.');
+    }
+    return absolutePath;
+  }
+
+  private async removePhysicalFile(filePath: string): Promise<void> {
+    await unlink(this.absolutePath(filePath));
+  }
+}

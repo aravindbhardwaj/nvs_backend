@@ -1138,7 +1138,63 @@ is_deleted
 
 ---
 
-# 16.10 nvs_permissions
+# 16.10 nvs_banners
+
+## Purpose
+
+Stores organization-owned banner image metadata. Physical image files remain on
+local disk and are never stored in PostgreSQL.
+
+### Columns
+
+| Column | Type | Constraints |
+|---------|------|-------------|
+| id | SERIAL | PK |
+| organization_id | INTEGER | FK → nvs_organizations.id, NOT NULL |
+| title | VARCHAR(255) | NOT NULL |
+| description | TEXT | NULL |
+| alt_text | VARCHAR(255) | NULL |
+| stored_filename | VARCHAR(255) | UNIQUE, NOT NULL |
+| image_path | VARCHAR(500) | NOT NULL |
+| mime_type | VARCHAR(100) | NOT NULL |
+| extension | VARCHAR(20) | NOT NULL |
+| file_size | BIGINT | NOT NULL |
+| display_order | INTEGER | DEFAULT 0 |
+| is_active | BOOLEAN | DEFAULT TRUE |
+| start_date | TIMESTAMP | NULL |
+| end_date | TIMESTAMP | NULL |
+| created_at | TIMESTAMP | NOT NULL |
+| updated_at | TIMESTAMP | NOT NULL |
+| created_by | INTEGER | FK → nvs_users.id |
+| updated_by | INTEGER | FK → nvs_users.id |
+| is_deleted | BOOLEAN | DEFAULT FALSE |
+| deleted_at | TIMESTAMP | NULL |
+| deleted_by | INTEGER | FK → nvs_users.id |
+
+### Business Rules
+
+- Each banner belongs to exactly one organization.
+- `end_date` must not precede `start_date`.
+- Public consumers receive only active, non-deleted banners in their display window.
+- Banner images are stored under the configured local banner upload directory.
+
+### Indexes
+
+```
+organization_id
+
+is_active
+
+display_order
+
+organization_id, is_active, display_order
+
+is_deleted
+```
+
+---
+
+# 16.11 nvs_permissions
 
 ## Purpose
 
@@ -1206,7 +1262,7 @@ module
 
 ---
 
-# 16.11 nvs_role_permissions
+# 16.12 nvs_role_permissions
 
 ## Purpose
 
@@ -1273,7 +1329,7 @@ permission_id
 
 ---
 
-# 16.12 nvs_user_permissions
+# 16.13 nvs_user_permissions
 
 ## Purpose
 
@@ -1340,7 +1396,7 @@ permission_id
 
 ---
 
-# 16.13 nvs_audit_logs
+# 16.14 nvs_audit_logs
 
 ## Purpose
 
@@ -1501,6 +1557,7 @@ erDiagram
     NVS_ORGANIZATIONS ||--o{ NVS_USERS : has
     NVS_ORGANIZATIONS ||--o{ NVS_PAGES : owns
     NVS_ORGANIZATIONS ||--o{ NVS_MEDIA : owns
+    NVS_ORGANIZATIONS ||--o{ NVS_BANNERS : owns
 
     NVS_CONTENT_TYPES ||--o{ NVS_PAGES : categorizes
 

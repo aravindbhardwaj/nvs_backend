@@ -56,7 +56,9 @@ export class OrganizationOwnershipGuard implements CanActivate {
     if (id) {
       const record = resource === 'page'
         ? await this.prisma.page.findUnique({ where: { id }, select: { organizationId: true } })
-        : await this.prisma.media.findUnique({ where: { id }, select: { organizationId: true } });
+        : resource === 'media'
+          ? await this.prisma.media.findUnique({ where: { id }, select: { organizationId: true } })
+          : await this.prisma.banner.findUnique({ where: { id }, select: { organizationId: true } });
       if (record) {
         this.ownership.assertAccess(record.organizationId, user);
       }
