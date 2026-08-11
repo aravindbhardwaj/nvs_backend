@@ -105,6 +105,7 @@ model Organization {
   pages              Page[]
   media              Media[]
   banners            Banner[]
+  galleryImages      GalleryImage[]
 
   @@index([organizationCode])
   @@index([organizationType])
@@ -169,6 +170,9 @@ model User {
   createdBanners         Banner[]         @relation("BannerCreatedBy")
   updatedBanners         Banner[]         @relation("BannerUpdatedBy")
   deletedBanners         Banner[]         @relation("BannerDeletedBy")
+  createdGalleryImages   GalleryImage[]   @relation("GalleryImageCreatedBy")
+  updatedGalleryImages   GalleryImage[]   @relation("GalleryImageUpdatedBy")
+  deletedGalleryImages   GalleryImage[]   @relation("GalleryImageDeletedBy")
   createdUserPermissions UserPermission[] @relation("UserPermissionCreatedBy")
   refreshTokens          RefreshToken[]
   userPermissions        UserPermission[] @relation("UserPermissionUser")
@@ -346,6 +350,40 @@ model Banner {
   @@index([organizationId, isActive, displayOrder])
   @@index([isDeleted])
   @@map("nvs_banners")
+}
+
+model GalleryImage {
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  title          String    @db.VarChar(255)
+  description    String?   @db.Text
+  altText        String?   @map("alt_text") @db.VarChar(255)
+  storedFilename String    @unique @map("stored_filename") @db.VarChar(255)
+  imagePath      String    @map("image_path") @db.VarChar(500)
+  mimeType       String    @map("mime_type") @db.VarChar(100)
+  extension      String    @map("extension") @db.VarChar(20)
+  fileSize       BigInt    @map("file_size")
+  displayOrder   Int       @default(0) @map("display_order")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdById    Int?      @map("created_by")
+  updatedById    Int?      @map("updated_by")
+  isDeleted      Boolean   @default(false) @map("is_deleted")
+  deletedAt      DateTime? @map("deleted_at")
+  deletedById    Int?      @map("deleted_by")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("GalleryImageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?        @relation("GalleryImageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy    User?        @relation("GalleryImageDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([displayOrder])
+  @@index([organizationId, isActive, displayOrder])
+  @@index([isDeleted])
+  @@map("nvs_gallery_images")
 }
 
 model Permission {

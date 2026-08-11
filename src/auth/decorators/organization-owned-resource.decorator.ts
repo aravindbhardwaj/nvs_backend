@@ -1,6 +1,7 @@
 import { SetMetadata } from '@nestjs/common';
 
-export type OrganizationOwnedResource = 'page' | 'media' | 'banner';
+export type OrganizationOwnedResource =
+  'page' | 'media' | 'banner' | 'galleryImage';
 
 export const ORGANIZATION_OWNED_RESOURCE_KEY = 'organization_owned_resource';
 

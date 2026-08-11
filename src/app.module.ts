@@ -18,6 +18,7 @@ import { UserPermissionsModule } from './user-permissions/user-permissions.modul
 import { RegionsModule } from './regions/regions.module';
 import { StatesModule } from './states/states.module';
 import { BannersModule } from './banners/banners.module';
+import { GalleryModule } from './gallery/gallery.module';
 import configuration from './config';
 
 @Module({
@@ -44,6 +45,7 @@ import configuration from './config';
     RegionsModule,
     StatesModule,
     BannersModule,
+    GalleryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

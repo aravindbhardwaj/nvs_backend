@@ -1194,7 +1194,62 @@ is_deleted
 
 ---
 
-# 16.11 nvs_permissions
+# 16.11 nvs_gallery_images
+
+## Purpose
+
+Stores organization-owned gallery image metadata. Physical image files remain on
+local disk and are never stored in PostgreSQL. Albums are intentionally omitted
+because the current CMS has no shared category architecture for image assets.
+
+### Columns
+
+| Column | Type | Constraints |
+|---------|------|-------------|
+| id | SERIAL | PK |
+| organization_id | INTEGER | FK → nvs_organizations.id, NOT NULL |
+| title | VARCHAR(255) | NOT NULL |
+| description | TEXT | NULL |
+| alt_text | VARCHAR(255) | NULL |
+| stored_filename | VARCHAR(255) | UNIQUE, NOT NULL |
+| image_path | VARCHAR(500) | NOT NULL |
+| mime_type | VARCHAR(100) | NOT NULL |
+| extension | VARCHAR(20) | NOT NULL |
+| file_size | BIGINT | NOT NULL |
+| display_order | INTEGER | DEFAULT 0 |
+| is_active | BOOLEAN | DEFAULT TRUE |
+| created_at | TIMESTAMP | NOT NULL |
+| updated_at | TIMESTAMP | NOT NULL |
+| created_by | INTEGER | FK → nvs_users.id |
+| updated_by | INTEGER | FK → nvs_users.id |
+| is_deleted | BOOLEAN | DEFAULT FALSE |
+| deleted_at | TIMESTAMP | NULL |
+| deleted_by | INTEGER | FK → nvs_users.id |
+
+### Business Rules
+
+- Each image belongs to exactly one organization and is never assigned from client input.
+- Management reads and mutations are restricted to the authenticated user's organization, except for SUPER_ADMIN.
+- Public consumers receive only active, non-deleted images ordered by `display_order ASC`, then `created_at DESC`.
+- Gallery images are stored under the configured local gallery upload directory.
+
+### Indexes
+
+```
+organization_id
+
+is_active
+
+display_order
+
+organization_id, is_active, display_order
+
+is_deleted
+```
+
+---
+
+# 16.12 nvs_permissions
 
 ## Purpose
 
@@ -1558,6 +1613,7 @@ erDiagram
     NVS_ORGANIZATIONS ||--o{ NVS_PAGES : owns
     NVS_ORGANIZATIONS ||--o{ NVS_MEDIA : owns
     NVS_ORGANIZATIONS ||--o{ NVS_BANNERS : owns
+    NVS_ORGANIZATIONS ||--o{ NVS_GALLERY_IMAGES : owns
 
     NVS_CONTENT_TYPES ||--o{ NVS_PAGES : categorizes
 

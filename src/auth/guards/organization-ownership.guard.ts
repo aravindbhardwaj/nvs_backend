@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 
@@ -23,10 +19,11 @@ export class OrganizationOwnershipGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const resource = this.reflector.getAllAndOverride<OrganizationOwnedResource>(
-      ORGANIZATION_OWNED_RESOURCE_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const resource =
+      this.reflector.getAllAndOverride<OrganizationOwnedResource>(
+        ORGANIZATION_OWNED_RESOURCE_KEY,
+        [context.getHandler(), context.getClass()],
+      );
 
     if (!resource) {
       return true;
@@ -54,11 +51,26 @@ export class OrganizationOwnershipGuard implements CanActivate {
 
     const id = this.toPositiveInteger(request.params?.id);
     if (id) {
-      const record = resource === 'page'
-        ? await this.prisma.page.findUnique({ where: { id }, select: { organizationId: true } })
-        : resource === 'media'
-          ? await this.prisma.media.findUnique({ where: { id }, select: { organizationId: true } })
-          : await this.prisma.banner.findUnique({ where: { id }, select: { organizationId: true } });
+      const record =
+        resource === 'page'
+          ? await this.prisma.page.findUnique({
+              where: { id },
+              select: { organizationId: true },
+            })
+          : resource === 'media'
+            ? await this.prisma.media.findUnique({
+                where: { id },
+                select: { organizationId: true },
+              })
+            : resource === 'banner'
+              ? await this.prisma.banner.findUnique({
+                  where: { id },
+                  select: { organizationId: true },
+                })
+              : await this.prisma.galleryImage.findUnique({
+                  where: { id },
+                  select: { organizationId: true },
+                });
       if (record) {
         this.ownership.assertAccess(record.organizationId, user);
       }
