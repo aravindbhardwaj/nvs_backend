@@ -62,6 +62,7 @@ import { RolesGuard } from './guards/roles.guard';
     PermissionsGuard,
     OrganizationOwnershipGuard,
     OrganizationOwnershipService,
+    EffectivePermissionsService,
   ],
 })
 export class AuthModule {}
