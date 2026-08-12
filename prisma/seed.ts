@@ -6,6 +6,7 @@ import {
   DEFAULT_SEED_PASSWORD,
   MEDIA_TYPES,
   ORGANIZATIONS,
+  ORGANIZATION_TYPES,
   PERMISSIONS,
   REGIONS,
   ROLE_PERMISSIONS,
@@ -20,12 +21,33 @@ const prisma = new PrismaClient();
 async function main(): Promise<void> {
   await seedRegions();
   await seedStates();
-  const organizationsByCode = await seedOrganizations();
+  const organizationTypesByCode = await seedOrganizationTypes();
+  const organizationsByCode = await seedOrganizations(organizationTypesByCode);
   const permissionsByKey = await seedPermissions();
   await seedRolePermissions(permissionsByKey);
   const usersByEmail = await seedUsers(organizationsByCode);
   const contentTypesByName = await seedReferenceData();
   await seedSamplePages(organizationsByCode, contentTypesByName, usersByEmail);
+}
+
+async function seedOrganizationTypes(): Promise<Map<string, number>> {
+  await Promise.all(
+    ORGANIZATION_TYPES.map((organizationType) =>
+      prisma.organizationType.upsert({
+        where: { id: organizationType.id },
+        update: {
+          code: organizationType.code,
+          name: organizationType.name,
+          isActive: true,
+        },
+        create: organizationType,
+      }),
+    ),
+  );
+  const organizationTypes = await prisma.organizationType.findMany({
+    select: { id: true, code: true },
+  });
+  return new Map(organizationTypes.map(({ id, code }) => [code, id]));
 }
 
 async function seedRegions(): Promise<void> {
@@ -62,7 +84,9 @@ async function seedStates(): Promise<void> {
   );
 }
 
-async function seedOrganizations(): Promise<Map<string, number>> {
+async function seedOrganizations(
+  organizationTypesByCode: Map<string, number>,
+): Promise<Map<string, number>> {
   const regions = await prisma.region.findMany({
     select: { id: true, regionCode: true },
   });
@@ -84,12 +108,19 @@ async function seedOrganizations(): Promise<Map<string, number>> {
         `Seed parent organization ${organization.parentCode} was not resolved.`,
       );
     }
+    const organizationTypeId = organizationTypesByCode.get(
+      organization.typeCode,
+    );
+    if (!organizationTypeId)
+      throw new Error(
+        `Seed organization type ${organization.typeCode} was not resolved.`,
+      );
 
     const record = await prisma.organization.upsert({
       where: { organizationCode: organization.code },
       update: {
         organizationName: organization.name,
-        organizationType: organization.type,
+        organizationTypeId,
         parentOrganizationId,
         regionId: organization.regionCode
           ? (regionIds.get(organization.regionCode) ?? null)
@@ -104,7 +135,7 @@ async function seedOrganizations(): Promise<Map<string, number>> {
       create: {
         organizationName: organization.name,
         organizationCode: organization.code,
-        organizationType: organization.type,
+        organizationTypeId,
         parentOrganizationId,
         regionId: organization.regionCode
           ? (regionIds.get(organization.regionCode) ?? null)

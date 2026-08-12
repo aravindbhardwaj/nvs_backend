@@ -1,21 +1,21 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsEnum,
   IsIn,
   IsInt,
   IsOptional,
   Min,
 } from 'class-validator';
-import { OrganizationType } from '@prisma/client';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SortOrder } from '../../common/enums/sort-order.enum';
 
 export class GetOrganizationsQueryDto extends PaginationQueryDto {
   @IsOptional()
-  @IsEnum(OrganizationType)
-  organizationType?: OrganizationType;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  organizationTypeId?: number;
 
   @IsOptional()
   @Type(() => Number)
@@ -50,7 +50,7 @@ export class GetOrganizationsQueryDto extends PaginationQueryDto {
   @IsIn([
     'organizationName',
     'organizationCode',
-    'organizationType',
+    'organizationTypeId',
     'createdAt',
     'updatedAt',
   ])

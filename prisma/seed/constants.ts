@@ -1,13 +1,20 @@
-import { OrganizationType, PageStatus, Role } from '@prisma/client';
+import { PageStatus, Role } from '@prisma/client';
 
 type OrganizationSeed = {
   name: string;
   code: string;
-  type: OrganizationType;
+  typeCode: string;
   parentCode?: string;
   regionCode?: string;
   stateCode?: string;
 };
+
+export const ORGANIZATION_TYPES = [
+  { id: 1, code: 'HEADQUARTER', name: 'Headquarters' },
+  { id: 2, code: 'NLI', name: 'NLI' },
+  { id: 3, code: 'REGIONAL_OFFICE', name: 'Regional Office' },
+  { id: 4, code: 'JNV', name: 'JNV' },
+] as const;
 
 export const REGIONS = [
   ['Bhopal', 'BHOPAL'],
@@ -65,180 +72,180 @@ export const ORGANIZATIONS: readonly OrganizationSeed[] = [
   {
     name: 'Navodaya Vidyalaya Samiti Headquarters',
     code: 'NVS-HQ',
-    type: OrganizationType.HEADQUARTER,
+    typeCode: 'HEADQUARTER',
   },
   {
     name: 'National Level Institution 1',
     code: 'NLI-01',
-    type: OrganizationType.NLI,
+    typeCode: 'NLI',
   },
   {
     name: 'National Level Institution 2',
     code: 'NLI-02',
-    type: OrganizationType.NLI,
+    typeCode: 'NLI',
   },
   {
     name: 'National Level Institution 3',
     code: 'NLI-03',
-    type: OrganizationType.NLI,
+    typeCode: 'NLI',
   },
   {
     name: 'National Level Institution 4',
     code: 'NLI-04',
-    type: OrganizationType.NLI,
+    typeCode: 'NLI',
   },
   {
     name: 'National Level Institution 5',
     code: 'NLI-05',
-    type: OrganizationType.NLI,
+    typeCode: 'NLI',
   },
   {
     name: 'National Level Institution 6',
     code: 'NLI-06',
-    type: OrganizationType.NLI,
+    typeCode: 'NLI',
   },
   {
     name: 'National Level Institution 7',
     code: 'NLI-07',
-    type: OrganizationType.NLI,
+    typeCode: 'NLI',
   },
   {
     name: 'Regional Office Bhopal',
     code: 'RO-BHOPAL',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'BHOPAL',
   },
   {
     name: 'Regional Office Chandigarh',
     code: 'RO-CHANDIGARH',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'CHANDIGARH',
   },
   {
     name: 'Regional Office Hyderabad',
     code: 'RO-HYDERABAD',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'HYDERABAD',
   },
   {
     name: 'Regional Office Jaipur',
     code: 'RO-JAIPUR',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'JAIPUR',
   },
   {
     name: 'Regional Office Lucknow',
     code: 'RO-LUCKNOW',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'LUCKNOW',
   },
   {
     name: 'Regional Office Patna',
     code: 'RO-PATNA',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'PATNA',
   },
   {
     name: 'Regional Office Pune',
     code: 'RO-PUNE',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'PUNE',
   },
   {
     name: 'Regional Office Shillong',
     code: 'RO-SHILLONG',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'SHILLONG',
   },
   {
     name: 'Regional Office Bhubaneswar',
     code: 'RO-BHUBANESWAR',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'BHUBANESWAR',
   },
   {
     name: 'Regional Office Mumbai',
     code: 'RO-MUMBAI',
-    type: OrganizationType.REGIONAL_OFFICE,
+    typeCode: 'REGIONAL_OFFICE',
     parentCode: 'NVS-HQ',
     regionCode: 'MUMBAI',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Bhopal',
     code: 'JNV-BHOPAL',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-BHOPAL',
     stateCode: 'MP',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Chandigarh',
     code: 'JNV-CHANDIGARH',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-CHANDIGARH',
     stateCode: 'CH',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Hyderabad',
     code: 'JNV-HYDERABAD',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-HYDERABAD',
     stateCode: 'TS',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Jaipur',
     code: 'JNV-JAIPUR',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-JAIPUR',
     stateCode: 'RJ',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Lucknow',
     code: 'JNV-LUCKNOW',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-LUCKNOW',
     stateCode: 'UP',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Patna',
     code: 'JNV-PATNA',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-PATNA',
     stateCode: 'BR',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Pune',
     code: 'JNV-PUNE',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-PUNE',
     stateCode: 'MH',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Shillong',
     code: 'JNV-SHILLONG',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-SHILLONG',
     stateCode: 'ML',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Bhubaneswar',
     code: 'JNV-BHUBANESWAR',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-BHUBANESWAR',
     stateCode: 'OD',
   },
   {
     name: 'Jawahar Navodaya Vidyalaya Mumbai',
     code: 'JNV-MUMBAI',
-    type: OrganizationType.JNV,
+    typeCode: 'JNV',
     parentCode: 'RO-MUMBAI',
     stateCode: 'MH',
   },

@@ -1,7 +1,11 @@
-import { OrganizationType } from '@prisma/client';
-
 export class OrganizationReferenceDto {
   id: number;
+  name: string;
+}
+
+export class OrganizationTypeReferenceDto {
+  id: number;
+  code: string;
   name: string;
 }
 
@@ -9,7 +13,8 @@ export class OrganizationResponseDto {
   id: number;
   organizationName: string;
   organizationCode: string;
-  organizationType: OrganizationType;
+  organizationTypeId: number;
+  organizationType: OrganizationTypeReferenceDto;
   parentOrganizationId: number | null;
   regionId: number | null;
   stateId: number | null;

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Organization, OrganizationType, Prisma } from '@prisma/client';
+import { Organization, Prisma } from '@prisma/client';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
@@ -16,10 +16,23 @@ import { OrganizationResponseDto } from './dto/organization-response.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 
 const organizationInclude = {
-  parentOrganization: { select: { id: true, organizationName: true } },
+  organizationType: { select: { id: true, code: true, name: true } },
+  parentOrganization: {
+    select: {
+      id: true,
+      organizationName: true,
+      organizationType: { select: { code: true } },
+    },
+  },
   region: { select: { id: true, regionName: true } },
   state: { select: { id: true, stateName: true } },
 } satisfies Prisma.OrganizationInclude;
+
+const organizationTypeCodes = {
+  headquarters: 'HEADQUARTER',
+  nli: 'NLI',
+  regionalOffice: 'REGIONAL_OFFICE',
+} as const;
 
 type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
   include: typeof organizationInclude;
@@ -108,7 +121,7 @@ export class OrganizationsService {
     const normalized = await this.validateHierarchy(dto, id);
     await this.ensureTypeChangeDoesNotInvalidateChildren(
       existingOrganization,
-      dto.organizationType,
+      dto.organizationTypeId,
     );
 
     const organization = await this.prisma.$transaction(async (transaction) => {
@@ -233,23 +246,27 @@ export class OrganizationsService {
     dto: CreateOrganizationDto,
     organizationId?: number,
   ): Promise<Prisma.OrganizationUncheckedCreateInput> {
-    const { organizationType, parentOrganizationId, regionId, stateId } = dto;
+    const { organizationTypeId, parentOrganizationId, regionId, stateId } =
+      dto;
+    const organizationType = await this.ensureActiveOrganizationType(
+      organizationTypeId,
+    );
     if (parentOrganizationId === organizationId)
       throw new BadRequestException(
         'An organization cannot be its own parent.',
       );
     if (
-      organizationType === OrganizationType.HEADQUARTER ||
-      organizationType === OrganizationType.NLI
+      organizationType.code === organizationTypeCodes.headquarters ||
+      organizationType.code === organizationTypeCodes.nli
     ) {
       if (parentOrganizationId || regionId || stateId)
         throw new BadRequestException(
-          `${organizationType} organizations cannot have a parent, region, or state.`,
+          `${organizationType.code} organizations cannot have a parent, region, or state.`,
         );
-      if (organizationType === OrganizationType.HEADQUARTER) {
+      if (organizationType.code === organizationTypeCodes.headquarters) {
         const headquarters = await this.prisma.organization.findFirst({
           where: {
-            organizationType,
+            organizationTypeId,
             isDeleted: false,
             ...(organizationId ? { id: { not: organizationId } } : {}),
           },
@@ -263,7 +280,7 @@ export class OrganizationsService {
       return {
         organizationName: dto.organizationName,
         organizationCode: dto.organizationCode,
-        organizationType,
+        organizationTypeId,
         address: dto.address ?? null,
         parentOrganizationId: null,
         regionId: null,
@@ -272,7 +289,7 @@ export class OrganizationsService {
     }
     if (!parentOrganizationId)
       throw new BadRequestException(
-        `${organizationType} organizations must reference a parent organization.`,
+        `${organizationType.code} organizations must reference a parent organization.`,
       );
     const parent = await this.prisma.organization.findFirst({
       where: { id: parentOrganizationId, isDeleted: false },
@@ -281,8 +298,8 @@ export class OrganizationsService {
       throw new NotFoundException(
         'Parent organization not found or has been deleted.',
       );
-    if (organizationType === OrganizationType.REGIONAL_OFFICE) {
-      if (parent.organizationType !== OrganizationType.HEADQUARTER)
+    if (organizationType.code === organizationTypeCodes.regionalOffice) {
+      if (parent.organizationType.code !== organizationTypeCodes.headquarters)
         throw new BadRequestException(
           'A Regional Office parent must be Headquarters.',
         );
@@ -298,14 +315,14 @@ export class OrganizationsService {
       return {
         organizationName: dto.organizationName,
         organizationCode: dto.organizationCode,
-        organizationType,
+        organizationTypeId,
         address: dto.address ?? null,
         parentOrganizationId,
         regionId,
         stateId: null,
       };
     }
-    if (parent.organizationType !== OrganizationType.REGIONAL_OFFICE)
+    if (parent.organizationType.code !== organizationTypeCodes.regionalOffice)
       throw new BadRequestException('A JNV parent must be a Regional Office.');
     if (!stateId)
       throw new BadRequestException('A JNV must reference a state.');
@@ -321,7 +338,7 @@ export class OrganizationsService {
     return {
       organizationName: dto.organizationName,
       organizationCode: dto.organizationCode,
-      organizationType,
+      organizationTypeId,
       address: dto.address ?? null,
       parentOrganizationId,
       regionId: parent.regionId,
@@ -332,10 +349,12 @@ export class OrganizationsService {
   private async validateRestoration(
     organization: OrganizationWithRelations,
   ): Promise<void> {
-    if (organization.organizationType === OrganizationType.HEADQUARTER) {
+    if (
+      organization.organizationType.code === organizationTypeCodes.headquarters
+    ) {
       const headquarters = await this.prisma.organization.findFirst({
         where: {
-          organizationType: OrganizationType.HEADQUARTER,
+          organizationTypeId: organization.organizationTypeId,
           isDeleted: false,
           id: { not: organization.id },
         },
@@ -347,7 +366,8 @@ export class OrganizationsService {
         );
       return;
     }
-    if (organization.organizationType === OrganizationType.NLI) return;
+    if (organization.organizationType.code === organizationTypeCodes.nli)
+      return;
     if (
       !organization.parentOrganizationId ||
       !organization.parentOrganization ||
@@ -363,9 +383,11 @@ export class OrganizationsService {
       throw new ConflictException(
         'Organization cannot be restored because its parent organization has been deleted.',
       );
-    if (organization.organizationType === OrganizationType.REGIONAL_OFFICE) {
+    if (
+      organization.organizationType.code === organizationTypeCodes.regionalOffice
+    ) {
       if (
-        parent.organizationType !== OrganizationType.HEADQUARTER ||
+        parent.organizationType.code !== organizationTypeCodes.headquarters ||
         !organization.regionId
       )
         throw new ConflictException(
@@ -375,7 +397,7 @@ export class OrganizationsService {
       return;
     }
     if (
-      parent.organizationType !== OrganizationType.REGIONAL_OFFICE ||
+      parent.organizationType.code !== organizationTypeCodes.regionalOffice ||
       !organization.stateId ||
       organization.regionId !== parent.regionId
     )
@@ -387,9 +409,9 @@ export class OrganizationsService {
 
   private async ensureTypeChangeDoesNotInvalidateChildren(
     existing: Organization,
-    nextType: OrganizationType,
+    nextTypeId: number,
   ): Promise<void> {
-    if (existing.organizationType === nextType) return;
+    if (existing.organizationTypeId === nextTypeId) return;
     const children = await this.prisma.organization.count({
       where: { parentOrganizationId: existing.id, isDeleted: false },
     });
@@ -417,9 +439,24 @@ export class OrganizationsService {
       throw new NotFoundException('State not found or has been deleted.');
   }
 
-  private async findActiveOrganization(id: number): Promise<Organization> {
+  private async ensureActiveOrganizationType(id: number) {
+    const organizationType = await this.prisma.organizationType.findFirst({
+      where: { id, isActive: true },
+      select: { id: true, code: true },
+    });
+    if (!organizationType)
+      throw new NotFoundException(
+        'Organization type not found or is inactive.',
+      );
+    return organizationType;
+  }
+
+  private async findActiveOrganization(
+    id: number,
+  ): Promise<OrganizationWithRelations> {
     const organization = await this.prisma.organization.findFirst({
       where: { id, isDeleted: false },
+      include: organizationInclude,
     });
     if (!organization)
       throw new NotFoundException(
@@ -451,8 +488,8 @@ export class OrganizationsService {
   ): Prisma.OrganizationWhereInput {
     const where: Prisma.OrganizationWhereInput = {
       isDeleted: query.isDeleted ?? false,
-      ...(query.organizationType
-        ? { organizationType: query.organizationType }
+      ...(query.organizationTypeId
+        ? { organizationTypeId: query.organizationTypeId }
         : {}),
       ...(query.regionId ? { regionId: query.regionId } : {}),
       ...(query.stateId ? { stateId: query.stateId } : {}),
@@ -485,6 +522,7 @@ export class OrganizationsService {
       id: organization.id,
       organizationName: organization.organizationName,
       organizationCode: organization.organizationCode,
+      organizationTypeId: organization.organizationTypeId,
       organizationType: organization.organizationType,
       parentOrganizationId: organization.parentOrganizationId,
       regionId: organization.regionId,
@@ -513,7 +551,7 @@ export class OrganizationsService {
       id: organization.id,
       organizationName: organization.organizationName,
       organizationCode: organization.organizationCode,
-      organizationType: organization.organizationType,
+      organizationTypeId: organization.organizationTypeId,
       parentOrganizationId: organization.parentOrganizationId,
       regionId: organization.regionId,
       stateId: organization.stateId,

@@ -1,6 +1,5 @@
 import { Transform, Type } from 'class-transformer';
 import {
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -9,7 +8,6 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { OrganizationType } from '@prisma/client';
 
 const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -27,8 +25,10 @@ export class CreateOrganizationDto {
   @MaxLength(30)
   organizationCode: string;
 
-  @IsEnum(OrganizationType)
-  organizationType: OrganizationType;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  organizationTypeId: number;
 
   @IsOptional()
   @Type(() => Number)

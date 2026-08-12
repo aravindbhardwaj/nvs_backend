@@ -15,13 +15,6 @@ enum Role {
   JNV
 }
 
-enum OrganizationType {
-  HEADQUARTER
-  NLI
-  REGIONAL_OFFICE
-  JNV
-}
-
 enum PageStatus {
   DRAFT
   PUBLISHED
@@ -77,11 +70,24 @@ model State {
   @@map("nvs_states")
 }
 
+model OrganizationType {
+  id            Int            @id
+  code          String         @unique @db.VarChar(50)
+  name          String         @db.VarChar(150)
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  organizations Organization[]
+
+  @@index([isActive])
+  @@map("nvs_organization_types")
+}
+
 model Organization {
   id                   Int              @id @default(autoincrement())
   organizationName     String           @map("organization_name") @db.VarChar(255)
   organizationCode     String           @unique @map("organization_code") @db.VarChar(30)
-  organizationType     OrganizationType @map("organization_type")
+  organizationTypeId   Int              @map("organization_type_id")
   parentOrganizationId Int?             @map("parent_organization_id")
   regionId             Int?             @map("region_id")
   stateId              Int?             @map("state_id")
@@ -96,6 +102,7 @@ model Organization {
 
   parentOrganization Organization?  @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id], onDelete: Restrict)
   childOrganizations Organization[] @relation("OrganizationHierarchy")
+  organizationType   OrganizationType @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
   region             Region?        @relation(fields: [regionId], references: [id], onDelete: Restrict)
   state              State?         @relation(fields: [stateId], references: [id], onDelete: Restrict)
   createdBy          User?          @relation("OrganizationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -108,7 +115,7 @@ model Organization {
   galleryImages      GalleryImage[]
 
   @@index([organizationCode])
-  @@index([organizationType])
+  @@index([organizationTypeId])
   @@index([parentOrganizationId])
   @@index([regionId])
   @@index([stateId])
