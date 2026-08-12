@@ -146,9 +146,7 @@
         { "name": "Activate", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/banners/{{bannerId}}/activate" } },
         { "name": "Deactivate", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/banners/{{bannerId}}/deactivate" } },
         { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/banners/{{bannerId}}" } },
-        { "name": "Restore", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/banners/{{bannerId}}/restore" } },
-        { "name": "Public list", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/public/banners?page=1&limit=20&organizationId={{targetOrganizationId}}" } },
-        { "name": "Public image", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/public/banners/{{bannerId}}/image" } }
+        { "name": "Restore", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/banners/{{bannerId}}/restore" } }
       ]
     },
     {
@@ -163,9 +161,7 @@
         { "name": "Replace image", "request": { "method": "PUT", "body": { "mode": "formdata", "formdata": [{ "key": "image", "type": "file", "src": "{{imageFilePath}}" }] }, "url": "{{baseUrl}}/api/gallery/{{galleryImageId}}/image" } },
         { "name": "Reorder", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"images\": [\n    { \"id\": {{galleryImageId}}, \"displayOrder\": 1 }\n  ]\n}" }, "url": "{{baseUrl}}/api/gallery/reorder" } },
         { "name": "Bulk delete", "request": { "method": "DELETE", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"ids\": [{{galleryImageId}}]\n}" }, "url": "{{baseUrl}}/api/gallery/bulk" } },
-        { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/gallery/{{galleryImageId}}" } },
-        { "name": "Public list", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/public/gallery?page=1&limit=20&organizationId={{targetOrganizationId}}" } },
-        { "name": "Public image", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/public/gallery/{{galleryImageId}}/image" } }
+        { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/gallery/{{galleryImageId}}" } }
       ]
     },
     {
