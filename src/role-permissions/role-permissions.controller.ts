@@ -28,7 +28,7 @@ export class RolePermissionsController {
   ) {}
 
   @Get(':role')
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('ROLE_PERMISSION_VIEW')
   async findByRole(@Param('role', new ParseEnumPipe(Role)) role: Role) {
     return {
       message: 'Role permissions retrieved successfully.',
@@ -37,7 +37,7 @@ export class RolePermissionsController {
   }
 
   @Put(':role')
-  @RequirePermission('ORGANIZATION_UPDATE')
+  @RequirePermission('ROLE_PERMISSION_UPDATE')
   async replace(
     @Param('role', new ParseEnumPipe(Role)) role: Role,
     @Body() dto: ReplaceRolePermissionsDto,

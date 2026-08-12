@@ -32,7 +32,7 @@ export class StatesController {
   constructor(private readonly statesService: StatesService) {}
 
   @Post()
-  @RequirePermission('ORGANIZATION_CREATE')
+  @RequirePermission('STATE_CREATE')
   async create(
     @Body() dto: CreateStateDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -44,7 +44,7 @@ export class StatesController {
   }
 
   @Get()
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('STATE_VIEW')
   async findAll(@Query() query: GetStatesQueryDto) {
     return {
       message: 'States retrieved successfully.',
@@ -53,7 +53,7 @@ export class StatesController {
   }
 
   @Get(':id')
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('STATE_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return {
       message: 'State retrieved successfully.',
@@ -62,7 +62,7 @@ export class StatesController {
   }
 
   @Put(':id')
-  @RequirePermission('ORGANIZATION_UPDATE')
+  @RequirePermission('STATE_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateStateDto,
@@ -75,7 +75,7 @@ export class StatesController {
   }
 
   @Delete(':id')
-  @RequirePermission('ORGANIZATION_DELETE')
+  @RequirePermission('STATE_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -87,7 +87,7 @@ export class StatesController {
   }
 
   @Patch(':id/restore')
-  @RequirePermission('ORGANIZATION_UPDATE')
+  @RequirePermission('STATE_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

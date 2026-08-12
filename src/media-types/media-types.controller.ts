@@ -32,7 +32,7 @@ export class MediaTypesController {
   constructor(private readonly mediaTypesService: MediaTypesService) {}
 
   @Post()
-  @RequirePermission('ORGANIZATION_CREATE')
+  @RequirePermission('MEDIA_TYPE_CREATE')
   async create(
     @Body() dto: CreateMediaTypeDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -44,7 +44,7 @@ export class MediaTypesController {
   }
 
   @Get()
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('MEDIA_TYPE_VIEW')
   async findAll(@Query() query: GetMediaTypesQueryDto) {
     return {
       message: 'Media types retrieved successfully.',
@@ -53,7 +53,7 @@ export class MediaTypesController {
   }
 
   @Get(':id')
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('MEDIA_TYPE_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return {
       message: 'Media type retrieved successfully.',
@@ -62,7 +62,7 @@ export class MediaTypesController {
   }
 
   @Put(':id')
-  @RequirePermission('ORGANIZATION_UPDATE')
+  @RequirePermission('MEDIA_TYPE_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMediaTypeDto,
@@ -75,7 +75,7 @@ export class MediaTypesController {
   }
 
   @Delete(':id')
-  @RequirePermission('ORGANIZATION_DELETE')
+  @RequirePermission('MEDIA_TYPE_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -87,7 +87,7 @@ export class MediaTypesController {
   }
 
   @Patch(':id/restore')
-  @RequirePermission('ORGANIZATION_UPDATE')
+  @RequirePermission('MEDIA_TYPE_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

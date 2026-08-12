@@ -23,7 +23,7 @@ export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 
   @Get()
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('PERMISSION_VIEW')
   async findAll(@Query() query: GetPermissionsQueryDto) {
     return {
       message: 'Permissions retrieved successfully.',
@@ -32,7 +32,7 @@ export class PermissionsController {
   }
 
   @Get(':id')
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('PERMISSION_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return {
       message: 'Permission retrieved successfully.',

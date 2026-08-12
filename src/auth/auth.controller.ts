@@ -9,6 +9,7 @@ import {
 import { ThrottlerGuard } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
+import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -21,6 +22,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
     return {
@@ -30,6 +32,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() dto: RefreshTokenDto) {
     return {

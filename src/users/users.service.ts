@@ -12,6 +12,7 @@ import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
+import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 
@@ -178,6 +179,54 @@ export class UsersService {
     actor: AuthenticatedUser,
   ): Promise<UserResponseDto> {
     return this.updateStatus(id, UserStatus.INACTIVE, 'DEACTIVATE', actor);
+  }
+
+  async resetPassword(
+    id: number,
+    dto: ResetUserPasswordDto,
+    actor: AuthenticatedUser,
+  ): Promise<UserResponseDto> {
+    const existingUser = await this.findActiveUser(id);
+    const passwordHash = await this.passwordService.hash(dto.password);
+
+    const user = await this.prisma.$transaction(async (transaction) => {
+      const updatedUser = await transaction.user.update({
+        where: { id },
+        data: {
+          passwordHash,
+          passwordChangedAt: new Date(),
+          passwordResetRequired: false,
+          sessionVersion: { increment: 1 },
+          updatedById: actor.id,
+        },
+        include: userInclude,
+      });
+      await transaction.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await transaction.auditLog.create({
+        data: {
+          userId: actor.id,
+          module: 'USER',
+          entity: 'USER',
+          entityId: id,
+          action: 'PASSWORD_RESET',
+          previousValues: {
+            passwordChangedAt:
+              existingUser.passwordChangedAt?.toISOString() ?? null,
+          },
+          newValues: {
+            passwordChangedAt:
+              updatedUser.passwordChangedAt?.toISOString() ?? null,
+            activeRefreshTokensRevoked: true,
+          },
+        },
+      });
+      return updatedUser;
+    });
+
+    return this.toResponse(user);
   }
 
   async remove(id: number, actor: AuthenticatedUser): Promise<UserResponseDto> {

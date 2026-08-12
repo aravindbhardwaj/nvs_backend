@@ -32,7 +32,7 @@ export class RegionsController {
   constructor(private readonly regionsService: RegionsService) {}
 
   @Post()
-  @RequirePermission('ORGANIZATION_CREATE')
+  @RequirePermission('REGION_CREATE')
   async create(
     @Body() dto: CreateRegionDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -44,7 +44,7 @@ export class RegionsController {
   }
 
   @Get()
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('REGION_VIEW')
   async findAll(@Query() query: GetRegionsQueryDto) {
     return {
       message: 'Regions retrieved successfully.',
@@ -53,7 +53,7 @@ export class RegionsController {
   }
 
   @Get(':id')
-  @RequirePermission('ORGANIZATION_VIEW')
+  @RequirePermission('REGION_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return {
       message: 'Region retrieved successfully.',
@@ -62,7 +62,7 @@ export class RegionsController {
   }
 
   @Put(':id')
-  @RequirePermission('ORGANIZATION_UPDATE')
+  @RequirePermission('REGION_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRegionDto,
@@ -75,7 +75,7 @@ export class RegionsController {
   }
 
   @Delete(':id')
-  @RequirePermission('ORGANIZATION_DELETE')
+  @RequirePermission('REGION_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -87,7 +87,7 @@ export class RegionsController {
   }
 
   @Patch(':id/restore')
-  @RequirePermission('ORGANIZATION_UPDATE')
+  @RequirePermission('REGION_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

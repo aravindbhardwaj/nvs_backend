@@ -22,6 +22,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
+import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
@@ -95,6 +96,19 @@ export class UsersController {
     return {
       message: 'User deactivated successfully.',
       data: await this.usersService.deactivate(id, user),
+    };
+  }
+
+  @Patch(':id/reset-password')
+  @RequirePermission('USER_UPDATE')
+  async resetPassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ResetUserPasswordDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'User password reset successfully.',
+      data: await this.usersService.resetPassword(id, dto, user),
     };
   }
 

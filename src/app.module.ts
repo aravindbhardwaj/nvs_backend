@@ -1,3 +1,4 @@
+import { APP_GUARD } from '@nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -19,6 +20,7 @@ import { RegionsModule } from './regions/regions.module';
 import { StatesModule } from './states/states.module';
 import { BannersModule } from './banners/banners.module';
 import { GalleryModule } from './gallery/gallery.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import configuration from './config';
 
 @Module({
@@ -48,6 +50,6 @@ import configuration from './config';
     GalleryModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, AppService],
 })
 export class AppModule {}

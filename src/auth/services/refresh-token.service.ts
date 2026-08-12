@@ -120,11 +120,11 @@ export class RefreshTokenService {
 
     await this.prisma.$transaction(async (tx) => {
       const revoked = await tx.refreshToken.updateMany({
-        where: { id: validatedToken.token.id, revokedAt: null },
+        where: { userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
 
-      if (revoked.count !== 1) {
+      if (revoked.count < 1) {
         throw new UnauthorizedException('Invalid refresh token.');
       }
 
@@ -140,7 +140,10 @@ export class RefreshTokenService {
           entity: 'REFRESH_TOKEN',
           entityId: validatedToken.token.id,
           action: 'REFRESH_TOKEN_REVOKED',
-          newValues: { reason: 'LOGOUT' },
+          newValues: {
+            reason: 'LOGOUT_ALL_SESSIONS',
+            revokedCount: revoked.count,
+          },
         },
       });
 
@@ -151,7 +154,10 @@ export class RefreshTokenService {
           entity: 'REFRESH_TOKEN',
           entityId: validatedToken.token.id,
           action: 'LOGOUT',
-          newValues: { refreshTokenRevoked: true },
+          newValues: {
+            allRefreshTokensRevoked: true,
+            revokedCount: revoked.count,
+          },
         },
       });
     });

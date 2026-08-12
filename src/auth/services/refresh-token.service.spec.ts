@@ -20,7 +20,7 @@ describe('RefreshTokenService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((callback) => callback(transaction));
-    transaction.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+    transaction.refreshToken.updateMany.mockResolvedValue({ count: 2 });
   });
 
   it('increments the session version when logging out', async () => {
@@ -34,6 +34,10 @@ describe('RefreshTokenService', () => {
     expect(transaction.user.update).toHaveBeenCalledWith({
       where: { id: 5 },
       data: { sessionVersion: { increment: 1 } },
+    });
+    expect(transaction.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 5, revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
     });
   });
 });
