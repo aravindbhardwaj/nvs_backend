@@ -139,6 +139,7 @@ export class AuthService {
       userId: user.id,
       organizationId: user.organizationId,
       role: user.role,
+      sessionVersion: user.sessionVersion,
     };
   }
 

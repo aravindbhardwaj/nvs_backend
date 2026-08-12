@@ -34,6 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       user.isDeleted ||
       user.deletedAt ||
       user.status !== UserStatus.ACTIVE ||
+      user.sessionVersion !== payload.sessionVersion ||
       (user.lockedUntil && user.lockedUntil > new Date())
     ) {
       throw new UnauthorizedException('User session is no longer valid.');

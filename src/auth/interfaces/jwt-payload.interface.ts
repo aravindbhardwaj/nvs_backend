@@ -4,4 +4,5 @@ export interface JwtPayload {
   userId: number;
   organizationId: number;
   role: Role;
+  sessionVersion: number;
 }

@@ -128,6 +128,11 @@ export class RefreshTokenService {
         throw new UnauthorizedException('Invalid refresh token.');
       }
 
+      await tx.user.update({
+        where: { id: userId },
+        data: { sessionVersion: { increment: 1 } },
+      });
+
       await tx.auditLog.create({
         data: {
           userId,
