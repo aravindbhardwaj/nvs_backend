@@ -15,12 +15,24 @@ export class UpdateContentTypeDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
-  name: string;
+  nameEnglish?: string;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
-  description?: string;
+  @IsNotEmpty()
+  @MaxLength(150)
+  nameHindi?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionHindi?: string;
 
   @IsOptional()
   @IsInt()

@@ -26,7 +26,15 @@ export class GetBannersQueryDto extends PaginationQueryDto {
   isDeleted?: boolean;
 
   @IsOptional()
-  @IsIn(['title', 'displayOrder', 'isActive', 'startDate', 'endDate', 'createdAt', 'updatedAt'])
+  @IsIn([
+    'titleEnglish',
+    'displayOrder',
+    'isActive',
+    'startDate',
+    'endDate',
+    'createdAt',
+    'updatedAt',
+  ])
   sort = 'displayOrder';
 
   order: SortOrder = SortOrder.ASC;

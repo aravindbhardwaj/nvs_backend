@@ -38,7 +38,11 @@ import { UpdateBannerDto } from './dto/update-banner.dto';
 const uploadOptions = {
   storage: bannerStorage,
   limits: { fileSize: MAX_BANNER_UPLOAD_SIZE },
-  fileFilter: (_request: unknown, file: Express.Multer.File, callback: (error: Error | null, acceptFile: boolean) => void) => {
+  fileFilter: (
+    _request: unknown,
+    file: Express.Multer.File,
+    callback: (error: Error | null, acceptFile: boolean) => void,
+  ) => {
     try {
       validateBannerFile(file);
       callback(null, true);
@@ -49,7 +53,12 @@ const uploadOptions = {
 };
 
 @Controller('api/banners')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, OrganizationOwnershipGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  PermissionsGuard,
+  OrganizationOwnershipGuard,
+)
 @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
 @OrganizationOwned('banner')
 export class BannersController {
@@ -58,10 +67,17 @@ export class BannersController {
   @Post()
   @RequirePermission('BANNER_CREATE')
   @UseInterceptors(FileInterceptor('image', uploadOptions))
-  async create(@Body() dto: CreateBannerDto, @UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthenticatedUser) {
+  async create(
+    @Body() dto: CreateBannerDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     if (!file) throw new BadRequestException('A banner image is required.');
     try {
-      return { message: 'Banner created successfully.', data: await this.bannersService.create(dto, file, user) };
+      return {
+        message: 'Banner created successfully.',
+        data: await this.bannersService.create(dto, file, user),
+      };
     } catch (error) {
       await this.bannersService.cleanupUploadedFile(file);
       throw error;
@@ -70,13 +86,23 @@ export class BannersController {
 
   @Get()
   @RequirePermission('BANNER_VIEW')
-  async findAll(@Query() query: GetBannersQueryDto, @CurrentUser() user: AuthenticatedUser) {
-    return { message: 'Banners retrieved successfully.', data: await this.bannersService.findAll(query, user) };
+  async findAll(
+    @Query() query: GetBannersQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Banners retrieved successfully.',
+      data: await this.bannersService.findAll(query, user),
+    };
   }
 
   @Get(':id/image')
   @RequirePermission('BANNER_VIEW')
-  async image(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser, @Res() response: Response): Promise<void> {
+  async image(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() response: Response,
+  ): Promise<void> {
     const image = await this.bannersService.imageStream(id, user);
     response.setHeader('Content-Type', image.mimeType);
     image.stream.on('error', () => response.destroy());
@@ -85,23 +111,43 @@ export class BannersController {
 
   @Get(':id')
   @RequirePermission('BANNER_VIEW')
-  async findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
-    return { message: 'Banner retrieved successfully.', data: await this.bannersService.findOne(id, user) };
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Banner retrieved successfully.',
+      data: await this.bannersService.findOne(id, user),
+    };
   }
 
   @Put(':id')
   @RequirePermission('BANNER_UPDATE')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBannerDto, @CurrentUser() user: AuthenticatedUser) {
-    return { message: 'Banner updated successfully.', data: await this.bannersService.update(id, dto, user) };
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateBannerDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Banner updated successfully.',
+      data: await this.bannersService.update(id, dto, user),
+    };
   }
 
   @Put(':id/image')
   @RequirePermission('BANNER_UPDATE')
   @UseInterceptors(FileInterceptor('image', uploadOptions))
-  async replaceImage(@Param('id', ParseIntPipe) id: number, @UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthenticatedUser) {
+  async replaceImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     if (!file) throw new BadRequestException('A banner image is required.');
     try {
-      return { message: 'Banner image replaced successfully.', data: await this.bannersService.replaceImage(id, file, user) };
+      return {
+        message: 'Banner image replaced successfully.',
+        data: await this.bannersService.replaceImage(id, file, user),
+      };
     } catch (error) {
       await this.bannersService.cleanupUploadedFile(file);
       throw error;
@@ -110,25 +156,49 @@ export class BannersController {
 
   @Patch(':id/activate')
   @RequirePermission('BANNER_UPDATE')
-  async activate(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
-    return { message: 'Banner activated successfully.', data: await this.bannersService.setActive(id, true, user) };
+  async activate(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Banner activated successfully.',
+      data: await this.bannersService.setActive(id, true, user),
+    };
   }
 
   @Patch(':id/deactivate')
   @RequirePermission('BANNER_UPDATE')
-  async deactivate(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
-    return { message: 'Banner deactivated successfully.', data: await this.bannersService.setActive(id, false, user) };
+  async deactivate(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Banner deactivated successfully.',
+      data: await this.bannersService.setActive(id, false, user),
+    };
   }
 
   @Delete(':id')
   @RequirePermission('BANNER_DELETE')
-  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
-    return { message: 'Banner deleted successfully.', data: await this.bannersService.remove(id, user) };
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Banner deleted successfully.',
+      data: await this.bannersService.remove(id, user),
+    };
   }
 
   @Patch(':id/restore')
   @RequirePermission('BANNER_UPDATE')
-  async restore(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
-    return { message: 'Banner restored successfully.', data: await this.bannersService.restore(id, user) };
+  async restore(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Banner restored successfully.',
+      data: await this.bannersService.restore(id, user),
+    };
   }
 }

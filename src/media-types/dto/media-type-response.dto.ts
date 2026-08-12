@@ -1,7 +1,9 @@
 export class MediaTypeResponseDto {
   id: number;
-  name: string;
-  description: string | null;
+  nameEnglish: string;
+  nameHindi: string | null;
+  descriptionEnglish: string | null;
+  descriptionHindi: string | null;
   displayOrder: number;
   createdAt: Date;
   updatedAt: Date;

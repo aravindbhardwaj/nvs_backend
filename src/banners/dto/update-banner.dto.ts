@@ -21,18 +21,36 @@ export class UpdateBannerDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  title?: string;
+  titleEnglish?: string;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
-  description?: string;
+  @IsNotEmpty()
+  @MaxLength(255)
+  titleHindi?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionHindi?: string;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
   @MaxLength(255)
-  altText?: string;
+  altTextEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @MaxLength(255)
+  altTextHindi?: string;
 
   @IsOptional()
   @Type(() => Number)

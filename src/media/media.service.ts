@@ -42,8 +42,10 @@ export class MediaService {
         data: {
           organizationId,
           mediaTypeId: dto.mediaTypeId,
-          title: dto.title,
-          description: dto.description ?? null,
+          titleEnglish: dto.titleEnglish,
+          titleHindi: dto.titleHindi,
+          descriptionEnglish: dto.descriptionEnglish ?? null,
+          descriptionHindi: dto.descriptionHindi ?? null,
           originalFilename: this.sanitizeFilename(file.originalname),
           storedFilename: file.filename,
           filePath: this.toStoredPath(file.path),
@@ -311,8 +313,22 @@ export class MediaService {
     };
     if (query.search?.trim())
       where.OR = [
-        { title: { contains: query.search.trim(), mode: 'insensitive' } },
-        { description: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          titleEnglish: { contains: query.search.trim(), mode: 'insensitive' },
+        },
+        { titleHindi: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          descriptionEnglish: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
+        {
+          descriptionHindi: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
         {
           originalFilename: {
             contains: query.search.trim(),
@@ -350,8 +366,10 @@ export class MediaService {
       id: media.id,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
-      title: media.title,
-      description: media.description,
+      titleEnglish: media.titleEnglish,
+      titleHindi: media.titleHindi,
+      descriptionEnglish: media.descriptionEnglish,
+      descriptionHindi: media.descriptionHindi,
       originalFilename: media.originalFilename,
       mimeType: media.mimeType,
       extension: media.extension,
@@ -369,8 +387,10 @@ export class MediaService {
       id: media.id,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
-      title: media.title,
-      description: media.description,
+      titleEnglish: media.titleEnglish,
+      titleHindi: media.titleHindi,
+      descriptionEnglish: media.descriptionEnglish,
+      descriptionHindi: media.descriptionHindi,
       originalFilename: media.originalFilename,
       storedFilename: media.storedFilename,
       filePath: media.filePath,

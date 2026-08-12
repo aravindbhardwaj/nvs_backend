@@ -14,7 +14,7 @@ export class GetMediaTypesQueryDto extends PaginationQueryDto {
   isDeleted?: boolean;
 
   @IsOptional()
-  @IsIn(['name', 'displayOrder', 'createdAt', 'updatedAt'])
+  @IsIn(['nameEnglish', 'displayOrder', 'createdAt', 'updatedAt'])
   sort = 'displayOrder';
 
   order: SortOrder = SortOrder.ASC;

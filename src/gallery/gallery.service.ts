@@ -42,9 +42,12 @@ export class GalleryService {
       const created = await tx.galleryImage.create({
         data: {
           organizationId,
-          title: dto.title,
-          description: dto.description ?? null,
-          altText: dto.altText ?? null,
+          titleEnglish: dto.titleEnglish,
+          titleHindi: dto.titleHindi,
+          descriptionEnglish: dto.descriptionEnglish ?? null,
+          descriptionHindi: dto.descriptionHindi ?? null,
+          altTextEnglish: dto.altTextEnglish ?? null,
+          altTextHindi: dto.altTextHindi ?? null,
           storedFilename: file.filename,
           imagePath: this.storedPath(file.path),
           mimeType: file.mimetype,
@@ -77,9 +80,13 @@ export class GalleryService {
           const created = await tx.galleryImage.create({
             data: {
               organizationId,
-              title: dto.title || this.filenameTitle(file.originalname),
-              description: dto.description ?? null,
-              altText: dto.altText ?? null,
+              titleEnglish:
+                dto.titleEnglish || this.filenameTitle(file.originalname),
+              titleHindi: dto.titleHindi,
+              descriptionEnglish: dto.descriptionEnglish ?? null,
+              descriptionHindi: dto.descriptionHindi ?? null,
+              altTextEnglish: dto.altTextEnglish ?? null,
+              altTextHindi: dto.altTextHindi ?? null,
               storedFilename: file.filename,
               imagePath: this.storedPath(file.path),
               mimeType: file.mimetype,
@@ -354,9 +361,31 @@ export class GalleryService {
     };
     if (query.search?.trim())
       where.OR = [
-        { title: { contains: query.search.trim(), mode: 'insensitive' } },
-        { description: { contains: query.search.trim(), mode: 'insensitive' } },
-        { altText: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          titleEnglish: { contains: query.search.trim(), mode: 'insensitive' },
+        },
+        { titleHindi: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          descriptionEnglish: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
+        {
+          descriptionHindi: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
+        {
+          altTextEnglish: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
+        {
+          altTextHindi: { contains: query.search.trim(), mode: 'insensitive' },
+        },
       ];
     return where;
   }
@@ -383,9 +412,12 @@ export class GalleryService {
     return {
       id: image.id,
       organizationId: image.organizationId,
-      title: image.title,
-      description: image.description,
-      altText: image.altText,
+      titleEnglish: image.titleEnglish,
+      titleHindi: image.titleHindi,
+      descriptionEnglish: image.descriptionEnglish,
+      descriptionHindi: image.descriptionHindi,
+      altTextEnglish: image.altTextEnglish,
+      altTextHindi: image.altTextHindi,
       imageUrl: `/api/gallery/${image.id}/image`,
       mimeType: image.mimeType,
       extension: image.extension,
@@ -401,9 +433,12 @@ export class GalleryService {
     return {
       id: image.id,
       organizationId: image.organizationId,
-      title: image.title,
-      description: image.description,
-      altText: image.altText,
+      titleEnglish: image.titleEnglish,
+      titleHindi: image.titleHindi,
+      descriptionEnglish: image.descriptionEnglish,
+      descriptionHindi: image.descriptionHindi,
+      altTextEnglish: image.altTextEnglish,
+      altTextHindi: image.altTextHindi,
       imageUrl: `/api/public/gallery/${image.id}/image`,
       displayOrder: image.displayOrder,
       createdAt: image.createdAt,
@@ -413,9 +448,12 @@ export class GalleryService {
     return {
       id: image.id,
       organizationId: image.organizationId,
-      title: image.title,
-      description: image.description,
-      altText: image.altText,
+      titleEnglish: image.titleEnglish,
+      titleHindi: image.titleHindi,
+      descriptionEnglish: image.descriptionEnglish,
+      descriptionHindi: image.descriptionHindi,
+      altTextEnglish: image.altTextEnglish,
+      altTextHindi: image.altTextHindi,
       storedFilename: image.storedFilename,
       imagePath: image.imagePath,
       mimeType: image.mimeType,

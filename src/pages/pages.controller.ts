@@ -28,7 +28,12 @@ import { UpdatePageDto } from './dto/update-page.dto';
 import { PagesService } from './pages.service';
 
 @Controller('api/pages')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, OrganizationOwnershipGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  PermissionsGuard,
+  OrganizationOwnershipGuard,
+)
 @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
 @OrganizationOwned('page')
 export class PagesController {

@@ -30,19 +30,38 @@ export function validateBannerFile(file: Express.Multer.File): void {
     !allowedMimeTypes.includes(file.mimetype) ||
     file.size <= 0
   ) {
-    throw new BadRequestException('The uploaded banner image type is not allowed.');
+    throw new BadRequestException(
+      'The uploaded banner image type is not allowed.',
+    );
   }
 }
 
-export async function validateBannerImage(file: Express.Multer.File): Promise<void> {
+export async function validateBannerImage(
+  file: Express.Multer.File,
+): Promise<void> {
   validateBannerFile(file);
-  const header = await readFile(file.path).then((contents) => contents.subarray(0, 12));
-  const isJpeg = header.length >= 3 && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
-  const isPng = header.length >= 8 && header.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  const isWebp = header.length >= 12 && header.subarray(0, 4).toString('ascii') === 'RIFF' && header.subarray(8, 12).toString('ascii') === 'WEBP';
+  const header = await readFile(file.path).then((contents) =>
+    contents.subarray(0, 12),
+  );
+  const isJpeg =
+    header.length >= 3 &&
+    header[0] === 0xff &&
+    header[1] === 0xd8 &&
+    header[2] === 0xff;
+  const isPng =
+    header.length >= 8 &&
+    header
+      .subarray(0, 8)
+      .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const isWebp =
+    header.length >= 12 &&
+    header.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    header.subarray(8, 12).toString('ascii') === 'WEBP';
 
   if (!isJpeg && !isPng && !isWebp) {
-    throw new BadRequestException('The uploaded banner image content is invalid.');
+    throw new BadRequestException(
+      'The uploaded banner image content is invalid.',
+    );
   }
 }
 
@@ -58,6 +77,9 @@ export const bannerStorage = diskStorage({
     callback(null, destination);
   },
   filename: (_request, file, callback) => {
-    callback(null, `${randomUUID()}${extname(file.originalname).toLowerCase()}`);
+    callback(
+      null,
+      `${randomUUID()}${extname(file.originalname).toLowerCase()}`,
+    );
   },
 });

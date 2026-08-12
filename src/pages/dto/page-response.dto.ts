@@ -4,10 +4,13 @@ export class PageResponseDto {
   id: number;
   organizationId: number;
   contentTypeId: number;
-  title: string;
+  titleEnglish: string;
+  titleHindi: string | null;
   slug: string;
-  shortDescription: string | null;
-  content: string;
+  shortDescriptionEnglish: string | null;
+  shortDescriptionHindi: string | null;
+  contentEnglish: string;
+  contentHindi: string | null;
   status: PageStatus;
   displayOrder: number;
   publishedAt: Date | null;

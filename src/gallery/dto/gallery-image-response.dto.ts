@@ -1,9 +1,12 @@
 export class GalleryImageResponseDto {
   id: number;
   organizationId: number;
-  title: string;
-  description: string | null;
-  altText: string | null;
+  titleEnglish: string;
+  titleHindi: string | null;
+  descriptionEnglish: string | null;
+  descriptionHindi: string | null;
+  altTextEnglish: string | null;
+  altTextHindi: string | null;
   imageUrl: string;
   mimeType: string;
   extension: string;
@@ -18,9 +21,12 @@ export class GalleryImageResponseDto {
 export class PublicGalleryImageResponseDto {
   id: number;
   organizationId: number;
-  title: string;
-  description: string | null;
-  altText: string | null;
+  titleEnglish: string;
+  titleHindi: string | null;
+  descriptionEnglish: string | null;
+  descriptionHindi: string | null;
+  altTextEnglish: string | null;
+  altTextHindi: string | null;
   imageUrl: string;
   displayOrder: number;
   createdAt: Date;

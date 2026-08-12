@@ -29,18 +29,36 @@ export class UpdatePageDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  title?: string;
-
-  @IsOptional()
-  @Transform(trimValue)
-  @IsString()
-  shortDescription?: string;
+  titleEnglish?: string;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()
-  content?: string;
+  @MaxLength(255)
+  titleHindi?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  shortDescriptionEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  shortDescriptionHindi?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  contentEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  contentHindi?: string;
 
   @IsOptional()
   @Type(() => Number)

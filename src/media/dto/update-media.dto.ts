@@ -17,12 +17,24 @@ export class UpdateMediaDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  title?: string;
+  titleEnglish?: string;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
-  description?: string;
+  @IsNotEmpty()
+  @MaxLength(255)
+  titleHindi?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionHindi?: string;
 
   @IsOptional()
   @Type(() => Number)

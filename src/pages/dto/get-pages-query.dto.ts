@@ -38,7 +38,7 @@ export class GetPagesQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   @IsIn([
-    'title',
+    'titleEnglish',
     'slug',
     'status',
     'displayOrder',

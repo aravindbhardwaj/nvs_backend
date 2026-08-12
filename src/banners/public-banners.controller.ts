@@ -1,4 +1,11 @@
-import { Controller, Get, Param, ParseIntPipe, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 
 import { BannersService } from './banners.service';
@@ -10,11 +17,17 @@ export class PublicBannersController {
 
   @Get()
   async findDisplayable(@Query() query: GetPublicBannersQueryDto) {
-    return { message: 'Displayable banners retrieved successfully.', data: await this.bannersService.findDisplayable(query) };
+    return {
+      message: 'Displayable banners retrieved successfully.',
+      data: await this.bannersService.findDisplayable(query),
+    };
   }
 
   @Get(':id/image')
-  async image(@Param('id', ParseIntPipe) id: number, @Res() response: Response): Promise<void> {
+  async image(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() response: Response,
+  ): Promise<void> {
     const image = await this.bannersService.publicImageStream(id);
     response.setHeader('Content-Type', image.mimeType);
     image.stream.on('error', () => response.destroy());

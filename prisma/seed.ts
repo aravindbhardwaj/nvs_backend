@@ -237,34 +237,34 @@ async function seedUsers(
 
 async function seedReferenceData(): Promise<Map<string, number>> {
   const contentTypes = await Promise.all(
-    CONTENT_TYPES.map((name, displayOrder) =>
+    CONTENT_TYPES.map((nameEnglish, displayOrder) =>
       prisma.contentType.upsert({
-        where: { name },
+        where: { nameEnglish },
         update: {
           displayOrder,
           isDeleted: false,
           deletedAt: null,
           deletedById: null,
         },
-        create: { name, displayOrder },
+        create: { nameEnglish, nameHindi: null, displayOrder },
       }),
     ),
   );
   await Promise.all(
-    MEDIA_TYPES.map((name, displayOrder) =>
+    MEDIA_TYPES.map((nameEnglish, displayOrder) =>
       prisma.mediaType.upsert({
-        where: { name },
+        where: { nameEnglish },
         update: {
           displayOrder,
           isDeleted: false,
           deletedAt: null,
           deletedById: null,
         },
-        create: { name, displayOrder },
+        create: { nameEnglish, nameHindi: null, displayOrder },
       }),
     ),
   );
-  return new Map(contentTypes.map(({ id, name }) => [name, id]));
+  return new Map(contentTypes.map(({ id, nameEnglish }) => [nameEnglish, id]));
 }
 
 async function seedSamplePages(
@@ -286,9 +286,11 @@ async function seedSamplePages(
         organizationId_contentTypeId: { organizationId, contentTypeId },
       },
       update: {
-        title: page.title,
+        titleEnglish: page.title,
+        titleHindi: null,
         slug: page.slug,
-        content: page.content,
+        contentEnglish: page.content,
+        contentHindi: null,
         status: SAMPLE_PAGE_STATUS,
         publishedAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedById: superAdminId,
@@ -299,9 +301,11 @@ async function seedSamplePages(
       create: {
         organizationId,
         contentTypeId,
-        title: page.title,
+        titleEnglish: page.title,
+        titleHindi: null,
         slug: page.slug,
-        content: page.content,
+        contentEnglish: page.content,
+        contentHindi: null,
         status: SAMPLE_PAGE_STATUS,
         publishedAt: new Date('2026-01-01T00:00:00.000Z'),
         createdById: superAdminId,

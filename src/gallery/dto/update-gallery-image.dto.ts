@@ -19,9 +19,25 @@ export class UpdateGalleryImageDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  title?: string;
-  @IsOptional() @Transform(trim) @IsString() description?: string;
-  @IsOptional() @Transform(trim) @IsString() @MaxLength(255) altText?: string;
+  titleEnglish?: string;
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  titleHindi?: string;
+  @IsOptional() @Transform(trim) @IsString() descriptionEnglish?: string;
+  @IsOptional() @Transform(trim) @IsString() descriptionHindi?: string;
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(255)
+  altTextEnglish?: string;
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(255)
+  altTextHindi?: string;
   @IsOptional() @Type(() => Number) @IsInt() displayOrder?: number;
   @IsOptional() @Transform(boolean) @IsBoolean() isActive?: boolean;
 }

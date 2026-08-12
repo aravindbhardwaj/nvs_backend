@@ -22,12 +22,23 @@ export class UploadMediaDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  title: string;
+  titleEnglish: string;
+
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  titleHindi: string;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
-  description?: string;
+  descriptionEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionHindi?: string;
 
   @Type(() => Number)
   @IsInt()

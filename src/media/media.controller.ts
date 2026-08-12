@@ -53,7 +53,12 @@ const uploadOptions = {
 };
 
 @Controller('api/media')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, OrganizationOwnershipGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  PermissionsGuard,
+  OrganizationOwnershipGuard,
+)
 @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
 @OrganizationOwned('media')
 export class MediaController {

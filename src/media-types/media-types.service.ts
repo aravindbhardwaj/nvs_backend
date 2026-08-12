@@ -22,7 +22,7 @@ export class MediaTypesService {
     dto: CreateMediaTypeDto,
     actor: AuthenticatedUser,
   ): Promise<MediaTypeResponseDto> {
-    await this.ensureNameIsUnique(dto.name);
+    await this.ensureNameIsUnique(dto.nameEnglish);
 
     const mediaType = await this.prisma.$transaction(async (transaction) => {
       const createdMediaType = await transaction.mediaType.create({
@@ -76,7 +76,8 @@ export class MediaTypesService {
     actor: AuthenticatedUser,
   ): Promise<MediaTypeResponseDto> {
     const existingMediaType = await this.findActiveMediaType(id);
-    await this.ensureNameIsUnique(dto.name, id);
+    if (dto.nameEnglish !== undefined)
+      await this.ensureNameIsUnique(dto.nameEnglish, id);
     const mediaType = await this.prisma.$transaction(async (transaction) => {
       const updatedMediaType = await transaction.mediaType.update({
         where: { id },
@@ -196,7 +197,7 @@ export class MediaTypesService {
     const duplicate = await this.prisma.mediaType.findFirst({
       where: {
         ...(excludedId ? { id: { not: excludedId } } : {}),
-        name: { equals: name, mode: 'insensitive' },
+        nameEnglish: { equals: name, mode: 'insensitive' },
       },
       select: { id: true },
     });
@@ -213,8 +214,12 @@ export class MediaTypesService {
     const where: Prisma.MediaTypeWhereInput = { isDeleted: isDeleted ?? false };
     if (search?.trim()) {
       where.OR = [
-        { name: { contains: search.trim(), mode: 'insensitive' } },
-        { description: { contains: search.trim(), mode: 'insensitive' } },
+        { nameEnglish: { contains: search.trim(), mode: 'insensitive' } },
+        { nameHindi: { contains: search.trim(), mode: 'insensitive' } },
+        {
+          descriptionEnglish: { contains: search.trim(), mode: 'insensitive' },
+        },
+        { descriptionHindi: { contains: search.trim(), mode: 'insensitive' } },
       ];
     }
     return where;
@@ -223,8 +228,10 @@ export class MediaTypesService {
   private toResponse(mediaType: MediaType): MediaTypeResponseDto {
     return {
       id: mediaType.id,
-      name: mediaType.name,
-      description: mediaType.description,
+      nameEnglish: mediaType.nameEnglish,
+      nameHindi: mediaType.nameHindi,
+      descriptionEnglish: mediaType.descriptionEnglish,
+      descriptionHindi: mediaType.descriptionHindi,
       displayOrder: mediaType.displayOrder,
       createdAt: mediaType.createdAt,
       updatedAt: mediaType.updatedAt,
@@ -234,8 +241,10 @@ export class MediaTypesService {
   private toAuditValues(mediaType: MediaType): Prisma.InputJsonValue {
     return {
       id: mediaType.id,
-      name: mediaType.name,
-      description: mediaType.description,
+      nameEnglish: mediaType.nameEnglish,
+      nameHindi: mediaType.nameHindi,
+      descriptionEnglish: mediaType.descriptionEnglish,
+      descriptionHindi: mediaType.descriptionHindi,
       displayOrder: mediaType.displayOrder,
       createdAt: mediaType.createdAt.toISOString(),
       updatedAt: mediaType.updatedAt.toISOString(),

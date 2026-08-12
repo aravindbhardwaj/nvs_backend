@@ -12,6 +12,8 @@
     { "key": "access_token", "value": "" },
     { "key": "refresh_token", "value": "" },
     { "key": "organizationId", "value": "1" },
+    { "key": "organizationTypeId", "value": "4" },
+    { "key": "regionalOfficeId", "value": "" },
     { "key": "targetOrganizationId", "value": "1" },
     { "key": "regionId", "value": "1" },
     { "key": "stateId", "value": "1" },
@@ -40,12 +42,20 @@
       ]
     },
     {
+      "name": "Organization Types",
+      "item": [
+        { "name": "List active organization types", "description": "Use the returned numeric id as organizationTypeId when creating, updating, or filtering organizations.", "request": { "method": "GET", "url": "{{baseUrl}}/api/organization-types" } }
+      ]
+    },
+    {
       "name": "Organizations",
       "item": [
-        { "name": "Create", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"organizationName\": \"Sample Organization\",\n  \"organizationCode\": \"SAMPLE-ORG\",\n  \"organizationType\": \"JNV\",\n  \"parentOrganizationId\": 1,\n  \"regionId\": 1,\n  \"stateId\": 1,\n  \"address\": \"Sample address\"\n}" }, "url": "{{baseUrl}}/api/organizations" } },
+        { "name": "Create", "description": "Set organizationTypeId from Organization Types. For a JNV, set parentOrganizationId to its Regional Office id.", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"organizationName\": \"Sample Organization\",\n  \"organizationCode\": \"SAMPLE-ORG\",\n  \"organizationTypeId\": {{organizationTypeId}},\n  \"parentOrganizationId\": {{regionalOfficeId}},\n  \"regionId\": {{regionId}},\n  \"stateId\": {{stateId}},\n  \"address\": \"Sample address\"\n}" }, "url": "{{baseUrl}}/api/organizations" } },
         { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/api/organizations?page=1&limit=20" } },
+        { "name": "List by organization type", "request": { "method": "GET", "url": "{{baseUrl}}/api/organizations?page=1&limit=20&organizationTypeId={{organizationTypeId}}" } },
+        { "name": "List JNVs by Regional Office", "description": "Set organizationTypeId to the JNV type id and regionalOfficeId to the selected Regional Office id.", "request": { "method": "GET", "url": "{{baseUrl}}/api/organizations?page=1&limit=20&organizationTypeId={{organizationTypeId}}&parentOrganizationId={{regionalOfficeId}}" } },
         { "name": "Get by ID", "request": { "method": "GET", "url": "{{baseUrl}}/api/organizations/{{organizationId}}" } },
-        { "name": "Update", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"organizationName\": \"Updated Organization\",\n  \"organizationCode\": \"UPDATED-ORG\",\n  \"organizationType\": \"JNV\",\n  \"parentOrganizationId\": 1,\n  \"regionId\": 1,\n  \"stateId\": 1\n}" }, "url": "{{baseUrl}}/api/organizations/{{organizationId}}" } },
+        { "name": "Update", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"organizationName\": \"Updated Organization\",\n  \"organizationCode\": \"UPDATED-ORG\",\n  \"organizationTypeId\": {{organizationTypeId}},\n  \"parentOrganizationId\": {{regionalOfficeId}},\n  \"regionId\": {{regionId}},\n  \"stateId\": {{stateId}}\n}" }, "url": "{{baseUrl}}/api/organizations/{{organizationId}}" } },
         { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/organizations/{{organizationId}}" } },
         { "name": "Restore", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/organizations/{{organizationId}}/restore" } }
       ]
@@ -77,10 +87,13 @@
       "item": [
         { "name": "Create", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sample User\",\n  \"email\": \"sample.user@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"mobile\": \"9999999999\",\n  \"address\": \"Sample address\",\n  \"role\": \"JNV\",\n  \"organizationId\": 1\n}" }, "url": "{{baseUrl}}/api/users" } },
         { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/api/users?page=1&limit=20" } },
+        { "name": "List by role", "request": { "method": "GET", "url": "{{baseUrl}}/api/users?page=1&limit=20&role={{role}}" } },
+        { "name": "List by organization", "request": { "method": "GET", "url": "{{baseUrl}}/api/users?page=1&limit=20&organizationId={{organizationId}}" } },
         { "name": "Get by ID", "request": { "method": "GET", "url": "{{baseUrl}}/api/users/{{userId}}" } },
         { "name": "Update", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated User\",\n  \"mobile\": \"8888888888\"\n}" }, "url": "{{baseUrl}}/api/users/{{userId}}" } },
         { "name": "Activate", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/users/{{userId}}/activate" } },
         { "name": "Deactivate", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/users/{{userId}}/deactivate" } },
+        { "name": "Reset password", "description": "SUPER_ADMIN only. Resets the selected user's password and invalidates their active sessions.", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"password\": \"SecurePassword123!\"\n}" }, "url": "{{baseUrl}}/api/users/{{userId}}/reset-password" } },
         { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/users/{{userId}}" } },
         { "name": "Restore", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/users/{{userId}}/restore" } }
       ]

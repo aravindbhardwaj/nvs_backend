@@ -26,7 +26,7 @@ export class GetMediaQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   @IsIn([
-    'title',
+    'titleEnglish',
     'originalFilename',
     'mimeType',
     'fileSize',

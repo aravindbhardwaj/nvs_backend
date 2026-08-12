@@ -40,10 +40,13 @@ export class PagesService {
         data: {
           organizationId: dto.organizationId,
           contentTypeId: dto.contentTypeId,
-          title: dto.title,
-          slug: await this.generateUniqueSlug(dto.title, transaction),
-          shortDescription: dto.shortDescription ?? null,
-          content: dto.content,
+          titleEnglish: dto.titleEnglish,
+          titleHindi: dto.titleHindi,
+          slug: await this.generateUniqueSlug(dto.titleEnglish, transaction),
+          shortDescriptionEnglish: dto.shortDescriptionEnglish ?? null,
+          shortDescriptionHindi: dto.shortDescriptionHindi ?? null,
+          contentEnglish: dto.contentEnglish,
+          contentHindi: dto.contentHindi,
           status,
           displayOrder: dto.displayOrder ?? 0,
           publishedAt: status === PageStatus.PUBLISHED ? new Date() : null,
@@ -62,7 +65,8 @@ export class PagesService {
     query: GetPagesQueryDto,
     actor: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<PageResponseDto>> {
-    if (query.organizationId) this.ownership.assertAccess(query.organizationId, actor);
+    if (query.organizationId)
+      this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
     const orderBy: Prisma.PageOrderByWithRelationInput = {
       [query.sort]: query.order,
@@ -132,16 +136,31 @@ export class PagesService {
         data: {
           organizationId,
           contentTypeId,
-          ...(dto.title
+          ...(dto.titleEnglish
             ? {
-                title: dto.title,
-                slug: await this.generateUniqueSlug(dto.title, transaction, id),
+                titleEnglish: dto.titleEnglish,
+                slug: await this.generateUniqueSlug(
+                  dto.titleEnglish,
+                  transaction,
+                  id,
+                ),
               }
             : {}),
-          ...(dto.shortDescription !== undefined
-            ? { shortDescription: dto.shortDescription }
+          ...(dto.titleHindi !== undefined
+            ? { titleHindi: dto.titleHindi }
             : {}),
-          ...(dto.content !== undefined ? { content: dto.content } : {}),
+          ...(dto.shortDescriptionEnglish !== undefined
+            ? { shortDescriptionEnglish: dto.shortDescriptionEnglish }
+            : {}),
+          ...(dto.shortDescriptionHindi !== undefined
+            ? { shortDescriptionHindi: dto.shortDescriptionHindi }
+            : {}),
+          ...(dto.contentEnglish !== undefined
+            ? { contentEnglish: dto.contentEnglish }
+            : {}),
+          ...(dto.contentHindi !== undefined
+            ? { contentHindi: dto.contentHindi }
+            : {}),
           ...(dto.displayOrder !== undefined
             ? { displayOrder: dto.displayOrder }
             : {}),
@@ -337,15 +356,32 @@ export class PagesService {
     };
     if (query.search?.trim()) {
       where.OR = [
-        { title: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          titleEnglish: { contains: query.search.trim(), mode: 'insensitive' },
+        },
+        { titleHindi: { contains: query.search.trim(), mode: 'insensitive' } },
         { slug: { contains: query.search.trim(), mode: 'insensitive' } },
         {
-          shortDescription: {
+          shortDescriptionEnglish: {
             contains: query.search.trim(),
             mode: 'insensitive',
           },
         },
-        { content: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          shortDescriptionHindi: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
+        {
+          contentEnglish: {
+            contains: query.search.trim(),
+            mode: 'insensitive',
+          },
+        },
+        {
+          contentHindi: { contains: query.search.trim(), mode: 'insensitive' },
+        },
       ];
     }
     return where;
@@ -408,10 +444,13 @@ export class PagesService {
       id: page.id,
       organizationId: page.organizationId,
       contentTypeId: page.contentTypeId,
-      title: page.title,
+      titleEnglish: page.titleEnglish,
+      titleHindi: page.titleHindi,
       slug: page.slug,
-      shortDescription: page.shortDescription,
-      content: page.content,
+      shortDescriptionEnglish: page.shortDescriptionEnglish,
+      shortDescriptionHindi: page.shortDescriptionHindi,
+      contentEnglish: page.contentEnglish,
+      contentHindi: page.contentHindi,
       status: page.status,
       displayOrder: page.displayOrder,
       publishedAt: page.publishedAt,
@@ -425,10 +464,13 @@ export class PagesService {
       id: page.id,
       organizationId: page.organizationId,
       contentTypeId: page.contentTypeId,
-      title: page.title,
+      titleEnglish: page.titleEnglish,
+      titleHindi: page.titleHindi,
       slug: page.slug,
-      shortDescription: page.shortDescription,
-      content: page.content,
+      shortDescriptionEnglish: page.shortDescriptionEnglish,
+      shortDescriptionHindi: page.shortDescriptionHindi,
+      contentEnglish: page.contentEnglish,
+      contentHindi: page.contentHindi,
       status: page.status,
       displayOrder: page.displayOrder,
       publishedAt: page.publishedAt?.toISOString() ?? null,

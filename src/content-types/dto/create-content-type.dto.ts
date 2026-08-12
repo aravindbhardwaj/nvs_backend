@@ -15,12 +15,23 @@ export class CreateContentTypeDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
-  name: string;
+  nameEnglish: string;
+
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  nameHindi: string;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
-  description?: string;
+  descriptionEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  descriptionHindi?: string;
 
   @IsOptional()
   @IsInt()

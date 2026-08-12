@@ -64,7 +64,12 @@ describe('MediaService', () => {
     'allows a Super Admin to upload media for %s',
     async (_level, organizationId) => {
       await service.upload(
-        { title: 'Official notice', mediaTypeId: 1, organizationId },
+        {
+          titleEnglish: 'Official notice',
+          titleHindi: 'आधिकारिक सूचना',
+          mediaTypeId: 1,
+          organizationId,
+        },
         file,
         superAdmin,
       );
@@ -88,7 +93,12 @@ describe('MediaService', () => {
 
     await expect(
       service.upload(
-        { title: 'Official notice', mediaTypeId: 1, organizationId: 3 },
+        {
+          titleEnglish: 'Official notice',
+          titleHindi: 'आधिकारिक सूचना',
+          mediaTypeId: 1,
+          organizationId: 3,
+        },
         file,
         headquartersUser,
       ),

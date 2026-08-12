@@ -28,17 +28,33 @@ export class CreatePageDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  title: string;
-
-  @IsOptional()
-  @Transform(trimValue)
-  @IsString()
-  shortDescription?: string;
+  titleEnglish: string;
 
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()
-  content: string;
+  @MaxLength(255)
+  titleHindi: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  shortDescriptionEnglish?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  shortDescriptionHindi?: string;
+
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  contentEnglish: string;
+
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  contentHindi: string;
 
   @IsOptional()
   @IsEnum(PageStatus)
