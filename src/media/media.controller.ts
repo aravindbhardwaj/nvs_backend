@@ -12,10 +12,11 @@ import {
   Query,
   Res,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@prisma/client';
 import type { Response } from 'express';
 
@@ -66,20 +67,31 @@ export class MediaController {
 
   @Post('upload')
   @RequirePermission('MEDIA_UPLOAD')
-  @UseInterceptors(FileInterceptor('file', uploadOptions))
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'hindiFile', maxCount: 1 },
+      ],
+      uploadOptions,
+    ),
+  )
   async upload(
     @Body() dto: UploadMediaDto,
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFiles()
+    files: { file?: Express.Multer.File[]; hindiFile?: Express.Multer.File[] },
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    const file = files?.file?.[0];
+    const hindiFile = files?.hindiFile?.[0];
     if (!file) throw new BadRequestException('A document file is required.');
     try {
       return {
         message: 'Document uploaded successfully.',
-        data: await this.mediaService.upload(dto, file, user),
+        data: await this.mediaService.upload(dto, file, hindiFile, user),
       };
     } catch (error) {
-      await this.mediaService.cleanupUploadedFile(file);
+      await this.mediaService.cleanupUploadedFiles([file, hindiFile]);
       throw error;
     }
   }
@@ -104,6 +116,23 @@ export class MediaController {
     @Res() response: Response,
   ): Promise<void> {
     const document = await this.mediaService.download(id, user);
+    response.setHeader('Content-Type', document.mimeType);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(document.filename)}`,
+    );
+    document.stream.on('error', () => response.destroy());
+    document.stream.pipe(response);
+  }
+
+  @Get(':id/download/hindi')
+  @RequirePermission('MEDIA_VIEW')
+  async downloadHindi(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() response: Response,
+  ): Promise<void> {
+    const document = await this.mediaService.downloadHindi(id, user);
     response.setHeader('Content-Type', document.mimeType);
     response.setHeader(
       'Content-Disposition',

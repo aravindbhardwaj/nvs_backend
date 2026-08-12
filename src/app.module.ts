@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { OrganizationTypesModule } from './organization-types/organization-types.module';
 import { ContentTypesModule } from './content-types/content-types.module';
 import { MediaTypesModule } from './media-types/media-types.module';
 import { PagesModule } from './pages/pages.module';
@@ -35,6 +36,7 @@ import configuration from './config';
     AuthModule,
     UsersModule,
     OrganizationsModule,
+    OrganizationTypesModule,
     ContentTypesModule,
     MediaTypesModule,
     PagesModule,

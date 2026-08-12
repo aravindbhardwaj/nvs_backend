@@ -71,6 +71,7 @@ describe('MediaService', () => {
           organizationId,
         },
         file,
+        undefined,
         superAdmin,
       );
 
@@ -100,6 +101,7 @@ describe('MediaService', () => {
           organizationId: 3,
         },
         file,
+        undefined,
         headquartersUser,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);

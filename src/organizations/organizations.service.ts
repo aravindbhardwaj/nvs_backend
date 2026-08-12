@@ -293,6 +293,7 @@ export class OrganizationsService {
       );
     const parent = await this.prisma.organization.findFirst({
       where: { id: parentOrganizationId, isDeleted: false },
+      include: { organizationType: { select: { code: true } } },
     });
     if (!parent)
       throw new NotFoundException(
@@ -378,6 +379,7 @@ export class OrganizationsService {
       );
     const parent = await this.prisma.organization.findFirst({
       where: { id: organization.parentOrganizationId, isDeleted: false },
+      include: { organizationType: { select: { code: true } } },
     });
     if (!parent)
       throw new ConflictException(

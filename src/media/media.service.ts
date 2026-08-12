@@ -30,9 +30,11 @@ export class MediaService {
   async upload(
     dto: UploadMediaDto,
     file: Express.Multer.File,
+    hindiFile: Express.Multer.File | undefined,
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
     validateMediaFile(file);
+    if (hindiFile) validateMediaFile(hindiFile);
     const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
@@ -53,6 +55,7 @@ export class MediaService {
           extension: this.extensionOf(file.originalname),
           fileSize: BigInt(file.size),
           checksum: await this.checksum(file.path),
+          ...(hindiFile ? await this.hindiFileData(hindiFile) : {}),
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -117,6 +120,31 @@ export class MediaService {
       stream: createReadStream(filePath),
       filename: media.originalFilename,
       mimeType: media.mimeType,
+    };
+  }
+
+  async downloadHindi(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<{
+    stream: ReturnType<typeof createReadStream>;
+    filename: string;
+    mimeType: string;
+  }> {
+    const media = await this.findActiveMedia(id);
+    this.ownership.assertAccess(media.organizationId, actor);
+    if (!media.hindiFilePath || !media.hindiOriginalFilename || !media.hindiMimeType)
+      throw new NotFoundException('Hindi document file is not available.');
+    const filePath = this.absolutePath(media.hindiFilePath);
+    try {
+      await access(filePath);
+    } catch {
+      throw new NotFoundException('The Hindi document file is no longer available.');
+    }
+    return {
+      stream: createReadStream(filePath),
+      filename: media.hindiOriginalFilename,
+      mimeType: media.hindiMimeType,
     };
   }
 
@@ -265,8 +293,18 @@ export class MediaService {
     return this.toResponse(media);
   }
 
+  async cleanupUploadedFiles(
+    files: Array<Express.Multer.File | undefined>,
+  ): Promise<void> {
+    await Promise.all(
+      files.filter((file): file is Express.Multer.File => Boolean(file)).map(
+        (file) => unlink(file.path).catch(() => undefined),
+      ),
+    );
+  }
+
   async cleanupUploadedFile(file?: Express.Multer.File): Promise<void> {
-    if (file) await unlink(file.path).catch(() => undefined);
+    await this.cleanupUploadedFiles([file]);
   }
 
   private async findActiveMedia(id: number): Promise<Media> {
@@ -375,6 +413,14 @@ export class MediaService {
       extension: media.extension,
       fileSize: media.fileSize.toString(),
       checksum: media.checksum,
+      hindiOriginalFilename: media.hindiOriginalFilename,
+      hindiMimeType: media.hindiMimeType,
+      hindiExtension: media.hindiExtension,
+      hindiFileSize: media.hindiFileSize?.toString() ?? null,
+      hindiChecksum: media.hindiChecksum,
+      hindiDownloadUrl: media.hindiFilePath
+        ? `/api/media/${media.id}/download/hindi`
+        : null,
       uploadedAt: media.uploadedAt,
       createdAt: media.createdAt,
       updatedAt: media.updatedAt,
@@ -398,6 +444,13 @@ export class MediaService {
       extension: media.extension,
       fileSize: media.fileSize.toString(),
       checksum: media.checksum,
+      hindiOriginalFilename: media.hindiOriginalFilename,
+      hindiStoredFilename: media.hindiStoredFilename,
+      hindiFilePath: media.hindiFilePath,
+      hindiMimeType: media.hindiMimeType,
+      hindiExtension: media.hindiExtension,
+      hindiFileSize: media.hindiFileSize?.toString() ?? null,
+      hindiChecksum: media.hindiChecksum,
       uploadedAt: media.uploadedAt.toISOString(),
       createdAt: media.createdAt.toISOString(),
       updatedAt: media.updatedAt.toISOString(),
@@ -426,6 +479,18 @@ export class MediaService {
     return createHash('sha256')
       .update(await readFile(filePath))
       .digest('hex');
+  }
+
+  private async hindiFileData(file: Express.Multer.File) {
+    return {
+      hindiOriginalFilename: this.sanitizeFilename(file.originalname),
+      hindiStoredFilename: file.filename,
+      hindiFilePath: this.toStoredPath(file.path),
+      hindiMimeType: file.mimetype,
+      hindiExtension: this.extensionOf(file.originalname),
+      hindiFileSize: BigInt(file.size),
+      hindiChecksum: await this.checksum(file.path),
+    };
   }
 
   private sanitizeFilename(filename: string): string {
