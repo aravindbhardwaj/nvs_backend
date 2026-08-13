@@ -12,6 +12,11 @@ import { relative, resolve } from 'node:path';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import {
+  formatCalendarDate,
+  isInvalidDateRange,
+  toCalendarDate,
+} from '../common/utils/calendar-date.util';
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { BANNER_UPLOADS_ROOT, validateBannerImage } from './banner.storage';
@@ -37,7 +42,7 @@ export class BannersService {
     actor: AuthenticatedUser,
   ): Promise<BannerResponseDto> {
     await validateBannerImage(file);
-    this.assertDisplayDates(dto.startDate, dto.endDate);
+    this.assertDisplayDates(dto.start_date, dto.end_date);
     const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
@@ -58,8 +63,8 @@ export class BannersService {
           fileSize: BigInt(file.size),
           displayOrder: dto.displayOrder ?? 0,
           isActive: dto.isActive ?? true,
-          startDate: dto.startDate ?? null,
-          endDate: dto.endDate ?? null,
+          startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
+          endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -112,13 +117,31 @@ export class BannersService {
     const existing = await this.findActiveBanner(id);
     this.ownership.assertAccess(existing.organizationId, actor);
     this.assertDisplayDates(
-      dto.startDate === undefined ? existing.startDate : dto.startDate,
-      dto.endDate === undefined ? existing.endDate : dto.endDate,
+      dto.start_date === undefined
+        ? formatCalendarDate(existing.startDate)
+        : dto.start_date,
+      dto.end_date === undefined ? formatCalendarDate(existing.endDate) : dto.end_date,
     );
     const banner = await this.prisma.$transaction(async (transaction) => {
       const updatedBanner = await transaction.banner.update({
         where: { id },
-        data: { ...dto, updatedById: actor.id },
+        data: {
+          titleEnglish: dto.titleEnglish,
+          titleHindi: dto.titleHindi,
+          descriptionEnglish: dto.descriptionEnglish,
+          descriptionHindi: dto.descriptionHindi,
+          altTextEnglish: dto.altTextEnglish,
+          altTextHindi: dto.altTextHindi,
+          displayOrder: dto.displayOrder,
+          isActive: dto.isActive,
+          ...(dto.start_date === undefined
+            ? {}
+            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+          ...(dto.end_date === undefined
+            ? {}
+            : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
+          updatedById: actor.id,
+        },
       });
       await this.createAuditLog(
         transaction,
@@ -417,10 +440,10 @@ export class BannersService {
   }
 
   private assertDisplayDates(
-    startDate?: Date | null,
-    endDate?: Date | null,
+    startDate?: string | null,
+    endDate?: string | null,
   ): void {
-    if (startDate && endDate && endDate < startDate) {
+    if (isInvalidDateRange(startDate, endDate)) {
       throw new BadRequestException(
         'End date must not be earlier than start date.',
       );
@@ -465,8 +488,8 @@ export class BannersService {
       fileSize: banner.fileSize.toString(),
       displayOrder: banner.displayOrder,
       isActive: banner.isActive,
-      startDate: banner.startDate,
-      endDate: banner.endDate,
+      start_date: formatCalendarDate(banner.startDate),
+      end_date: formatCalendarDate(banner.endDate),
       createdAt: banner.createdAt,
       updatedAt: banner.updatedAt,
       isDeleted: banner.isDeleted,
@@ -485,8 +508,8 @@ export class BannersService {
       altTextHindi: banner.altTextHindi,
       imageUrl: `/api/public/banners/${banner.id}/image`,
       displayOrder: banner.displayOrder,
-      startDate: banner.startDate,
-      endDate: banner.endDate,
+      start_date: formatCalendarDate(banner.startDate),
+      end_date: formatCalendarDate(banner.endDate),
     };
   }
 

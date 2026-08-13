@@ -13,6 +13,8 @@ export class GalleryImageResponseDto {
   fileSize: string;
   displayOrder: number;
   isActive: boolean;
+  start_date: string | null;
+  end_date: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -29,5 +31,7 @@ export class PublicGalleryImageResponseDto {
   altTextHindi: string | null;
   imageUrl: string;
   displayOrder: number;
+  start_date: string | null;
+  end_date: string | null;
   createdAt: Date;
 }

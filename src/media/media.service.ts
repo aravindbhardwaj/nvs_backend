@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -12,6 +13,11 @@ import { basename, relative, resolve } from 'node:path';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import {
+  formatCalendarDate,
+  isInvalidDateRange,
+  toCalendarDate,
+} from '../common/utils/calendar-date.util';
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetMediaQueryDto } from './dto/get-media-query.dto';
@@ -35,6 +41,7 @@ export class MediaService {
   ): Promise<MediaResponseDto> {
     validateMediaFile(file);
     if (hindiFile) validateMediaFile(hindiFile);
+    this.assertDateRange(dto.start_date, dto.end_date);
     const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
@@ -48,6 +55,8 @@ export class MediaService {
           titleHindi: dto.titleHindi,
           descriptionEnglish: dto.descriptionEnglish ?? null,
           descriptionHindi: dto.descriptionHindi ?? null,
+          startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
+          endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           originalFilename: this.sanitizeFilename(file.originalname),
           storedFilename: file.filename,
           filePath: this.toStoredPath(file.path),
@@ -157,10 +166,29 @@ export class MediaService {
     this.ownership.assertAccess(existing.organizationId, actor);
     if (dto.mediaTypeId !== undefined)
       await this.ensureActiveMediaType(dto.mediaTypeId);
+    this.assertDateRange(
+      dto.start_date === undefined
+        ? formatCalendarDate(existing.startDate)
+        : dto.start_date,
+      dto.end_date === undefined ? formatCalendarDate(existing.endDate) : dto.end_date,
+    );
     const media = await this.prisma.$transaction(async (transaction) => {
       const updatedMedia = await transaction.media.update({
         where: { id },
-        data: { ...dto, updatedById: actor.id },
+        data: {
+          titleEnglish: dto.titleEnglish,
+          titleHindi: dto.titleHindi,
+          descriptionEnglish: dto.descriptionEnglish,
+          descriptionHindi: dto.descriptionHindi,
+          mediaTypeId: dto.mediaTypeId,
+          ...(dto.start_date === undefined
+            ? {}
+            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+          ...(dto.end_date === undefined
+            ? {}
+            : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
+          updatedById: actor.id,
+        },
       });
       await this.createAuditLog(
         transaction,
@@ -316,6 +344,14 @@ export class MediaService {
     return media;
   }
 
+  private assertDateRange(
+    startDate?: string | null,
+    endDate?: string | null,
+  ): void {
+    if (isInvalidDateRange(startDate, endDate))
+      throw new BadRequestException('End date must not be earlier than start date.');
+  }
+
   private async ensureActiveMediaType(id: number): Promise<void> {
     const mediaType = await this.prisma.mediaType.findFirst({
       where: { id, isDeleted: false },
@@ -421,6 +457,8 @@ export class MediaService {
       hindiDownloadUrl: media.hindiFilePath
         ? `/api/media/${media.id}/download/hindi`
         : null,
+      start_date: formatCalendarDate(media.startDate),
+      end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt,
       createdAt: media.createdAt,
       updatedAt: media.updatedAt,
@@ -451,6 +489,8 @@ export class MediaService {
       hindiExtension: media.hindiExtension,
       hindiFileSize: media.hindiFileSize?.toString() ?? null,
       hindiChecksum: media.hindiChecksum,
+      start_date: formatCalendarDate(media.startDate),
+      end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt.toISOString(),
       createdAt: media.createdAt.toISOString(),
       updatedAt: media.updatedAt.toISOString(),

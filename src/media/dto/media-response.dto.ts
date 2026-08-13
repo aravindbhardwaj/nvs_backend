@@ -17,6 +17,8 @@ export class MediaResponseDto {
   hindiFileSize: string | null;
   hindiChecksum: string | null;
   hindiDownloadUrl: string | null;
+  start_date: string | null;
+  end_date: string | null;
   uploadedAt: Date;
   createdAt: Date;
   updatedAt: Date;

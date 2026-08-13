@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -10,6 +11,11 @@ import { relative, resolve } from 'node:path';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import {
+  formatCalendarDate,
+  isInvalidDateRange,
+  toCalendarDate,
+} from '../common/utils/calendar-date.util';
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGalleryImageDto } from './dto/create-gallery-image.dto';
@@ -35,6 +41,7 @@ export class GalleryService {
     actor: AuthenticatedUser,
   ): Promise<GalleryImageResponseDto> {
     await validateGalleryImage(file);
+    this.assertDateRange(dto.start_date, dto.end_date);
     const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
@@ -55,6 +62,8 @@ export class GalleryService {
           fileSize: BigInt(file.size),
           displayOrder: dto.displayOrder ?? 0,
           isActive: dto.isActive ?? true,
+          startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
+          endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -71,6 +80,7 @@ export class GalleryService {
     actor: AuthenticatedUser,
   ): Promise<GalleryImageResponseDto[]> {
     await Promise.all(files.map(validateGalleryImage));
+    this.assertDateRange(dto.start_date, dto.end_date);
     const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
@@ -94,6 +104,8 @@ export class GalleryService {
               fileSize: BigInt(file.size),
               displayOrder: (dto.displayOrder ?? 0) + index,
               isActive: dto.isActive ?? true,
+              startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
+              endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
               createdById: actor.id,
               updatedById: actor.id,
             },
@@ -144,10 +156,32 @@ export class GalleryService {
   ): Promise<GalleryImageResponseDto> {
     const previous = await this.active(id);
     this.ownership.assertAccess(previous.organizationId, actor);
+    this.assertDateRange(
+      dto.start_date === undefined
+        ? formatCalendarDate(previous.startDate)
+        : dto.start_date,
+      dto.end_date === undefined ? formatCalendarDate(previous.endDate) : dto.end_date,
+    );
     const image = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.galleryImage.update({
         where: { id },
-        data: { ...dto, updatedById: actor.id },
+        data: {
+          titleEnglish: dto.titleEnglish,
+          titleHindi: dto.titleHindi,
+          descriptionEnglish: dto.descriptionEnglish,
+          descriptionHindi: dto.descriptionHindi,
+          altTextEnglish: dto.altTextEnglish,
+          altTextHindi: dto.altTextHindi,
+          displayOrder: dto.displayOrder,
+          isActive: dto.isActive,
+          ...(dto.start_date === undefined
+            ? {}
+            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+          ...(dto.end_date === undefined
+            ? {}
+            : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
+          updatedById: actor.id,
+        },
       });
       await this.audit(tx, actor.id, 'UPDATE', updated, previous);
       return updated;
@@ -336,6 +370,10 @@ export class GalleryService {
       );
     return image;
   }
+  private assertDateRange(startDate?: string | null, endDate?: string | null): void {
+    if (isInvalidDateRange(startDate, endDate))
+      throw new BadRequestException('End date must not be earlier than start date.');
+  }
   private async ensureActiveOrganization(id: number): Promise<void> {
     const organization = await this.prisma.organization.findFirst({
       where: { id, isDeleted: false },
@@ -424,6 +462,8 @@ export class GalleryService {
       fileSize: image.fileSize.toString(),
       displayOrder: image.displayOrder,
       isActive: image.isActive,
+      start_date: formatCalendarDate(image.startDate),
+      end_date: formatCalendarDate(image.endDate),
       createdAt: image.createdAt,
       updatedAt: image.updatedAt,
       isDeleted: image.isDeleted,
@@ -441,6 +481,8 @@ export class GalleryService {
       altTextHindi: image.altTextHindi,
       imageUrl: `/api/public/gallery/${image.id}/image`,
       displayOrder: image.displayOrder,
+      start_date: formatCalendarDate(image.startDate),
+      end_date: formatCalendarDate(image.endDate),
       createdAt: image.createdAt,
     };
   }
@@ -461,6 +503,8 @@ export class GalleryService {
       fileSize: image.fileSize.toString(),
       displayOrder: image.displayOrder,
       isActive: image.isActive,
+      start_date: formatCalendarDate(image.startDate),
+      end_date: formatCalendarDate(image.endDate),
       isDeleted: image.isDeleted,
     };
   }

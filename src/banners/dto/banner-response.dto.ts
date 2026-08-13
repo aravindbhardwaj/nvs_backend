@@ -13,8 +13,8 @@ export class BannerResponseDto {
   fileSize: string;
   displayOrder: number;
   isActive: boolean;
-  startDate: Date | null;
-  endDate: Date | null;
+  start_date: string | null;
+  end_date: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -31,6 +31,6 @@ export class PublicBannerResponseDto {
   altTextHindi: string | null;
   imageUrl: string;
   displayOrder: number;
-  startDate: Date | null;
-  endDate: Date | null;
+  start_date: string | null;
+  end_date: string | null;
 }

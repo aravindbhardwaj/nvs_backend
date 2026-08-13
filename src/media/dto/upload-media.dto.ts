@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
+  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -44,4 +45,12 @@ export class UploadMediaDto {
   @IsInt()
   @Min(1)
   mediaTypeId: number;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  start_date?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  end_date?: string;
 }

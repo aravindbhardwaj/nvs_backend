@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -40,4 +41,6 @@ export class UpdateGalleryImageDto {
   altTextHindi?: string;
   @IsOptional() @Type(() => Number) @IsInt() displayOrder?: number;
   @IsOptional() @Transform(boolean) @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsDateString({ strict: true }) start_date?: string | null;
+  @IsOptional() @IsDateString({ strict: true }) end_date?: string | null;
 }

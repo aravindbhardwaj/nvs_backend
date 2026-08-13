@@ -1,7 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsDate,
+  IsDateString,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -63,12 +63,10 @@ export class UpdateBannerDto {
   isActive?: boolean;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  startDate?: Date | null;
+  @IsDateString({ strict: true })
+  start_date?: string | null;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  endDate?: Date | null;
+  @IsDateString({ strict: true })
+  end_date?: string | null;
 }
