@@ -44,7 +44,14 @@ export class ContentTypesController {
   }
 
   @Get()
-  @RequirePermission('CONTENT_TYPE_VIEW')
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADQUARTER,
+    Role.NLI,
+    Role.REGIONAL,
+    Role.JNV,
+  )
+  @RequirePermission('PAGE_VIEW')
   async findAll(@Query() query: GetContentTypesQueryDto) {
     return {
       message: 'Content types retrieved successfully.',

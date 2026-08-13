@@ -44,7 +44,14 @@ export class MediaTypesController {
   }
 
   @Get()
-  @RequirePermission('MEDIA_TYPE_VIEW')
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADQUARTER,
+    Role.NLI,
+    Role.REGIONAL,
+    Role.JNV,
+  )
+  @RequirePermission('MEDIA_VIEW')
   async findAll(@Query() query: GetMediaTypesQueryDto) {
     return {
       message: 'Media types retrieved successfully.',
