@@ -360,6 +360,7 @@ model Banner {
   fileSize           BigInt    @map("file_size")
   displayOrder       Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
+  visibleToAll       Boolean?  @map("visible_to_all")
   startDate          DateTime? @db.Date @map("start_date")
   endDate            DateTime? @db.Date @map("end_date")
   createdAt          DateTime  @default(now()) @map("created_at")

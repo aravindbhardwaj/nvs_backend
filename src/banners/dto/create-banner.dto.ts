@@ -14,7 +14,9 @@ const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 const toBoolean = ({ value }: { value: unknown }): unknown =>
-  value === undefined ? undefined : value === true || value === 'true';
+  value === undefined || value === null
+    ? value
+    : value === true || value === 'true';
 
 export class CreateBannerDto {
   @IsOptional()
@@ -66,6 +68,11 @@ export class CreateBannerDto {
   @Transform(toBoolean)
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  visible_to_all?: boolean;
 
   @IsOptional()
   @IsDateString({ strict: true })

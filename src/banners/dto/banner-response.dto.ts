@@ -13,6 +13,7 @@ export class BannerResponseDto {
   fileSize: string;
   displayOrder: number;
   isActive: boolean;
+  visible_to_all: boolean | null;
   start_date: string | null;
   end_date: string | null;
   createdAt: Date;

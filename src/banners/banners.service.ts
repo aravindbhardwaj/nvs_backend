@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Banner, Prisma, Role } from '@prisma/client';
 import { createReadStream } from 'node:fs';
 import { access, unlink } from 'node:fs/promises';
@@ -34,6 +35,7 @@ export class BannersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ownership: OrganizationOwnershipService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(
@@ -47,6 +49,7 @@ export class BannersService {
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     const banner = await this.prisma.$transaction(async (transaction) => {
+      await this.assertBannerUploadLimit(transaction, actor.id);
       const createdBanner = await transaction.banner.create({
         data: {
           organizationId,
@@ -63,6 +66,7 @@ export class BannersService {
           fileSize: BigInt(file.size),
           displayOrder: dto.displayOrder ?? 0,
           isActive: dto.isActive ?? true,
+          visibleToAll: dto.visible_to_all ?? null,
           startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
           endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           createdById: actor.id,
@@ -104,8 +108,7 @@ export class BannersService {
     id: number,
     actor: AuthenticatedUser,
   ): Promise<BannerResponseDto> {
-    const banner = await this.findActiveBanner(id);
-    this.ownership.assertAccess(banner.organizationId, actor);
+    const banner = await this.findViewableBanner(id, actor);
     return this.toResponse(banner);
   }
 
@@ -120,7 +123,9 @@ export class BannersService {
       dto.start_date === undefined
         ? formatCalendarDate(existing.startDate)
         : dto.start_date,
-      dto.end_date === undefined ? formatCalendarDate(existing.endDate) : dto.end_date,
+      dto.end_date === undefined
+        ? formatCalendarDate(existing.endDate)
+        : dto.end_date,
     );
     const banner = await this.prisma.$transaction(async (transaction) => {
       const updatedBanner = await transaction.banner.update({
@@ -134,9 +139,16 @@ export class BannersService {
           altTextHindi: dto.altTextHindi,
           displayOrder: dto.displayOrder,
           isActive: dto.isActive,
+          ...(dto.visible_to_all === undefined
+            ? {}
+            : { visibleToAll: dto.visible_to_all }),
           ...(dto.start_date === undefined
             ? {}
-            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+            : {
+                startDate: dto.start_date
+                  ? toCalendarDate(dto.start_date)
+                  : null,
+              }),
           ...(dto.end_date === undefined
             ? {}
             : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
@@ -277,6 +289,7 @@ export class BannersService {
       });
       if (!existing) throw new NotFoundException('Deleted banner not found.');
       this.ownership.assertAccess(existing.organizationId, actor);
+      await this.assertBannerUploadLimit(transaction, existing.createdById);
       const restoredBanner = await transaction.banner.update({
         where: { id },
         data: {
@@ -324,14 +337,11 @@ export class BannersService {
     stream: ReturnType<typeof createReadStream>;
     mimeType: string;
   }> {
-    const banner = await this.findActiveBanner(id);
-    this.ownership.assertAccess(banner.organizationId, actor);
+    const banner = await this.findViewableBanner(id, actor);
     return this.openImage(banner);
   }
 
-  async publicImageStream(
-    id: number,
-  ): Promise<{
+  async publicImageStream(id: number): Promise<{
     stream: ReturnType<typeof createReadStream>;
     mimeType: string;
   }> {
@@ -346,9 +356,7 @@ export class BannersService {
     if (file) await unlink(file.path).catch(() => undefined);
   }
 
-  private async openImage(
-    banner: Banner,
-  ): Promise<{
+  private async openImage(banner: Banner): Promise<{
     stream: ReturnType<typeof createReadStream>;
     mimeType: string;
   }> {
@@ -364,6 +372,23 @@ export class BannersService {
   private async findActiveBanner(id: number): Promise<Banner> {
     const banner = await this.prisma.banner.findFirst({
       where: { id, isDeleted: false },
+    });
+    if (!banner)
+      throw new NotFoundException('Banner not found or has been deleted.');
+    return banner;
+  }
+
+  private async findViewableBanner(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<Banner> {
+    const visibilityWhere = this.visibilityWhere({}, actor);
+    const banner = await this.prisma.banner.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+        ...(visibilityWhere ? { AND: [visibilityWhere] } : {}),
+      },
     });
     if (!banner)
       throw new NotFoundException('Banner not found or has been deleted.');
@@ -388,42 +413,119 @@ export class BannersService {
     const where: Prisma.BannerWhereInput = {
       isDeleted: query.isDeleted ?? false,
       ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
-      ...(actor.role === Role.SUPER_ADMIN
-        ? query.organizationId
-          ? { organizationId: query.organizationId }
-          : {}
-        : { organizationId: actor.organizationId }),
     };
+    const visibilityWhere = this.visibilityWhere(query, actor);
+    if (visibilityWhere) where.AND = [visibilityWhere];
     if (query.search?.trim()) {
-      where.OR = [
-        {
-          titleEnglish: { contains: query.search.trim(), mode: 'insensitive' },
-        },
-        { titleHindi: { contains: query.search.trim(), mode: 'insensitive' } },
-        {
-          descriptionEnglish: {
-            contains: query.search.trim(),
-            mode: 'insensitive',
+      const searchWhere: Prisma.BannerWhereInput = {
+        OR: [
+          {
+            titleEnglish: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
           },
-        },
-        {
-          descriptionHindi: {
-            contains: query.search.trim(),
-            mode: 'insensitive',
+          {
+            titleHindi: { contains: query.search.trim(), mode: 'insensitive' },
           },
-        },
-        {
-          altTextEnglish: {
-            contains: query.search.trim(),
-            mode: 'insensitive',
+          {
+            descriptionEnglish: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
           },
-        },
-        {
-          altTextHindi: { contains: query.search.trim(), mode: 'insensitive' },
-        },
-      ];
+          {
+            descriptionHindi: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+          {
+            altTextEnglish: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+          {
+            altTextHindi: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+        ],
+      };
+      const existingAnd = where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : [];
+      where.AND = [...existingAnd, searchWhere];
     }
     return where;
+  }
+
+  private visibilityWhere(
+    query: Pick<GetBannersQueryDto, 'organizationId'>,
+    actor: AuthenticatedUser,
+  ): Prisma.BannerWhereInput | undefined {
+    if (actor.role === Role.SUPER_ADMIN) {
+      return query.organizationId
+        ? { organizationId: query.organizationId }
+        : undefined;
+    }
+
+    if (query.organizationId) return { organizationId: actor.organizationId };
+
+    const headquartersShared: Prisma.BannerWhereInput = {
+      visibleToAll: true,
+      organization: { organizationType: { code: 'HEADQUARTER' } },
+    };
+    const ownOrganization: Prisma.BannerWhereInput = {
+      organizationId: actor.organizationId,
+    };
+
+    if (actor.role === Role.HEADQUARTER) return ownOrganization;
+    if (actor.role === Role.NLI || actor.role === Role.REGIONAL) {
+      return { OR: [ownOrganization, headquartersShared] };
+    }
+    if (actor.role === Role.JNV) {
+      return {
+        OR: [
+          ownOrganization,
+          headquartersShared,
+          {
+            visibleToAll: true,
+            organization: {
+              organizationType: { code: 'REGIONAL_OFFICE' },
+              childOrganizations: { some: { id: actor.organizationId } },
+            },
+          },
+        ],
+      };
+    }
+    return ownOrganization;
+  }
+
+  private async assertBannerUploadLimit(
+    transaction: Prisma.TransactionClient,
+    createdById: number | null | undefined,
+  ): Promise<void> {
+    if (!createdById) return;
+    const limit = this.maxBannersPerUser();
+    const count = await transaction.banner.count({
+      where: { createdById, isDeleted: false },
+    });
+    if (count >= limit) {
+      throw new BadRequestException('Maximum banner upload limit reached.');
+    }
+  }
+
+  private maxBannersPerUser(): number {
+    const configured = this.configService.get<number>(
+      'banner.maxBannersPerUser',
+      5,
+    );
+    return Number.isSafeInteger(configured) && configured > 0 ? configured : 5;
   }
 
   private displayableWhere(organizationId?: number): Prisma.BannerWhereInput {
@@ -488,6 +590,7 @@ export class BannersService {
       fileSize: banner.fileSize.toString(),
       displayOrder: banner.displayOrder,
       isActive: banner.isActive,
+      visible_to_all: banner.visibleToAll,
       start_date: formatCalendarDate(banner.startDate),
       end_date: formatCalendarDate(banner.endDate),
       createdAt: banner.createdAt,
@@ -530,6 +633,7 @@ export class BannersService {
       fileSize: banner.fileSize.toString(),
       displayOrder: banner.displayOrder,
       isActive: banner.isActive,
+      visibleToAll: banner.visibleToAll,
       startDate: banner.startDate?.toISOString() ?? null,
       endDate: banner.endDate?.toISOString() ?? null,
       isDeleted: banner.isDeleted,

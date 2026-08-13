@@ -20,7 +20,12 @@ describe('BannersService', () => {
     $transaction: jest.fn(),
   };
   const ownership = { assertAccess: jest.fn() };
-  const service = new BannersService(prisma as never, ownership as never);
+  const configService = { get: jest.fn().mockReturnValue(5) };
+  const service = new BannersService(
+    prisma as never,
+    ownership as never,
+    configService as never,
+  );
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -62,7 +67,7 @@ describe('BannersService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('limits a non-super-admin management list to the actor organization', async () => {
+  it('includes only the actor organization for a Headquarters management list', async () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
 
     await service.findAll(
@@ -71,8 +76,41 @@ describe('BannersService', () => {
     );
 
     expect(prisma.banner.findMany.mock.calls[0][0]).toMatchObject({
-      where: { organizationId: 5, isDeleted: false },
+      where: {
+        isDeleted: false,
+        AND: [{ organizationId: 5 }],
+      },
       orderBy: { displayOrder: 'asc' },
+    });
+  });
+
+  it('includes own, Headquarters, and parent Regional Office banners for a JNV', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+
+    await service.findAll(
+      { page: 1, limit: 20, sort: 'displayOrder', order: 'asc' },
+      { ...actor, role: Role.JNV, organizationId: 28 },
+    );
+
+    expect(prisma.banner.findMany.mock.calls[0][0].where).toMatchObject({
+      AND: [
+        {
+          OR: [
+            { organizationId: 28 },
+            {
+              visibleToAll: true,
+              organization: { organizationType: { code: 'HEADQUARTER' } },
+            },
+            {
+              visibleToAll: true,
+              organization: {
+                organizationType: { code: 'REGIONAL_OFFICE' },
+                childOrganizations: { some: { id: 28 } },
+              },
+            },
+          ],
+        },
+      ],
     });
   });
 

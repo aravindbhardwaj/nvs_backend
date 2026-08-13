@@ -997,6 +997,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "visible_to_all",
+                  "value": "true",
+                  "type": "text",
+                  "description": "For Headquarters, shares with all organizations; for a Regional Office, shares with its JNVs only. false or omitted does not propagate."
+                },
+                {
                   "key": "start_date",
                   "value": "2026-08-15",
                   "type": "text",
@@ -1010,14 +1016,16 @@
                 }
               ]
             },
-            "url": "{{baseUrl}}/api/banners"
+            "url": "{{baseUrl}}/api/banners",
+            "description": "A user can create up to MAX_BANNERS_PER_USER active banners (default 5)."
           }
         },
         {
           "name": "List",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/banners?page=1&limit=20&organizationId={{targetOrganizationId}}"
+            "url": "{{baseUrl}}/api/banners?page=1&limit=20&organizationId={{targetOrganizationId}}",
+            "description": "Without organizationId, NLI/Regional Office users also receive Headquarters banners with visible_to_all=true; JNV users additionally receive matching parent Regional Office banners."
           }
         },
         {
@@ -1063,7 +1071,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"titleEnglish\": \"Updated banner\",\n  \"titleHindi\": \"अद्यतन बैनर\",\n  \"descriptionEnglish\": \"Updated banner description\",\n  \"descriptionHindi\": \"अद्यतन बैनर विवरण\",\n  \"altTextEnglish\": \"Updated banner\",\n  \"altTextHindi\": \"अद्यतन बैनर\",\n  \"displayOrder\": 2,\n  \"isActive\": true,\n  \"start_date\": \"2026-08-20\",\n  \"end_date\": \"2026-09-30\"\n}"
+              "raw": "{\n  \"titleEnglish\": \"Updated banner\",\n  \"titleHindi\": \"अद्यतन बैनर\",\n  \"descriptionEnglish\": \"Updated banner description\",\n  \"descriptionHindi\": \"अद्यतन बैनर विवरण\",\n  \"altTextEnglish\": \"Updated banner\",\n  \"altTextHindi\": \"अद्यतन बैनर\",\n  \"displayOrder\": 2,\n  \"isActive\": true,\n  \"visible_to_all\": true,\n  \"start_date\": \"2026-08-20\",\n  \"end_date\": \"2026-09-30\"\n}"
             },
             "url": "{{baseUrl}}/api/banners/{{bannerId}}",
             "description": "Set start_date/end_date to YYYY-MM-DD to update; omit either property to leave it unchanged; send null to clear it."
