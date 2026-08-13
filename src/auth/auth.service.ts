@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-import { Prisma, User, UserStatus } from '@prisma/client';
+import { Prisma, UserStatus } from '@prisma/client';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -18,6 +18,14 @@ import { TokenRefreshResponseDto } from './dto/token-refresh-response.dto';
 
 import { PasswordService } from './services/password.service';
 import { RefreshTokenService } from './services/refresh-token.service';
+import { roleFromOrganizationTypeCode } from './utils/organization-type-role.util';
+
+const userWithOrganizationType = {
+  organizationType: { select: { code: true } },
+} satisfies Prisma.UserInclude;
+type UserWithOrganizationType = Prisma.UserGetPayload<{
+  include: typeof userWithOrganizationType;
+}>;
 
 @Injectable()
 export class AuthService {
@@ -28,15 +36,16 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly refreshTokenService: RefreshTokenService,
   ) {}
-  private async findUserByEmail(email: string): Promise<User | null> {
+  private async findUserByEmail(email: string): Promise<UserWithOrganizationType | null> {
     return this.prisma.user.findUnique({
       where: {
         email: email.toLowerCase(),
       },
+      include: userWithOrganizationType,
     });
   }
 
-  private async ensureUserCanLogin(user: User): Promise<void> {
+  private async ensureUserCanLogin(user: UserWithOrganizationType): Promise<void> {
     if (user.isDeleted || user.deletedAt) {
       await this.createAuthenticationAuditLog(user.id, 'LOGIN_FAILED', {
         reason: 'USER_DELETED',
@@ -66,7 +75,7 @@ export class AuthService {
     }
   }
 
-  private async recordFailedLogin(user: User): Promise<boolean> {
+  private async recordFailedLogin(user: UserWithOrganizationType): Promise<boolean> {
     const maxAttempts = this.configService.getOrThrow<number>(
       'auth.login.maxAttempts',
     );
@@ -134,11 +143,13 @@ export class AuthService {
     });
   }
 
-  private buildJwtPayload(user: User): JwtPayload {
+  private buildJwtPayload(user: UserWithOrganizationType): JwtPayload {
     return {
       userId: user.id,
       organizationId: user.organizationId,
-      role: user.role,
+      role: roleFromOrganizationTypeCode(user.organizationType.code),
+      organizationTypeId: user.organizationTypeId,
+      organizationType: user.organizationType.code,
       sessionVersion: user.sessionVersion,
     };
   }
@@ -204,8 +215,10 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
         organizationId: user.organizationId,
+        organization_type_id: user.organizationTypeId,
+        organization_type: user.organizationType.code,
+        role: roleFromOrganizationTypeCode(user.organizationType.code),
       },
     };
   }

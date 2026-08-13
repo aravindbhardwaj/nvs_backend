@@ -25,7 +25,10 @@ async function main(): Promise<void> {
   const organizationsByCode = await seedOrganizations(organizationTypesByCode);
   const permissionsByKey = await seedPermissions();
   await seedRolePermissions(permissionsByKey);
-  const usersByEmail = await seedUsers(organizationsByCode);
+  const usersByEmail = await seedUsers(
+    organizationsByCode,
+    organizationTypesByCode,
+  );
   const contentTypesByName = await seedReferenceData();
   await seedSamplePages(organizationsByCode, contentTypesByName, usersByEmail);
 }
@@ -195,6 +198,7 @@ async function seedRolePermissions(
 
 async function seedUsers(
   organizationsByCode: Map<string, number>,
+  organizationTypesByCode: Map<string, number>,
 ): Promise<Map<string, number>> {
   const passwordHash = await bcrypt.hash(
     process.env.SEED_USER_PASSWORD ?? DEFAULT_SEED_PASSWORD,
@@ -208,12 +212,19 @@ async function seedUsers(
       throw new Error(
         `Seed organization ${user.organizationCode} was not resolved.`,
       );
+    const organizationTypeCode =
+      user.role === Role.REGIONAL ? 'REGIONAL_OFFICE' : user.role;
+    const organizationTypeId = organizationTypesByCode.get(organizationTypeCode);
+    if (!organizationTypeId)
+      throw new Error(
+        `Seed organization type ${organizationTypeCode} was not resolved.`,
+      );
     const record = await prisma.user.upsert({
       where: { email: user.email },
       update: {
         name: user.name,
-        role: user.role,
         organizationId,
+        organizationTypeId,
         status: 'ACTIVE',
         isDeleted: false,
         deletedAt: null,
@@ -225,8 +236,8 @@ async function seedUsers(
         name: user.name,
         email: user.email,
         passwordHash,
-        role: user.role,
         organizationId,
+        organizationTypeId,
       },
     });
     usersByEmail.set(user.email, record.id);

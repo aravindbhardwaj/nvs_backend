@@ -7,7 +7,7 @@ import {
   IsOptional,
   Min,
 } from 'class-validator';
-import { Role, UserStatus } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SortOrder } from '../../common/enums/sort-order.enum';
@@ -20,8 +20,10 @@ export class GetUsersQueryDto extends PaginationQueryDto {
   organizationId?: number;
 
   @IsOptional()
-  @IsEnum(Role)
-  role?: Role;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  organization_type_id?: number;
 
   @IsOptional()
   @IsEnum(UserStatus)
@@ -42,7 +44,7 @@ export class GetUsersQueryDto extends PaginationQueryDto {
   @IsIn([
     'name',
     'email',
-    'role',
+    'organizationTypeId',
     'status',
     'organizationId',
     'createdAt',

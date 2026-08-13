@@ -78,6 +78,7 @@ model OrganizationType {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
   organizations Organization[]
+  users         User[]
 
   @@index([isActive])
   @@map("nvs_organization_types")
@@ -130,8 +131,8 @@ model User {
   passwordHash          String     @map("password") @db.VarChar(255)
   mobile                String?    @db.VarChar(20)
   address               String?    @db.Text
-  role                  Role
   organizationId        Int        @map("organization_id")
+  organizationTypeId    Int        @map("organization_type_id")
   status                UserStatus @default(ACTIVE)
   failedLoginAttempts   Int        @default(0) @map("failed_login_attempts")
   lockedUntil           DateTime?  @map("locked_until")
@@ -148,6 +149,7 @@ model User {
   passwordChangedAt     DateTime?  @map("password_changed_at")
 
   organization           Organization     @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: Restrict)
+  organizationType       OrganizationType @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
   createdBy              User?            @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy              User?            @relation("UserUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   deletedBy              User?            @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
@@ -187,7 +189,7 @@ model User {
   auditLogs              AuditLog[]
 
   @@index([organizationId])
-  @@index([role])
+  @@index([organizationTypeId])
   @@index([status])
   @@index([isDeleted])
   @@map("nvs_users")

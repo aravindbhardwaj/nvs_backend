@@ -7,10 +7,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class RefreshTokenRepositoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(): Promise<
-    (RefreshToken & { user: Prisma.UserGetPayload<object> })[]
-  > {
-    return this.prisma.refreshToken.findMany({ include: { user: true } });
+  findAll() {
+    return this.prisma.refreshToken.findMany({
+      include: { user: { include: { organizationType: { select: { code: true } } } } },
+    });
   }
 
   create(data: Prisma.RefreshTokenCreateInput): Promise<RefreshToken> {

@@ -20,6 +20,7 @@ const userInclude = {
   organization: {
     select: { id: true, organizationName: true, organizationCode: true },
   },
+  organizationType: { select: { id: true, code: true, name: true } },
 } satisfies Prisma.UserInclude;
 
 type UserWithOrganization = Prisma.UserGetPayload<{
@@ -38,7 +39,10 @@ export class UsersService {
     actor: AuthenticatedUser,
   ): Promise<UserResponseDto> {
     await this.ensureEmailIsUnique(dto.email);
-    await this.ensureActiveOrganization(dto.organizationId);
+    await this.ensureOrganizationTypeCompatibility(
+      dto.organizationId,
+      dto.organization_type_id,
+    );
     const passwordHash = await this.passwordService.hash(dto.password);
 
     const user = await this.prisma.$transaction(async (transaction) => {
@@ -49,8 +53,8 @@ export class UsersService {
           passwordHash,
           mobile: dto.mobile ?? null,
           address: dto.address ?? null,
-          role: dto.role,
           organizationId: dto.organizationId,
+          organizationTypeId: dto.organization_type_id,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -112,13 +116,27 @@ export class UsersService {
   ): Promise<UserResponseDto> {
     const existingUser = await this.findActiveUser(id);
     if (dto.email) await this.ensureEmailIsUnique(dto.email, id);
-    if (dto.organizationId)
-      await this.ensureActiveOrganization(dto.organizationId);
+    const organizationId = dto.organizationId ?? existingUser.organizationId;
+    const organizationTypeId =
+      dto.organization_type_id ?? existingUser.organizationTypeId;
+    if (dto.organizationId || dto.organization_type_id)
+      await this.ensureOrganizationTypeCompatibility(
+        organizationId,
+        organizationTypeId,
+      );
 
     const user = await this.prisma.$transaction(async (transaction) => {
       const updatedUser = await transaction.user.update({
         where: { id },
-        data: { ...dto, updatedById: actor.id },
+        data: {
+          name: dto.name,
+          email: dto.email,
+          mobile: dto.mobile,
+          address: dto.address,
+          organizationId: dto.organizationId,
+          organizationTypeId: dto.organization_type_id,
+          updatedById: actor.id,
+        },
         include: userInclude,
       });
       await transaction.auditLog.create({
@@ -132,7 +150,10 @@ export class UsersService {
           newValues: this.toAuditValues(updatedUser),
         },
       });
-      if (dto.role && dto.role !== existingUser.role) {
+      if (
+        dto.organization_type_id &&
+        dto.organization_type_id !== existingUser.organizationTypeId
+      ) {
         await transaction.auditLog.create({
           data: {
             userId: actor.id,
@@ -140,8 +161,10 @@ export class UsersService {
             entity: 'USER',
             entityId: id,
             action: 'ROLE_CHANGE',
-            previousValues: { role: existingUser.role },
-            newValues: { role: updatedUser.role },
+            previousValues: {
+              organization_type_id: existingUser.organizationTypeId,
+            },
+            newValues: { organization_type_id: updatedUser.organizationTypeId },
           },
         });
       }
@@ -382,11 +405,42 @@ export class UsersService {
     }
   }
 
+  private async ensureOrganizationTypeCompatibility(
+    organizationId: number,
+    organizationTypeId: number,
+  ): Promise<void> {
+    const [organization, organizationType] = await Promise.all([
+      this.prisma.organization.findFirst({
+        where: { id: organizationId, isDeleted: false },
+        select: { organizationTypeId: true },
+      }),
+      this.prisma.organizationType.findFirst({
+        where: { id: organizationTypeId, isActive: true },
+        select: { id: true, code: true },
+      }),
+    ]);
+    if (!organization)
+      throw new NotFoundException(
+        'Organization not found or has been deleted.',
+      );
+    if (!organizationType)
+      throw new NotFoundException('Organization type not found or is inactive.');
+    if (
+      organizationType.code !== 'SUPER_ADMIN' &&
+      organization.organizationTypeId !== organizationTypeId
+    )
+      throw new ConflictException(
+        'User organization type must match the organization type.',
+      );
+  }
+
   private buildWhere(query: GetUsersQueryDto): Prisma.UserWhereInput {
     const where: Prisma.UserWhereInput = {
       isDeleted: query.isDeleted ?? false,
       ...(query.organizationId ? { organizationId: query.organizationId } : {}),
-      ...(query.role ? { role: query.role } : {}),
+      ...(query.organization_type_id
+        ? { organizationTypeId: query.organization_type_id }
+        : {}),
       ...(query.status ? { status: query.status } : {}),
     };
     if (query.search?.trim()) {
@@ -406,12 +460,17 @@ export class UsersService {
       email: user.email,
       mobile: user.mobile,
       address: user.address,
-      role: user.role,
       organizationId: user.organizationId,
+      organization_type_id: user.organizationTypeId,
       organization: {
         id: user.organization.id,
         name: user.organization.organizationName,
         code: user.organization.organizationCode,
+      },
+      organization_type: {
+        id: user.organizationType.id,
+        code: user.organizationType.code,
+        name: user.organizationType.name,
       },
       status: user.status,
       lastLoginAt: user.lastLoginAt,
@@ -428,8 +487,9 @@ export class UsersService {
       email: user.email,
       mobile: user.mobile,
       address: user.address,
-      role: user.role,
       organizationId: user.organizationId,
+      organization_type_id: user.organizationTypeId,
+      organization_type: user.organizationType.code,
       status: user.status,
       failedLoginAttempts: user.failedLoginAttempts,
       lockedUntil: user.lockedUntil?.toISOString() ?? null,

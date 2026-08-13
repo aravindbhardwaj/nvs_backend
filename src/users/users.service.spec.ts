@@ -19,6 +19,7 @@ describe('UsersService', () => {
     email: 'super-admin@nvs.gov.in',
     role: Role.SUPER_ADMIN,
     organizationId: 1,
+    organizationTypeId: 5,
   };
 
   beforeEach(() => {
@@ -32,6 +33,8 @@ describe('UsersService', () => {
         organizationName: 'NLI',
         organizationCode: 'NLI-01',
       },
+      organizationTypeId: 2,
+      organizationType: { id: 2, code: 'NLI', name: 'NLI' },
     });
     password.hash.mockResolvedValue('new-password-hash');
     transaction.user.update.mockResolvedValue({
@@ -40,13 +43,14 @@ describe('UsersService', () => {
       email: 'nli@nvs.gov.in',
       mobile: null,
       address: null,
-      role: Role.NLI,
       organizationId: 2,
+      organizationTypeId: 2,
       organization: {
         id: 2,
         organizationName: 'NLI',
         organizationCode: 'NLI-01',
       },
+      organizationType: { id: 2, code: 'NLI', name: 'NLI' },
       status: UserStatus.ACTIVE,
       lastLoginAt: null,
       isDeleted: false,

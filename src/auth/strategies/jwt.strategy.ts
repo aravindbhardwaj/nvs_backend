@@ -6,6 +6,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 import { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 import { PrismaService } from '../../prisma/prisma.service';
+import { roleFromOrganizationTypeCode } from '../utils/organization-type-role.util';
 
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
@@ -27,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.userId },
+      include: { organizationType: { select: { code: true } } },
     });
 
     if (
@@ -43,8 +45,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       id: user.id,
       email: user.email,
-      role: user.role,
+      role: roleFromOrganizationTypeCode(user.organizationType.code),
       organizationId: user.organizationId,
+      organizationTypeId: user.organizationTypeId,
     };
   }
 }

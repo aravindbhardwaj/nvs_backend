@@ -35,6 +35,11 @@
       "value": "4"
     },
     {
+      "key": "userOrganizationTypeId",
+      "value": "1",
+      "description": "Must match the selected user organization. Default 1 matches organizationId 1 (Headquarters)."
+    },
+    {
       "key": "regionalOfficeId",
       "value": ""
     },
@@ -445,7 +450,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Sample User\",\n  \"email\": \"sample.user@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"mobile\": \"9999999999\",\n  \"address\": \"Sample address\",\n  \"role\": \"JNV\",\n  \"organizationId\": 1\n}"
+              "raw": "{\n  \"name\": \"Sample User\",\n  \"email\": \"sample.user@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"mobile\": \"9999999999\",\n  \"address\": \"Sample address\",\n  \"organizationId\": \"{{organizationId}}\",\n  \"organization_type_id\": \"{{userOrganizationTypeId}}\"\n}"
             },
             "url": "{{baseUrl}}/api/users"
           }
@@ -458,10 +463,10 @@
           }
         },
         {
-          "name": "List by role",
+          "name": "List by organization type",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/users?page=1&limit=20&role={{role}}"
+            "url": "{{baseUrl}}/api/users?page=1&limit=20&organization_type_id={{userOrganizationTypeId}}"
           }
         },
         {
@@ -490,7 +495,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated User\",\n  \"mobile\": \"8888888888\"\n}"
+              "raw": "{\n  \"name\": \"Updated User\",\n  \"mobile\": \"8888888888\",\n  \"organizationId\": \"{{organizationId}}\",\n  \"organization_type_id\": \"{{userOrganizationTypeId}}\"\n}"
             },
             "url": "{{baseUrl}}/api/users/{{userId}}"
           }

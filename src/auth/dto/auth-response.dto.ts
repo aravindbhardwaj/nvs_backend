@@ -9,5 +9,7 @@ export class AuthResponseDto {
     email: string;
     role: Role;
     organizationId: number;
+    organization_type_id: number;
+    organization_type: string;
   };
 }

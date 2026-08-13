@@ -1,7 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsEmail,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -9,7 +8,6 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { Role } from '@prisma/client';
 
 const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -44,12 +42,14 @@ export class UpdateUserDto {
   address?: string;
 
   @IsOptional()
-  @IsEnum(Role)
-  role?: Role;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  organizationId?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  organizationId?: number;
+  organization_type_id?: number;
 }

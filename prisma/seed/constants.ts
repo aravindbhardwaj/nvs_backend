@@ -14,6 +14,7 @@ export const ORGANIZATION_TYPES = [
   { id: 2, code: 'NLI', name: 'NLI' },
   { id: 3, code: 'REGIONAL_OFFICE', name: 'Regional Office' },
   { id: 4, code: 'JNV', name: 'JNV' },
+  { id: 5, code: 'SUPER_ADMIN', name: 'Super Administrator' },
 ] as const;
 
 export const REGIONS = [

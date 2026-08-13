@@ -10,7 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 export interface ValidatedRefreshToken {
   token: RefreshToken;
-  user: User;
+  user: User & { organizationType: { code: string } };
 }
 
 @Injectable()
@@ -168,9 +168,9 @@ export class RefreshTokenService {
   }
 
   private async findMatchingToken(
-    records: (RefreshToken & { user: User })[],
+    records: (RefreshToken & { user: User & { organizationType: { code: string } } })[],
     refreshToken: string,
-  ): Promise<(RefreshToken & { user: User }) | undefined> {
+  ): Promise<(RefreshToken & { user: User & { organizationType: { code: string } } }) | undefined> {
     for (const record of records) {
       if (await this.passwordService.compare(refreshToken, record.tokenHash)) {
         return record;
