@@ -33,7 +33,7 @@ describe('MediaService', () => {
   const prisma = {
     organization: { findFirst: jest.fn() },
     mediaType: { findFirst: jest.fn() },
-    media: { create: jest.fn() },
+    media: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     $transaction: jest.fn(),
   };
   const ownership = { assertAccess: jest.fn() };
@@ -41,6 +41,7 @@ describe('MediaService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    ownership.assertAccess.mockReset();
     prisma.organization.findFirst.mockResolvedValue({ id: 2 });
     prisma.mediaType.findFirst.mockResolvedValue({ id: 1 });
     jest.spyOn(service as never, 'checksum').mockResolvedValue('checksum');
@@ -108,5 +109,76 @@ describe('MediaService', () => {
 
     expect(prisma.organization.findFirst).not.toHaveBeenCalled();
     expect(transaction.media.create).not.toHaveBeenCalled();
+  });
+
+  it('stores display, activity, and hierarchy visibility fields during upload', async () => {
+    await service.upload(
+      {
+        titleEnglish: 'Shared notice',
+        titleHindi: 'साझा सूचना',
+        mediaTypeId: 1,
+        display_order: 2,
+        is_active: false,
+        visible_to_all: true,
+      },
+      file,
+      undefined,
+      headquartersUser,
+    );
+
+    expect(transaction.media.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          displayOrder: 2,
+          isActive: false,
+          visibleToAll: true,
+        }),
+      }),
+    );
+  });
+
+  it('uses the Banner-equivalent JNV visibility scope and stable display ordering', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+
+    await service.findAll(
+      {
+        page: 1,
+        limit: 20,
+        sort: 'display_order',
+        order: 'asc',
+        is_active: true,
+      },
+      { ...headquartersUser, role: Role.JNV, organizationId: 28 },
+    );
+
+    expect(prisma.media.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          isDeleted: false,
+          isActive: true,
+          AND: [
+            {
+              OR: [
+                { organizationId: 28 },
+                {
+                  visibleToAll: true,
+                  organization: {
+                    organizationType: { code: 'HEADQUARTER' },
+                  },
+                },
+                {
+                  visibleToAll: true,
+                  organization: {
+                    organizationType: { code: 'REGIONAL_OFFICE' },
+                    childOrganizations: { some: { id: 28 } },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+      }),
+    );
   });
 });

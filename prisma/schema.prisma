@@ -328,6 +328,9 @@ model Media {
   hindiExtension        String?   @map("hindi_extension") @db.VarChar(20)
   hindiFileSize         BigInt?   @map("hindi_file_size")
   hindiChecksum         String?   @map("hindi_checksum") @db.VarChar(255)
+  displayOrder          Int       @default(0) @map("display_order")
+  isActive              Boolean   @default(true) @map("is_active")
+  visibleToAll          Boolean?  @map("visible_to_all")
   startDate             DateTime? @map("start_date") @db.Date
   endDate               DateTime? @map("end_date") @db.Date
   uploadedAt            DateTime  @default(now()) @map("uploaded_at")
@@ -348,6 +351,10 @@ model Media {
   @@index([organizationId])
   @@index([mediaTypeId])
   @@index([mimeType])
+  @@index([isActive])
+  @@index([displayOrder])
+  @@index([organizationId, isActive, displayOrder])
+  @@index([organizationId, visibleToAll])
   @@index([createdAt])
   @@index([isDeleted])
   @@map("nvs_media")

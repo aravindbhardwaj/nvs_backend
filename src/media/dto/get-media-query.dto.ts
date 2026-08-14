@@ -25,6 +25,13 @@ export class GetMediaQueryDto extends PaginationQueryDto {
   isDeleted?: boolean;
 
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === undefined ? undefined : value === true || value === 'true',
+  )
+  @IsBoolean()
+  is_active?: boolean;
+
+  @IsOptional()
   @IsIn([
     'titleEnglish',
     'originalFilename',
@@ -33,6 +40,8 @@ export class GetMediaQueryDto extends PaginationQueryDto {
     'uploadedAt',
     'createdAt',
     'updatedAt',
+    'display_order',
+    'is_active',
   ])
   sort = 'uploadedAt';
 

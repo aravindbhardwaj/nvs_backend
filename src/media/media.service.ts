@@ -65,6 +65,9 @@ export class MediaService {
           fileSize: BigInt(file.size),
           checksum: await this.checksum(file.path),
           ...(hindiFile ? await this.hindiFileData(hindiFile) : {}),
+          displayOrder: dto.display_order ?? 0,
+          isActive: dto.is_active ?? true,
+          visibleToAll: dto.visible_to_all ?? null,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -82,9 +85,7 @@ export class MediaService {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
-    const orderBy: Prisma.MediaOrderByWithRelationInput = {
-      [query.sort]: query.order,
-    };
+    const orderBy = this.orderBy(query);
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
         where,
@@ -104,8 +105,7 @@ export class MediaService {
     id: number,
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
-    const media = await this.findActiveMedia(id);
-    this.ownership.assertAccess(media.organizationId, actor);
+    const media = await this.findViewableMedia(id, actor);
     return this.toResponse(media);
   }
 
@@ -117,8 +117,7 @@ export class MediaService {
     filename: string;
     mimeType: string;
   }> {
-    const media = await this.findActiveMedia(id);
-    this.ownership.assertAccess(media.organizationId, actor);
+    const media = await this.findViewableMedia(id, actor);
     const filePath = this.absolutePath(media.filePath);
     try {
       await access(filePath);
@@ -140,15 +139,20 @@ export class MediaService {
     filename: string;
     mimeType: string;
   }> {
-    const media = await this.findActiveMedia(id);
-    this.ownership.assertAccess(media.organizationId, actor);
-    if (!media.hindiFilePath || !media.hindiOriginalFilename || !media.hindiMimeType)
+    const media = await this.findViewableMedia(id, actor);
+    if (
+      !media.hindiFilePath ||
+      !media.hindiOriginalFilename ||
+      !media.hindiMimeType
+    )
       throw new NotFoundException('Hindi document file is not available.');
     const filePath = this.absolutePath(media.hindiFilePath);
     try {
       await access(filePath);
     } catch {
-      throw new NotFoundException('The Hindi document file is no longer available.');
+      throw new NotFoundException(
+        'The Hindi document file is no longer available.',
+      );
     }
     return {
       stream: createReadStream(filePath),
@@ -170,7 +174,9 @@ export class MediaService {
       dto.start_date === undefined
         ? formatCalendarDate(existing.startDate)
         : dto.start_date,
-      dto.end_date === undefined ? formatCalendarDate(existing.endDate) : dto.end_date,
+      dto.end_date === undefined
+        ? formatCalendarDate(existing.endDate)
+        : dto.end_date,
     );
     const media = await this.prisma.$transaction(async (transaction) => {
       const updatedMedia = await transaction.media.update({
@@ -181,9 +187,18 @@ export class MediaService {
           descriptionEnglish: dto.descriptionEnglish,
           descriptionHindi: dto.descriptionHindi,
           mediaTypeId: dto.mediaTypeId,
+          displayOrder: dto.display_order,
+          isActive: dto.is_active,
+          ...(dto.visible_to_all === undefined
+            ? {}
+            : { visibleToAll: dto.visible_to_all }),
           ...(dto.start_date === undefined
             ? {}
-            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+            : {
+                startDate: dto.start_date
+                  ? toCalendarDate(dto.start_date)
+                  : null,
+              }),
           ...(dto.end_date === undefined
             ? {}
             : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
@@ -325,9 +340,9 @@ export class MediaService {
     files: Array<Express.Multer.File | undefined>,
   ): Promise<void> {
     await Promise.all(
-      files.filter((file): file is Express.Multer.File => Boolean(file)).map(
-        (file) => unlink(file.path).catch(() => undefined),
-      ),
+      files
+        .filter((file): file is Express.Multer.File => Boolean(file))
+        .map((file) => unlink(file.path).catch(() => undefined)),
     );
   }
 
@@ -344,12 +359,31 @@ export class MediaService {
     return media;
   }
 
+  private async findViewableMedia(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<Media> {
+    const visibilityWhere = this.visibilityWhere({}, actor);
+    const media = await this.prisma.media.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+        ...(visibilityWhere ? { AND: [visibilityWhere] } : {}),
+      },
+    });
+    if (!media)
+      throw new NotFoundException('Media not found or has been deleted.');
+    return media;
+  }
+
   private assertDateRange(
     startDate?: string | null,
     endDate?: string | null,
   ): void {
     if (isInvalidDateRange(startDate, endDate))
-      throw new BadRequestException('End date must not be earlier than start date.');
+      throw new BadRequestException(
+        'End date must not be earlier than start date.',
+      );
   }
 
   private async ensureActiveMediaType(id: number): Promise<void> {
@@ -379,38 +413,103 @@ export class MediaService {
     const where: Prisma.MediaWhereInput = {
       isDeleted: query.isDeleted ?? false,
       ...(query.mediaTypeId ? { mediaTypeId: query.mediaTypeId } : {}),
-      ...(actor.role === Role.SUPER_ADMIN
-        ? query.organizationId
-          ? { organizationId: query.organizationId }
-          : {}
-        : { organizationId: actor.organizationId }),
+      ...(query.is_active === undefined ? {} : { isActive: query.is_active }),
     };
-    if (query.search?.trim())
-      where.OR = [
-        {
-          titleEnglish: { contains: query.search.trim(), mode: 'insensitive' },
-        },
-        { titleHindi: { contains: query.search.trim(), mode: 'insensitive' } },
-        {
-          descriptionEnglish: {
-            contains: query.search.trim(),
-            mode: 'insensitive',
+    const visibilityWhere = this.visibilityWhere(query, actor);
+    if (visibilityWhere) where.AND = [visibilityWhere];
+    if (query.search?.trim()) {
+      const searchWhere: Prisma.MediaWhereInput = {
+        OR: [
+          {
+            titleEnglish: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
           },
-        },
-        {
-          descriptionHindi: {
-            contains: query.search.trim(),
-            mode: 'insensitive',
+          {
+            titleHindi: { contains: query.search.trim(), mode: 'insensitive' },
           },
-        },
-        {
-          originalFilename: {
-            contains: query.search.trim(),
-            mode: 'insensitive',
+          {
+            descriptionEnglish: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
           },
-        },
-      ];
+          {
+            descriptionHindi: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+          {
+            originalFilename: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+        ],
+      };
+      const existingAnd = where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : [];
+      where.AND = [...existingAnd, searchWhere];
+    }
     return where;
+  }
+
+  private visibilityWhere(
+    query: Pick<GetMediaQueryDto, 'organizationId'>,
+    actor: AuthenticatedUser,
+  ): Prisma.MediaWhereInput | undefined {
+    if (actor.role === Role.SUPER_ADMIN) {
+      return query.organizationId
+        ? { organizationId: query.organizationId }
+        : undefined;
+    }
+
+    if (query.organizationId) return { organizationId: actor.organizationId };
+
+    const headquartersShared: Prisma.MediaWhereInput = {
+      visibleToAll: true,
+      organization: { organizationType: { code: 'HEADQUARTER' } },
+    };
+    const ownOrganization: Prisma.MediaWhereInput = {
+      organizationId: actor.organizationId,
+    };
+
+    if (actor.role === Role.HEADQUARTER) return ownOrganization;
+    if (actor.role === Role.NLI || actor.role === Role.REGIONAL) {
+      return { OR: [ownOrganization, headquartersShared] };
+    }
+    if (actor.role === Role.JNV) {
+      return {
+        OR: [
+          ownOrganization,
+          headquartersShared,
+          {
+            visibleToAll: true,
+            organization: {
+              organizationType: { code: 'REGIONAL_OFFICE' },
+              childOrganizations: { some: { id: actor.organizationId } },
+            },
+          },
+        ],
+      };
+    }
+    return ownOrganization;
+  }
+
+  private orderBy(
+    query: GetMediaQueryDto,
+  ):
+    | Prisma.MediaOrderByWithRelationInput
+    | Prisma.MediaOrderByWithRelationInput[] {
+    if (query.sort === 'display_order')
+      return [{ displayOrder: query.order }, { id: 'asc' }];
+    if (query.sort === 'is_active') return { isActive: query.order };
+    return { [query.sort]: query.order };
   }
 
   private async createAuditLog(
@@ -457,6 +556,9 @@ export class MediaService {
       hindiDownloadUrl: media.hindiFilePath
         ? `/api/media/${media.id}/download/hindi`
         : null,
+      display_order: media.displayOrder,
+      is_active: media.isActive,
+      visible_to_all: media.visibleToAll,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt,
@@ -489,6 +591,9 @@ export class MediaService {
       hindiExtension: media.hindiExtension,
       hindiFileSize: media.hindiFileSize?.toString() ?? null,
       hindiChecksum: media.hindiChecksum,
+      displayOrder: media.displayOrder,
+      isActive: media.isActive,
+      visibleToAll: media.visibleToAll,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt.toISOString(),
