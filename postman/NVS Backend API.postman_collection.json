@@ -84,6 +84,10 @@
       "value": "1"
     },
     {
+      "key": "menuId",
+      "value": "1"
+    },
+    {
       "key": "permissionId",
       "value": "1"
     },
@@ -316,7 +320,49 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"regionName\": \"Sample Region\",\n  \"regionCode\": \"SAMPLE\"\n}"
+              "raw": "{\n  \"regionName\": \"Bhopal Region\",\n  \"regionCode\": \"BHOPAL\",\n  \"state_ids\": \"1,5,8,12\"\n}"
+            },
+            "url": "{{baseUrl}}/api/regions"
+          }
+        },
+        {
+          "name": "Create validation - missing state_ids",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"regionName\": \"Bhopal Region\",\n  \"regionCode\": \"BHOPAL\"\n}"
+            },
+            "url": "{{baseUrl}}/api/regions"
+          }
+        },
+        {
+          "name": "Create validation - invalid State ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"regionName\": \"Bhopal Region\",\n  \"regionCode\": \"BHOPAL\",\n  \"state_ids\": \"1,5,999\"\n}"
+            },
+            "url": "{{baseUrl}}/api/regions"
+          }
+        },
+        {
+          "name": "Create validation - invalid format",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"regionName\": \"Bhopal Region\",\n  \"regionCode\": \"BHOPAL\",\n  \"state_ids\": \"1,abc,8\"\n}"
             },
             "url": "{{baseUrl}}/api/regions"
           }
@@ -347,7 +393,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"regionName\": \"Updated Region\",\n  \"regionCode\": \"UPDATED\"\n}"
+              "raw": "{\n  \"regionName\": \"Updated Region\",\n  \"regionCode\": \"UPDATED\",\n  \"state_ids\": \"2,6,9\"\n}"
             },
             "url": "{{baseUrl}}/api/regions/{{regionId}}"
           }
@@ -1453,6 +1499,98 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/api/user-permissions/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dynamic Menus",
+      "description": "Menu management requires a SUPER_ADMIN access token. Menu location: 1 = Header, 2 = Footer. Link target: 1 = same page, 2 = new page/tab.",
+      "item": [
+        {
+          "name": "Create content menu",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organization_type_id\": {{organizationTypeId}},\n  \"menu_location\": 1,\n  \"parent_menu_id\": null,\n  \"title_english\": \"About Us\",\n  \"title_hindi\": \"हमारे बारे में\",\n  \"content_type_id\": {{contentTypeId}},\n  \"media_type_id\": null,\n  \"external_url\": null,\n  \"link_target\": 1,\n  \"display_order\": 1,\n  \"is_active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/menus"
+          }
+        },
+        {
+          "name": "Create external menu",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organization_type_id\": {{organizationTypeId}},\n  \"menu_location\": 1,\n  \"title_english\": \"CBSE\",\n  \"external_url\": \"https://www.cbse.gov.in/\",\n  \"link_target\": 2,\n  \"display_order\": 2,\n  \"is_active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/menus"
+          }
+        },
+        {
+          "name": "List header menus",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/menus?organization_type_id={{organizationTypeId}}&menu_location=1&page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get menu by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/menus/{{menuId}}"
+          }
+        },
+        {
+          "name": "Update menu",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title_english\": \"Updated About Us\",\n  \"display_order\": 2,\n  \"link_target\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/menus/{{menuId}}"
+          }
+        },
+        {
+          "name": "Activate menu",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/menus/{{menuId}}/activate"
+          }
+        },
+        {
+          "name": "Deactivate menu",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/menus/{{menuId}}/deactivate"
+          }
+        },
+        {
+          "name": "Public navigation",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/menus/navigation?organization_type_id={{organizationTypeId}}&menu_location=1"
+          }
+        },
+        {
+          "name": "Public navigation alias",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/public/menus/navigation?organization_type_id={{organizationTypeId}}&menu_location=2"
           }
         }
       ]

@@ -302,6 +302,9 @@ export const PERMISSIONS = [
   ['GALLERY_UPDATE', 'GALLERY', 'UPDATE', 'Update gallery images.'],
   ['GALLERY_DELETE', 'GALLERY', 'DELETE', 'Delete gallery images.'],
   ['AUDIT_LOG_VIEW', 'AUDIT_LOG', 'VIEW', 'View audit logs.'],
+  ['MENU_CREATE', 'MENU', 'CREATE', 'Create menu items.'],
+  ['MENU_VIEW', 'MENU', 'VIEW', 'View menu items.'],
+  ['MENU_UPDATE', 'MENU', 'UPDATE', 'Update menu items.'],
 ] as const;
 
 const BUSINESS_PERMISSION_KEYS = [
@@ -329,32 +332,60 @@ export const ROLE_PERMISSIONS: Record<Role, readonly string[]> = {
 };
 
 export const CONTENT_TYPES = [
-  'About Us',
-  'Mission',
-  'Vision',
-  'Objectives',
-  'Welcome Message',
-  'Notice',
-  'Announcement',
-  'Circular',
-  'News',
+  ['ABOUT_US', 'About Us'],
+  ['MISSION', 'Mission'],
+  ['VISION', 'Vision'],
+  ['OBJECTIVES', 'Objectives'],
+  ['WELCOME_MESSAGE', 'Welcome Message'],
+  ['NOTICE', 'Notice'],
+  ['ANNOUNCEMENT', 'Announcement'],
+  ['CIRCULAR', 'Circular'],
+  ['NEWS', 'News'],
+  ['TERMS_CONDITIONS', 'Terms & Conditions'],
+  ['PRIVACY_POLICY', 'Privacy Policy'],
+  ['COPYRIGHT_POLICY', 'Copyright Policy'],
+  ['HYPERLINK_POLICY', 'Hyperlink Policy'],
+  ['DISCLAIMER', 'Disclaimer'],
 ] as const;
 
 export const MEDIA_TYPES = [
-  'Notice',
-  'Circular',
-  'Tender',
-  'Office Memorandum',
-  'Office Order',
-  'Notification',
-  'Policy',
-  'Guideline',
-  'Manual',
-  'Report',
-  'Recruitment',
-  'Training Material',
-  'Form',
-  'Other',
+  ['NOTICE', 'Notice'],
+  ['CIRCULAR', 'Circular'],
+  ['TENDER', 'Tender'],
+  ['OFFICE_MEMORANDUM', 'Office Memorandum'],
+  ['OFFICE_ORDER', 'Office Order'],
+  ['NOTIFICATION', 'Notification'],
+  ['POLICY', 'Policy'],
+  ['GUIDELINE', 'Guideline'],
+  ['MANUAL', 'Manual'],
+  ['REPORT', 'Report'],
+  ['RECRUITMENT', 'Recruitment'],
+  ['TRAINING_MATERIAL', 'Training Material'],
+  ['FORM', 'Form'],
+  ['OTHER', 'Other'],
+] as const;
+
+export const FOOTER_MENU_SEEDS = [
+  ['HEADQUARTER', 'Terms & Conditions', 'TERMS_CONDITIONS'],
+  ['HEADQUARTER', 'Privacy Policy', 'PRIVACY_POLICY'],
+  ['HEADQUARTER', 'Copyright Policy', 'COPYRIGHT_POLICY'],
+  ['HEADQUARTER', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
+  ['HEADQUARTER', 'Disclaimer', 'DISCLAIMER'],
+  ['REGIONAL_OFFICE', 'Terms & Conditions', 'TERMS_CONDITIONS'],
+  ['REGIONAL_OFFICE', 'Privacy Policy', 'PRIVACY_POLICY'],
+  ['REGIONAL_OFFICE', 'Copyright Policy', 'COPYRIGHT_POLICY'],
+  ['REGIONAL_OFFICE', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
+  ['REGIONAL_OFFICE', 'Disclaimer', 'DISCLAIMER'],
+  ['NLI', 'Terms & Conditions', 'TERMS_CONDITIONS'],
+  ['NLI', 'Privacy Policy', 'PRIVACY_POLICY'],
+  ['NLI', 'Copyright Policy', 'COPYRIGHT_POLICY'],
+  ['NLI', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
+  ['NLI', 'Disclaimer', 'DISCLAIMER'],
+  ['JNV', 'Terms & Conditions', 'TERMS_CONDITIONS'],
+  ['JNV', 'Disclaimer', 'DISCLAIMER'],
+  ['JNV', 'Copyright Policy', 'COPYRIGHT_POLICY'],
+  ['JNV', 'Privacy Policy', 'PRIVACY_POLICY'],
+  ['JNV', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
 ] as const;
 
 export const SAMPLE_USERS = [
@@ -393,7 +424,7 @@ export const SAMPLE_USERS = [
 export const SAMPLE_PAGES = [
   {
     organizationCode: 'NVS-HQ',
-    contentType: 'About Us',
+    contentType: 'ABOUT_US',
     title: 'About Navodaya Vidyalaya Samiti',
     slug: 'about-navodaya-vidyalaya-samiti',
     content:
@@ -401,7 +432,7 @@ export const SAMPLE_PAGES = [
   },
   {
     organizationCode: 'NVS-HQ',
-    contentType: 'Mission',
+    contentType: 'MISSION',
     title: 'Our Mission',
     slug: 'navodaya-vidyalaya-samiti-mission',
     content:
@@ -409,14 +440,14 @@ export const SAMPLE_PAGES = [
   },
   {
     organizationCode: 'RO-BHOPAL',
-    contentType: 'Welcome Message',
+    contentType: 'WELCOME_MESSAGE',
     title: 'Welcome to Regional Office Bhopal',
     slug: 'welcome-regional-office-bhopal',
     content: 'Welcome to the Regional Office Bhopal information portal.',
   },
   {
     organizationCode: 'JNV-BHOPAL',
-    contentType: 'About Us',
+    contentType: 'ABOUT_US',
     title: 'About School',
     slug: 'about-jnv-bhopal',
     content:

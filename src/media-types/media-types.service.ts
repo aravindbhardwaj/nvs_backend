@@ -115,9 +115,12 @@ export class MediaTypesService {
       const mediaCount = await transaction.media.count({
         where: { mediaTypeId: id },
       });
-      if (mediaCount > 0)
+      const menuCount = await transaction.menu.count({
+        where: { mediaTypeId: id, isDeleted: false },
+      });
+      if (mediaCount > 0 || menuCount > 0)
         throw new ConflictException(
-          'Media type cannot be deleted because it is referenced by media records.',
+          'Media type cannot be deleted because it is referenced by media records or menus.',
         );
       const deletedMediaType = await transaction.mediaType.update({
         where: { id },

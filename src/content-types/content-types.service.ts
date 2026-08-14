@@ -117,9 +117,12 @@ export class ContentTypesService {
       const pageCount = await transaction.page.count({
         where: { contentTypeId: id },
       });
-      if (pageCount > 0)
+      const menuCount = await transaction.menu.count({
+        where: { contentTypeId: id, isDeleted: false },
+      });
+      if (pageCount > 0 || menuCount > 0)
         throw new ConflictException(
-          'Content type cannot be deleted because it is referenced by pages.',
+          'Content type cannot be deleted because it is referenced by pages or menus.',
         );
       const deletedContentType = await transaction.contentType.update({
         where: { id },

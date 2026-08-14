@@ -21,6 +21,7 @@ import { RegionsModule } from './regions/regions.module';
 import { StatesModule } from './states/states.module';
 import { BannersModule } from './banners/banners.module';
 import { GalleryModule } from './gallery/gallery.module';
+import { MenusModule } from './menus/menus.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import configuration from './config';
 
@@ -50,6 +51,7 @@ import configuration from './config';
     StatesModule,
     BannersModule,
     GalleryModule,
+    MenusModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, AppService],
