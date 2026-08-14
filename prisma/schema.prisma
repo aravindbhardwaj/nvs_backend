@@ -30,6 +30,7 @@ model Region {
   id          Int       @id @default(autoincrement())
   regionName  String    @unique @map("region_name") @db.VarChar(150)
   regionCode  String    @unique @map("region_code") @db.VarChar(20)
+  stateIds    String?   @map("state_ids") @db.Text
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   createdById Int?      @map("created_by")

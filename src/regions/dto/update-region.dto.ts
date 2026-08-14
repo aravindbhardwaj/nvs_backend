@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -16,4 +16,10 @@ export class UpdateRegionDto {
   @IsNotEmpty()
   @MaxLength(20)
   regionCode: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  state_ids?: string;
 }

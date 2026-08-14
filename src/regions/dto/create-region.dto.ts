@@ -16,4 +16,9 @@ export class CreateRegionDto {
   @IsNotEmpty()
   @MaxLength(20)
   regionCode: string;
+
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  state_ids: string;
 }

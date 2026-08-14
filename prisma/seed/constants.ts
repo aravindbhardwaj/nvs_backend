@@ -18,16 +18,16 @@ export const ORGANIZATION_TYPES = [
 ] as const;
 
 export const REGIONS = [
-  ['Bhopal', 'BHOPAL'],
-  ['Chandigarh', 'CHANDIGARH'],
-  ['Hyderabad', 'HYDERABAD'],
-  ['Jaipur', 'JAIPUR'],
-  ['Lucknow', 'LUCKNOW'],
-  ['Patna', 'PATNA'],
-  ['Pune', 'PUNE'],
-  ['Shillong', 'SHILLONG'],
-  ['Bhubaneswar', 'BHUBANESWAR'],
-  ['Mumbai', 'MUMBAI'],
+  ['Bhopal', 'BHOPAL', ['MP']],
+  ['Chandigarh', 'CHANDIGARH', ['CH']],
+  ['Hyderabad', 'HYDERABAD', ['TS']],
+  ['Jaipur', 'JAIPUR', ['RJ']],
+  ['Lucknow', 'LUCKNOW', ['UP']],
+  ['Patna', 'PATNA', ['BR']],
+  ['Pune', 'PUNE', ['MH']],
+  ['Shillong', 'SHILLONG', ['ML']],
+  ['Bhubaneswar', 'BHUBANESWAR', ['OD']],
+  ['Mumbai', 'MUMBAI', ['MH']],
 ] as const;
 
 export const STATES = [

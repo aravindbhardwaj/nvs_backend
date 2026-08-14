@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -23,12 +24,14 @@ export class RegionsService {
     actor: AuthenticatedUser,
   ): Promise<RegionResponseDto> {
     await this.ensureValuesAreUnique(dto.regionName, dto.regionCode);
+    const stateIds = await this.normalizeAndValidateStateIds(dto.state_ids);
 
     const region = await this.prisma.$transaction(async (transaction) => {
       const createdRegion = await transaction.region.create({
         data: {
           regionName: dto.regionName,
           regionCode: dto.regionCode,
+          stateIds,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -93,6 +96,10 @@ export class RegionsService {
   ): Promise<RegionResponseDto> {
     const existingRegion = await this.findActiveRegion(id);
     await this.ensureValuesAreUnique(dto.regionName, dto.regionCode, id);
+    const stateIds =
+      dto.state_ids !== undefined
+        ? await this.normalizeAndValidateStateIds(dto.state_ids)
+        : undefined;
 
     const region = await this.prisma.$transaction(async (transaction) => {
       const updatedRegion = await transaction.region.update({
@@ -100,6 +107,7 @@ export class RegionsService {
         data: {
           regionName: dto.regionName,
           regionCode: dto.regionCode,
+          ...(stateIds !== undefined ? { stateIds } : {}),
           updatedById: actor.id,
         },
       });
@@ -266,11 +274,36 @@ export class RegionsService {
     return where;
   }
 
+  private async normalizeAndValidateStateIds(
+    stateIds: string,
+  ): Promise<string> {
+    const entries = stateIds.split(',').map((value) => value.trim());
+    if (
+      entries.length === 0 ||
+      entries.some((value) => !/^[1-9]\d*$/.test(value))
+    ) {
+      throw new BadRequestException(
+        'state_ids must be a comma-separated list of valid State IDs.',
+      );
+    }
+
+    const ids = [...new Set(entries.map(Number))];
+    const stateCount = await this.prisma.state.count({
+      where: { id: { in: ids }, isDeleted: false },
+    });
+    if (stateCount !== ids.length) {
+      throw new NotFoundException('One or more State IDs were not found.');
+    }
+
+    return ids.join(',');
+  }
+
   private toResponse(region: Region): RegionResponseDto {
     return {
       id: region.id,
       regionName: region.regionName,
       regionCode: region.regionCode,
+      state_ids: region.stateIds,
       createdAt: region.createdAt,
       updatedAt: region.updatedAt,
     };
@@ -281,6 +314,7 @@ export class RegionsService {
       id: region.id,
       regionName: region.regionName,
       regionCode: region.regionCode,
+      state_ids: region.stateIds,
       createdAt: region.createdAt.toISOString(),
       updatedAt: region.updatedAt.toISOString(),
       createdById: region.createdById,

@@ -19,8 +19,8 @@ import {
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
-  await seedRegions();
   await seedStates();
+  await seedRegions();
   const organizationTypesByCode = await seedOrganizationTypes();
   const organizationsByCode = await seedOrganizations(organizationTypesByCode);
   const permissionsByKey = await seedPermissions();
@@ -54,19 +54,34 @@ async function seedOrganizationTypes(): Promise<Map<string, number>> {
 }
 
 async function seedRegions(): Promise<void> {
+  const states = await prisma.state.findMany({
+    select: { id: true, stateCode: true },
+  });
+  const stateIdsByCode = new Map(
+    states.map(({ id, stateCode }) => [stateCode, id]),
+  );
+
   await Promise.all(
-    REGIONS.map(([regionName, regionCode]) =>
-      prisma.region.upsert({
+    REGIONS.map(([regionName, regionCode, stateCodes]) => {
+      const stateIds = stateCodes.map((stateCode) => {
+        const stateId = stateIdsByCode.get(stateCode);
+        if (!stateId)
+          throw new Error(`Seed state ${stateCode} was not resolved.`);
+        return stateId;
+      });
+
+      return prisma.region.upsert({
         where: { regionCode },
         update: {
           regionName,
+          stateIds: stateIds.join(','),
           isDeleted: false,
           deletedAt: null,
           deletedById: null,
         },
-        create: { regionName, regionCode },
-      }),
-    ),
+        create: { regionName, regionCode, stateIds: stateIds.join(',') },
+      });
+    }),
   );
 }
 
@@ -214,7 +229,8 @@ async function seedUsers(
       );
     const organizationTypeCode =
       user.role === Role.REGIONAL ? 'REGIONAL_OFFICE' : user.role;
-    const organizationTypeId = organizationTypesByCode.get(organizationTypeCode);
+    const organizationTypeId =
+      organizationTypesByCode.get(organizationTypeCode);
     if (!organizationTypeId)
       throw new Error(
         `Seed organization type ${organizationTypeCode} was not resolved.`,
