@@ -5,6 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Role } from '@prisma/client';
 
 import { REQUIRED_PERMISSIONS_KEY } from '../decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
@@ -34,6 +35,12 @@ export class PermissionsGuard implements CanActivate {
 
     if (!user) {
       throw new ForbiddenException('You do not have permission to access this resource.');
+    }
+
+    // Super Admin is the system-wide administrative role. Its access must not
+    // depend on mutable role-permission seed data or per-user overrides.
+    if (user.role === Role.SUPER_ADMIN) {
+      return true;
     }
 
     const effectivePermissions = await this.effectivePermissions.resolve(

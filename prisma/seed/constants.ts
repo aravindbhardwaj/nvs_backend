@@ -365,27 +365,73 @@ export const MEDIA_TYPES = [
   ['OTHER', 'Other'],
 ] as const;
 
+export type HeaderMenuSeed = {
+  titleEnglish: string;
+  mediaTypeCode?: string;
+};
+
+export const WEBSITE_ORGANIZATION_TYPE_CODES = [
+  'HEADQUARTER',
+  'REGIONAL_OFFICE',
+  'NLI',
+  'JNV',
+] as const;
+
+export const HEADER_MENU_SEEDS = {
+  HEADQUARTER: [
+    { titleEnglish: 'Home' },
+    { titleEnglish: 'About Us' },
+    { titleEnglish: 'Admission' },
+    { titleEnglish: 'Academic' },
+    { titleEnglish: 'Recruitment' },
+    { titleEnglish: 'Transfer' },
+    { titleEnglish: 'Finance' },
+    { titleEnglish: 'Construction' },
+    { titleEnglish: 'Committees' },
+    { titleEnglish: 'Contact Us' },
+  ],
+  REGIONAL_OFFICE: [
+    { titleEnglish: 'Home' },
+    { titleEnglish: 'About Us' },
+    { titleEnglish: 'Admission' },
+    { titleEnglish: 'Academic' },
+    { titleEnglish: 'Recruitment' },
+    { titleEnglish: 'Finance' },
+    { titleEnglish: 'Transfer' },
+    { titleEnglish: 'Contact Us' },
+  ],
+  JNV: [
+    { titleEnglish: 'Home' },
+    { titleEnglish: 'About Us' },
+    { titleEnglish: 'Administration' },
+    { titleEnglish: 'Admission' },
+    { titleEnglish: 'Academics' },
+    { titleEnglish: 'Activities' },
+    { titleEnglish: 'Exams and Results' },
+    { titleEnglish: 'Tender', mediaTypeCode: 'TENDER' },
+    { titleEnglish: 'Contact Us' },
+  ],
+  NLI: [
+    { titleEnglish: 'Home' },
+    { titleEnglish: 'About Us' },
+    { titleEnglish: 'Infrastructure' },
+    { titleEnglish: 'Training' },
+    { titleEnglish: 'Faculty' },
+    { titleEnglish: 'Articles' },
+    { titleEnglish: 'Publications' },
+    { titleEnglish: 'Contact Us' },
+  ],
+} as const satisfies Record<
+  (typeof WEBSITE_ORGANIZATION_TYPE_CODES)[number],
+  readonly HeaderMenuSeed[]
+>;
+
 export const FOOTER_MENU_SEEDS = [
-  ['HEADQUARTER', 'Terms & Conditions', 'TERMS_CONDITIONS'],
-  ['HEADQUARTER', 'Privacy Policy', 'PRIVACY_POLICY'],
-  ['HEADQUARTER', 'Copyright Policy', 'COPYRIGHT_POLICY'],
-  ['HEADQUARTER', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
-  ['HEADQUARTER', 'Disclaimer', 'DISCLAIMER'],
-  ['REGIONAL_OFFICE', 'Terms & Conditions', 'TERMS_CONDITIONS'],
-  ['REGIONAL_OFFICE', 'Privacy Policy', 'PRIVACY_POLICY'],
-  ['REGIONAL_OFFICE', 'Copyright Policy', 'COPYRIGHT_POLICY'],
-  ['REGIONAL_OFFICE', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
-  ['REGIONAL_OFFICE', 'Disclaimer', 'DISCLAIMER'],
-  ['NLI', 'Terms & Conditions', 'TERMS_CONDITIONS'],
-  ['NLI', 'Privacy Policy', 'PRIVACY_POLICY'],
-  ['NLI', 'Copyright Policy', 'COPYRIGHT_POLICY'],
-  ['NLI', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
-  ['NLI', 'Disclaimer', 'DISCLAIMER'],
-  ['JNV', 'Terms & Conditions', 'TERMS_CONDITIONS'],
-  ['JNV', 'Disclaimer', 'DISCLAIMER'],
-  ['JNV', 'Copyright Policy', 'COPYRIGHT_POLICY'],
-  ['JNV', 'Privacy Policy', 'PRIVACY_POLICY'],
-  ['JNV', 'Hyperlink Policy', 'HYPERLINK_POLICY'],
+  { titleEnglish: 'Terms & Conditions', contentTypeCode: 'TERMS_CONDITIONS' },
+  { titleEnglish: 'Privacy Policy', contentTypeCode: 'PRIVACY_POLICY' },
+  { titleEnglish: 'Copyright Policy', contentTypeCode: 'COPYRIGHT_POLICY' },
+  { titleEnglish: 'Hyperlink Policy', contentTypeCode: 'HYPERLINK_POLICY' },
+  { titleEnglish: 'Disclaimer', contentTypeCode: 'DISCLAIMER' },
 ] as const;
 
 export const SAMPLE_USERS = [

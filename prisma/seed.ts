@@ -5,6 +5,8 @@ import {
   CONTENT_TYPES,
   DEFAULT_SEED_PASSWORD,
   FOOTER_MENU_SEEDS,
+  HEADER_MENU_SEEDS,
+  HeaderMenuSeed,
   MEDIA_TYPES,
   ORGANIZATIONS,
   ORGANIZATION_TYPES,
@@ -15,6 +17,7 @@ import {
   SAMPLE_PAGE_STATUS,
   SAMPLE_USERS,
   STATES,
+  WEBSITE_ORGANIZATION_TYPE_CODES,
 } from './seed/constants';
 
 const prisma = new PrismaClient();
@@ -30,11 +33,12 @@ async function main(): Promise<void> {
     organizationsByCode,
     organizationTypesByCode,
   );
-  const contentTypesByCode = await seedReferenceData();
+  const { contentTypesByCode, mediaTypesByCode } = await seedReferenceData();
   await seedSamplePages(organizationsByCode, contentTypesByCode, usersByEmail);
-  await seedFooterMenus(
+  await seedMenus(
     organizationTypesByCode,
     contentTypesByCode,
+    mediaTypesByCode,
     usersByEmail,
   );
 }
@@ -268,7 +272,10 @@ async function seedUsers(
   return usersByEmail;
 }
 
-async function seedReferenceData(): Promise<Map<string, number>> {
+async function seedReferenceData(): Promise<{
+  contentTypesByCode: Map<string, number>;
+  mediaTypesByCode: Map<string, number>;
+}> {
   const contentTypes = await Promise.all(
     CONTENT_TYPES.map(([code, nameEnglish], displayOrder) =>
       prisma.contentType.upsert({
@@ -284,7 +291,7 @@ async function seedReferenceData(): Promise<Map<string, number>> {
       }),
     ),
   );
-  await Promise.all(
+  const mediaTypes = await Promise.all(
     MEDIA_TYPES.map(([code, nameEnglish], displayOrder) =>
       prisma.mediaType.upsert({
         where: { nameEnglish },
@@ -299,7 +306,12 @@ async function seedReferenceData(): Promise<Map<string, number>> {
       }),
     ),
   );
-  return new Map(contentTypes.map(({ id, code }) => [code!, id]));
+  return {
+    contentTypesByCode: new Map(
+      contentTypes.map(({ id, code }) => [code!, id]),
+    ),
+    mediaTypesByCode: new Map(mediaTypes.map(({ id, code }) => [code!, id])),
+  };
 }
 
 async function seedSamplePages(
@@ -350,64 +362,116 @@ async function seedSamplePages(
   }
 }
 
-async function seedFooterMenus(
+async function seedMenus(
   organizationTypesByCode: Map<string, number>,
   contentTypesByCode: Map<string, number>,
+  mediaTypesByCode: Map<string, number>,
   usersByEmail: Map<string, number>,
 ): Promise<void> {
   const superAdminId = usersByEmail.get('super.admin@nvs.gov.in');
   if (!superAdminId)
     throw new Error('Seed super administrator was not resolved.');
-  for (const [
-    organizationTypeCode,
-    titleEnglish,
-    contentTypeCode,
-  ] of FOOTER_MENU_SEEDS) {
+  for (const organizationTypeCode of WEBSITE_ORGANIZATION_TYPE_CODES) {
     const organizationTypeId =
       organizationTypesByCode.get(organizationTypeCode);
-    const contentTypeId = contentTypesByCode.get(contentTypeCode);
-    if (!organizationTypeId || !contentTypeId)
+    if (!organizationTypeId)
       throw new Error(
-        `Seed menu ${titleEnglish} dependencies were not resolved.`,
+        `Seed organization type ${organizationTypeCode} was not resolved.`,
       );
-    const displayOrder = FOOTER_MENU_SEEDS.findIndex(
-      (entry) => entry[0] === organizationTypeCode && entry[1] === titleEnglish,
-    );
-    const existing = await prisma.menu.findFirst({
-      where: {
+
+    const headerMenus: readonly HeaderMenuSeed[] =
+      HEADER_MENU_SEEDS[organizationTypeCode];
+    for (const [index, menu] of headerMenus.entries()) {
+      const mediaTypeId = menu.mediaTypeCode
+        ? mediaTypesByCode.get(menu.mediaTypeCode)
+        : null;
+      if (menu.mediaTypeCode && !mediaTypeId)
+        throw new Error(
+          `Seed media type ${menu.mediaTypeCode} was not resolved.`,
+        );
+      await upsertFirstLevelMenu({
+        organizationTypeId,
+        menuLocation: 1,
+        titleEnglish: menu.titleEnglish,
+        contentTypeId: null,
+        mediaTypeId: mediaTypeId ?? null,
+        displayOrder: index + 1,
+        superAdminId,
+      });
+    }
+
+    for (const [index, menu] of FOOTER_MENU_SEEDS.entries()) {
+      const contentTypeId = contentTypesByCode.get(menu.contentTypeCode);
+      if (!contentTypeId)
+        throw new Error(
+          `Seed content type ${menu.contentTypeCode} was not resolved.`,
+        );
+      await upsertFirstLevelMenu({
         organizationTypeId,
         menuLocation: 2,
-        parentMenuId: null,
-        titleEnglish,
-      },
-    });
-    if (existing) {
-      await prisma.menu.update({
-        where: { id: existing.id },
-        data: {
-          contentTypeId,
-          displayOrder,
-          isActive: true,
-          isDeleted: false,
-          deletedAt: null,
-          deletedById: null,
-          updatedById: superAdminId,
-        },
-      });
-    } else {
-      await prisma.menu.create({
-        data: {
-          organizationTypeId,
-          menuLocation: 2,
-          titleEnglish,
-          contentTypeId,
-          displayOrder,
-          createdById: superAdminId,
-          updatedById: superAdminId,
-        },
+        titleEnglish: menu.titleEnglish,
+        contentTypeId,
+        mediaTypeId: null,
+        displayOrder: index + 1,
+        superAdminId,
       });
     }
   }
+}
+
+async function upsertFirstLevelMenu({
+  organizationTypeId,
+  menuLocation,
+  titleEnglish,
+  contentTypeId,
+  mediaTypeId,
+  displayOrder,
+  superAdminId,
+}: {
+  organizationTypeId: number;
+  menuLocation: number;
+  titleEnglish: string;
+  contentTypeId: number | null;
+  mediaTypeId: number | null;
+  displayOrder: number;
+  superAdminId: number;
+}): Promise<void> {
+  const data = {
+    titleHindi: null,
+    contentTypeId,
+    mediaTypeId,
+    externalUrl: null,
+    linkTarget: 1,
+    displayOrder,
+    isActive: true,
+    isDeleted: false,
+    deletedAt: null,
+    deletedById: null,
+    updatedById: superAdminId,
+  };
+  const existing = await prisma.menu.findFirst({
+    where: {
+      organizationTypeId,
+      menuLocation,
+      parentMenuId: null,
+      titleEnglish,
+    },
+    orderBy: { id: 'asc' },
+  });
+  if (existing) {
+    await prisma.menu.update({ where: { id: existing.id }, data });
+    return;
+  }
+  await prisma.menu.create({
+    data: {
+      organizationTypeId,
+      menuLocation,
+      parentMenuId: null,
+      titleEnglish,
+      ...data,
+      createdById: superAdminId,
+    },
+  });
 }
 
 main()
