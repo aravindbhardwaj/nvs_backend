@@ -270,6 +270,7 @@ export const PERMISSIONS = [
   ['STATE_VIEW', 'STATE', 'VIEW', 'View states.'],
   ['STATE_UPDATE', 'STATE', 'UPDATE', 'Update states.'],
   ['STATE_DELETE', 'STATE', 'DELETE', 'Delete states.'],
+  ['DISTRICT_VIEW', 'DISTRICT', 'VIEW', 'View districts.'],
   ['CONTENT_TYPE_CREATE', 'CONTENT_TYPE', 'CREATE', 'Create content types.'],
   ['CONTENT_TYPE_VIEW', 'CONTENT_TYPE', 'VIEW', 'View content types.'],
   ['CONTENT_TYPE_UPDATE', 'CONTENT_TYPE', 'UPDATE', 'Update content types.'],

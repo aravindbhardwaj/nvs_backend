@@ -21,7 +21,9 @@ import {
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetMediaQueryDto } from './dto/get-media-query.dto';
+import { GetPublicMediaQueryDto } from './dto/get-public-media-query.dto';
 import { MediaResponseDto } from './dto/media-response.dto';
+import { PublicMediaResponseDto } from './dto/public-media-response.dto';
 import { UpdateMediaDto } from './dto/update-media.dto';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { UPLOADS_ROOT, validateMediaFile } from './media.storage';
@@ -46,6 +48,7 @@ export class MediaService {
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     await this.ensureActiveMediaType(dto.mediaTypeId);
+    const visibility = await this.resolveVisibility(dto, organizationId);
     const media = await this.prisma.$transaction(async (transaction) => {
       const createdMedia = await transaction.media.create({
         data: {
@@ -67,7 +70,9 @@ export class MediaService {
           ...(hindiFile ? await this.hindiFileData(hindiFile) : {}),
           displayOrder: dto.display_order ?? 0,
           isActive: dto.is_active ?? true,
-          visibleToAll: dto.visible_to_all ?? null,
+          visibleToAll: visibility.visibleToAll,
+          roIds: visibility.roIds,
+          visibleToJnv: visibility.visibleToJnv,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -84,7 +89,7 @@ export class MediaService {
   ): Promise<PaginatedResponseDto<MediaResponseDto>> {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
-    const where = this.buildWhere(query, actor);
+    const where = await this.buildWhere(query, actor);
     const orderBy = this.orderBy(query);
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
@@ -178,6 +183,11 @@ export class MediaService {
         ? formatCalendarDate(existing.endDate)
         : dto.end_date,
     );
+    const visibility = await this.resolveVisibility(
+      dto,
+      existing.organizationId,
+      existing,
+    );
     const media = await this.prisma.$transaction(async (transaction) => {
       const updatedMedia = await transaction.media.update({
         where: { id },
@@ -191,7 +201,11 @@ export class MediaService {
           isActive: dto.is_active,
           ...(dto.visible_to_all === undefined
             ? {}
-            : { visibleToAll: dto.visible_to_all }),
+            : { visibleToAll: visibility.visibleToAll }),
+          ...(dto.ro_ids === undefined ? {} : { roIds: visibility.roIds }),
+          ...(dto.visible_to_jnv === undefined
+            ? {}
+            : { visibleToJnv: visibility.visibleToJnv }),
           ...(dto.start_date === undefined
             ? {}
             : {
@@ -350,6 +364,62 @@ export class MediaService {
     await this.cleanupUploadedFiles([file]);
   }
 
+  async findPublic(
+    query: GetPublicMediaQueryDto,
+  ): Promise<PaginatedResponseDto<PublicMediaResponseDto>> {
+    const where = await this.publicWhere(query);
+    const [media, totalItems] = await this.prisma.$transaction([
+      this.prisma.media.findMany({
+        where,
+        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.media.count({ where }),
+    ]);
+    return {
+      items: media.map((item) =>
+        this.toPublicResponse(item, query.organization_id),
+      ),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  async publicDownload(
+    id: number,
+    organizationId?: number,
+  ): Promise<{
+    stream: ReturnType<typeof createReadStream>;
+    filename: string;
+    mimeType: string;
+  }> {
+    if (
+      organizationId !== undefined &&
+      (!Number.isSafeInteger(organizationId) || organizationId < 1)
+    )
+      throw new BadRequestException(
+        'organization_id must be a positive integer.',
+      );
+    const media = await this.prisma.media.findFirst({
+      where: {
+        id,
+        ...(await this.publicWhere({ organization_id: organizationId })),
+      },
+    });
+    if (!media) throw new NotFoundException('Public media not found.');
+    const filePath = this.absolutePath(media.filePath);
+    try {
+      await access(filePath);
+    } catch {
+      throw new NotFoundException('The document file is no longer available.');
+    }
+    return {
+      stream: createReadStream(filePath),
+      filename: media.originalFilename,
+      mimeType: media.mimeType,
+    };
+  }
+
   private async findActiveMedia(id: number): Promise<Media> {
     const media = await this.prisma.media.findFirst({
       where: { id, isDeleted: false },
@@ -363,7 +433,7 @@ export class MediaService {
     id: number,
     actor: AuthenticatedUser,
   ): Promise<Media> {
-    const visibilityWhere = this.visibilityWhere({}, actor);
+    const visibilityWhere = await this.visibilityWhere({}, actor);
     const media = await this.prisma.media.findFirst({
       where: {
         id,
@@ -406,16 +476,108 @@ export class MediaService {
       );
   }
 
-  private buildWhere(
+  private async resolveVisibility(
+    dto: Pick<
+      UploadMediaDto | UpdateMediaDto,
+      'visible_to_all' | 'ro_ids' | 'visible_to_jnv'
+    >,
+    organizationId: number,
+    existing?: Media,
+  ): Promise<{
+    visibleToAll: boolean | null;
+    roIds: string | null;
+    visibleToJnv: boolean | null;
+  }> {
+    const visibleToAll =
+      dto.visible_to_all === undefined
+        ? (existing?.visibleToAll ?? null)
+        : (dto.visible_to_all ?? null);
+    const roIds =
+      dto.ro_ids === undefined
+        ? (existing?.roIds ?? null)
+        : this.normalizeRoIds(dto.ro_ids);
+    const visibleToJnv =
+      dto.visible_to_jnv === undefined
+        ? (existing?.visibleToJnv ?? null)
+        : (dto.visible_to_jnv ?? null);
+
+    if (visibleToAll === true && (roIds !== null || visibleToJnv === true))
+      throw new BadRequestException(
+        'visible_to_all=true cannot be combined with ro_ids or visible_to_jnv=true.',
+      );
+    if (visibleToJnv === true && roIds === null)
+      throw new BadRequestException(
+        'visible_to_jnv=true requires at least one Regional Office in ro_ids.',
+      );
+
+    if (roIds !== null) {
+      await this.ensureHeadquartersSelectiveSharing(organizationId);
+      await this.ensureRegionalOffices(roIds);
+    }
+    return { visibleToAll, roIds, visibleToJnv };
+  }
+
+  private normalizeRoIds(value: string | null): string | null {
+    if (value === null) return null;
+    const tokens = value.split(',');
+    if (
+      tokens.length === 0 ||
+      tokens.some((token) => !/^\d+$/.test(token.trim()))
+    )
+      throw new BadRequestException(
+        'ro_ids must be a comma-separated list of Regional Office IDs.',
+      );
+    const ids = [...new Set(tokens.map((token) => Number(token.trim())))];
+    if (ids.some((id) => !Number.isSafeInteger(id) || id < 1))
+      throw new BadRequestException(
+        'ro_ids must contain positive Regional Office IDs.',
+      );
+    return ids.join(',');
+  }
+
+  private async ensureHeadquartersSelectiveSharing(
+    organizationId: number,
+  ): Promise<void> {
+    const organization = await this.prisma.organization.findFirst({
+      where: {
+        id: organizationId,
+        isDeleted: false,
+        organizationType: { code: 'HEADQUARTER', isActive: true },
+      },
+      select: { id: true },
+    });
+    if (!organization)
+      throw new BadRequestException(
+        'Selective Regional Office sharing is available only for Headquarters media.',
+      );
+  }
+
+  private async ensureRegionalOffices(roIds: string): Promise<void> {
+    const ids = roIds.split(',').map(Number);
+    const organizations = await this.prisma.organization.findMany({
+      where: {
+        id: { in: ids },
+        isDeleted: false,
+        organizationType: { code: 'REGIONAL_OFFICE', isActive: true },
+      },
+      select: { id: true },
+    });
+    if (organizations.length !== ids.length)
+      throw new BadRequestException(
+        'Every ro_ids value must identify an active Regional Office.',
+      );
+  }
+
+  private async buildWhere(
     query: GetMediaQueryDto,
     actor: AuthenticatedUser,
-  ): Prisma.MediaWhereInput {
+  ): Promise<Prisma.MediaWhereInput> {
     const where: Prisma.MediaWhereInput = {
       isDeleted: query.isDeleted ?? false,
       ...(query.mediaTypeId ? { mediaTypeId: query.mediaTypeId } : {}),
       ...(query.is_active === undefined ? {} : { isActive: query.is_active }),
     };
-    const visibilityWhere = this.visibilityWhere(query, actor);
+    const visibilityWhere = await this.visibilityWhere(query, actor);
     if (visibilityWhere) where.AND = [visibilityWhere];
     if (query.search?.trim()) {
       const searchWhere: Prisma.MediaWhereInput = {
@@ -459,10 +621,10 @@ export class MediaService {
     return where;
   }
 
-  private visibilityWhere(
+  private async visibilityWhere(
     query: Pick<GetMediaQueryDto, 'organizationId'>,
     actor: AuthenticatedUser,
-  ): Prisma.MediaWhereInput | undefined {
+  ): Promise<Prisma.MediaWhereInput | undefined> {
     if (actor.role === Role.SUPER_ADMIN) {
       return query.organizationId
         ? { organizationId: query.organizationId }
@@ -475,19 +637,39 @@ export class MediaService {
       visibleToAll: true,
       organization: { organizationType: { code: 'HEADQUARTER' } },
     };
+    const headquartersSelectiveForRo = (
+      roId: number,
+      forJnv = false,
+    ): Prisma.MediaWhereInput => this.headquartersSelectiveWhere(roId, forJnv);
     const ownOrganization: Prisma.MediaWhereInput = {
       organizationId: actor.organizationId,
     };
 
     if (actor.role === Role.HEADQUARTER) return ownOrganization;
-    if (actor.role === Role.NLI || actor.role === Role.REGIONAL) {
+    if (actor.role === Role.NLI) {
       return { OR: [ownOrganization, headquartersShared] };
     }
-    if (actor.role === Role.JNV) {
+    if (actor.role === Role.REGIONAL)
       return {
         OR: [
           ownOrganization,
           headquartersShared,
+          headquartersSelectiveForRo(actor.organizationId),
+        ],
+      };
+    if (actor.role === Role.JNV) {
+      const organization = await this.prisma.organization.findFirst({
+        where: { id: actor.organizationId, isDeleted: false },
+        select: { parentOrganizationId: true },
+      });
+      const selective = organization?.parentOrganizationId
+        ? [headquartersSelectiveForRo(organization.parentOrganizationId, true)]
+        : [];
+      return {
+        OR: [
+          ownOrganization,
+          headquartersShared,
+          ...selective,
           {
             visibleToAll: true,
             organization: {
@@ -499,6 +681,92 @@ export class MediaService {
       };
     }
     return ownOrganization;
+  }
+
+  private exactRoIdsWhere(roId: number): Prisma.MediaWhereInput {
+    const token = String(roId);
+    return {
+      OR: [
+        { roIds: token },
+        { roIds: { startsWith: `${token},` } },
+        { roIds: { endsWith: `,${token}` } },
+        { roIds: { contains: `,${token},` } },
+      ],
+    };
+  }
+
+  private async publicWhere(
+    query: Pick<GetPublicMediaQueryDto, 'organization_id' | 'media_type_id'>,
+  ): Promise<Prisma.MediaWhereInput> {
+    const today = toCalendarDate(new Date().toISOString().slice(0, 10));
+    const dateConditions: Prisma.MediaWhereInput[] = [
+      { OR: [{ startDate: null }, { startDate: { lte: today } }] },
+      { OR: [{ endDate: null }, { endDate: { gte: today } }] },
+    ];
+    const where: Prisma.MediaWhereInput = {
+      isDeleted: false,
+      isActive: true,
+      ...(query.media_type_id ? { mediaTypeId: query.media_type_id } : {}),
+      AND: dateConditions,
+    };
+    if (query.organization_id === undefined) {
+      dateConditions.push({
+        visibleToAll: true,
+        organization: { organizationType: { code: 'HEADQUARTER' } },
+      });
+      return where;
+    }
+
+    const organization = await this.prisma.organization.findFirst({
+      where: { id: query.organization_id, isDeleted: false },
+      select: {
+        id: true,
+        parentOrganizationId: true,
+        organizationType: { select: { code: true } },
+      },
+    });
+    if (!organization) throw new NotFoundException('Organization not found.');
+
+    const own: Prisma.MediaWhereInput = { organizationId: organization.id };
+    const headquartersShared: Prisma.MediaWhereInput = {
+      visibleToAll: true,
+      organization: { organizationType: { code: 'HEADQUARTER' } },
+    };
+    const publicVisibility: Prisma.MediaWhereInput[] = [
+      own,
+      headquartersShared,
+    ];
+    if (organization.organizationType.code === 'REGIONAL_OFFICE')
+      publicVisibility.push(this.headquartersSelectiveWhere(organization.id));
+    if (organization.organizationType.code === 'JNV') {
+      if (organization.parentOrganizationId) {
+        publicVisibility.push({
+          visibleToAll: true,
+          organizationId: organization.parentOrganizationId,
+          organization: { organizationType: { code: 'REGIONAL_OFFICE' } },
+        });
+        publicVisibility.push(
+          this.headquartersSelectiveWhere(
+            organization.parentOrganizationId,
+            true,
+          ),
+        );
+      }
+    }
+    dateConditions.push({ OR: publicVisibility });
+    return where;
+  }
+
+  private headquartersSelectiveWhere(
+    roId: number,
+    forJnv = false,
+  ): Prisma.MediaWhereInput {
+    return {
+      visibleToAll: { not: true },
+      ...(forJnv ? { visibleToJnv: true } : {}),
+      organization: { organizationType: { code: 'HEADQUARTER' } },
+      ...this.exactRoIdsWhere(roId),
+    };
   }
 
   private orderBy(
@@ -559,6 +827,8 @@ export class MediaService {
       display_order: media.displayOrder,
       is_active: media.isActive,
       visible_to_all: media.visibleToAll,
+      ro_ids: media.roIds,
+      visible_to_jnv: media.visibleToJnv,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt,
@@ -594,6 +864,8 @@ export class MediaService {
       displayOrder: media.displayOrder,
       isActive: media.isActive,
       visibleToAll: media.visibleToAll,
+      roIds: media.roIds,
+      visibleToJnv: media.visibleToJnv,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt.toISOString(),
@@ -604,6 +876,25 @@ export class MediaService {
       isDeleted: media.isDeleted,
       deletedAt: media.deletedAt?.toISOString() ?? null,
       deletedById: media.deletedById,
+    };
+  }
+
+  private toPublicResponse(
+    media: Media,
+    organizationId?: number,
+  ): PublicMediaResponseDto {
+    return {
+      id: media.id,
+      media_type_id: media.mediaTypeId,
+      title_english: media.titleEnglish,
+      title_hindi: media.titleHindi,
+      description_english: media.descriptionEnglish,
+      description_hindi: media.descriptionHindi,
+      start_date: formatCalendarDate(media.startDate),
+      end_date: formatCalendarDate(media.endDate),
+      download_url: `/api/public/media/${media.id}/download${
+        organizationId === undefined ? '' : `?organization_id=${organizationId}`
+      }`,
     };
   }
 

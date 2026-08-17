@@ -65,10 +65,32 @@ model State {
   updatedBy     User?          @relation("StateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   deletedBy     User?          @relation("StateDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   organizations Organization[]
+  districts     District[]
 
   @@index([stateCode])
   @@index([isDeleted])
   @@map("nvs_states")
+}
+
+model District {
+  id              Int      @id
+  districtName    String   @map("district_name") @db.VarChar(255)
+  districtCode    String   @map("district_code") @db.VarChar(20)
+  stateId         Int      @map("state_id")
+  isActive        Boolean  @map("is_active")
+  languageId      Int?     @map("language_id")
+  oldDistrictCode String?  @map("old_district_code") @db.VarChar(20)
+  oldDistrictName String?  @map("old_district_name") @db.VarChar(255)
+  roId            Int?     @map("ro_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  state State @relation(fields: [stateId], references: [id], onDelete: Restrict)
+
+  @@index([districtCode])
+  @@index([stateId, isActive])
+  @@index([roId, isActive])
+  @@map("nvs_districts")
 }
 
 model OrganizationType {
@@ -331,6 +353,8 @@ model Media {
   displayOrder          Int       @default(0) @map("display_order")
   isActive              Boolean   @default(true) @map("is_active")
   visibleToAll          Boolean?  @map("visible_to_all")
+  roIds                 String?   @map("ro_ids") @db.Text
+  visibleToJnv          Boolean?  @map("visible_to_jnv")
   startDate             DateTime? @map("start_date") @db.Date
   endDate               DateTime? @map("end_date") @db.Date
   uploadedAt            DateTime  @default(now()) @map("uploaded_at")

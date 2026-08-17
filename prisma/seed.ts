@@ -1,6 +1,8 @@
 import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
+import { DISTRICTS } from './seed/districts';
+
 import {
   CONTENT_TYPES,
   DEFAULT_SEED_PASSWORD,
@@ -24,6 +26,7 @@ const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   await seedStates();
+  await seedDistricts();
   await seedRegions();
   const organizationTypesByCode = await seedOrganizationTypes();
   const organizationsByCode = await seedOrganizations(organizationTypesByCode);
@@ -41,6 +44,32 @@ async function main(): Promise<void> {
     mediaTypesByCode,
     usersByEmail,
   );
+}
+
+async function seedDistricts(): Promise<void> {
+  const referencedStateIds = [...new Set(DISTRICTS.map(({ stateId }) => stateId))];
+  const states = await prisma.state.findMany({
+    where: { id: { in: referencedStateIds } },
+    select: { id: true },
+  });
+  const resolvedStateIds = new Set(states.map(({ id }) => id));
+  const missingStateIds = referencedStateIds.filter(
+    (stateId) => !resolvedStateIds.has(stateId),
+  );
+
+  if (missingStateIds.length > 0) {
+    throw new Error(
+      `District seed references missing State IDs: ${missingStateIds.join(', ')}.`,
+    );
+  }
+
+  for (const district of DISTRICTS) {
+    await prisma.district.upsert({
+      where: { id: district.id },
+      update: district,
+      create: district,
+    });
+  }
 }
 
 async function seedOrganizationTypes(): Promise<Map<string, number>> {

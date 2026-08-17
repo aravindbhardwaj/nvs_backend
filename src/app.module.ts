@@ -19,6 +19,7 @@ import { RolePermissionsModule } from './role-permissions/role-permissions.modul
 import { UserPermissionsModule } from './user-permissions/user-permissions.module';
 import { RegionsModule } from './regions/regions.module';
 import { StatesModule } from './states/states.module';
+import { DistrictsModule } from './districts/districts.module';
 import { BannersModule } from './banners/banners.module';
 import { GalleryModule } from './gallery/gallery.module';
 import { MenusModule } from './menus/menus.module';
@@ -50,6 +51,7 @@ import configuration from './config';
     UserPermissionsModule,
     RegionsModule,
     StatesModule,
+    DistrictsModule,
     BannersModule,
     GalleryModule,
     MenusModule,

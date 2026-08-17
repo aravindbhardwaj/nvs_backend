@@ -68,6 +68,18 @@ export class UploadMediaDto {
   visible_to_all?: boolean;
 
   @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  ro_ids?: string | null;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  visible_to_jnv?: boolean | null;
+
+  @IsOptional()
   @IsDateString({ strict: true })
   start_date?: string;
 

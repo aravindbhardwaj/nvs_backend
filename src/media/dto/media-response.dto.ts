@@ -20,6 +20,8 @@ export class MediaResponseDto {
   display_order: number;
   is_active: boolean;
   visible_to_all: boolean | null;
+  ro_ids: string | null;
+  visible_to_jnv: boolean | null;
   start_date: string | null;
   end_date: string | null;
   uploadedAt: Date;
