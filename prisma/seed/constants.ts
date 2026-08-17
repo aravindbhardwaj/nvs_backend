@@ -302,6 +302,12 @@ export const PERMISSIONS = [
   ['GALLERY_UPDATE', 'GALLERY', 'UPDATE', 'Update gallery images.'],
   ['GALLERY_DELETE', 'GALLERY', 'DELETE', 'Delete gallery images.'],
   ['AUDIT_LOG_VIEW', 'AUDIT_LOG', 'VIEW', 'View audit logs.'],
+  [
+    'VISITOR_ANALYTICS_VIEW',
+    'VISITOR_ANALYTICS',
+    'VIEW',
+    'View visitor analytics reports.',
+  ],
   ['MENU_CREATE', 'MENU', 'CREATE', 'Create menu items.'],
   ['MENU_VIEW', 'MENU', 'VIEW', 'View menu items.'],
   ['MENU_UPDATE', 'MENU', 'UPDATE', 'Update menu items.'],

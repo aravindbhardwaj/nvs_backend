@@ -477,6 +477,22 @@ model Menu {
   @@map("nvs_menus")
 }
 
+model VisitorSession {
+  id             Int      @id @default(autoincrement())
+  visitorId      String   @map("visitor_id") @db.VarChar(36)
+  sessionId      String   @unique @map("session_id") @db.VarChar(36)
+  usedEnglish    Boolean  @default(false) @map("used_english")
+  usedHindi      Boolean  @default(false) @map("used_hindi")
+  startedAt      DateTime @default(now()) @map("started_at")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([visitorId])
+  @@index([startedAt])
+  @@map("visitor_sessions")
+}
+
 model Permission {
   id            Int      @id @default(autoincrement())
   permissionKey String   @unique @map("permission_key") @db.VarChar(150)
