@@ -22,8 +22,12 @@ export class DistrictsService {
       ...(search?.trim()
         ? {
             OR: [
-              { districtName: { contains: search.trim(), mode: 'insensitive' } },
-              { districtCode: { contains: search.trim(), mode: 'insensitive' } },
+              {
+                districtName: { contains: search.trim(), mode: 'insensitive' },
+              },
+              {
+                districtCode: { contains: search.trim(), mode: 'insensitive' },
+              },
             ],
           }
         : {}),

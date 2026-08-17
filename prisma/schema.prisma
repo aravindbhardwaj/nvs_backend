@@ -53,6 +53,9 @@ model State {
   id          Int       @id @default(autoincrement())
   stateName   String    @unique @map("state_name") @db.VarChar(150)
   stateCode   String    @unique @map("state_code") @db.VarChar(20)
+  isActive    Boolean   @default(true) @map("is_active")
+  roId        Int?      @map("ro_id")
+  isoCode     String    @unique @map("iso_code") @db.VarChar(20)
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   createdById Int?      @map("created_by")
@@ -68,6 +71,8 @@ model State {
   districts     District[]
 
   @@index([stateCode])
+  @@index([roId, isActive])
+  @@index([isoCode])
   @@index([isDeleted])
   @@map("nvs_states")
 }

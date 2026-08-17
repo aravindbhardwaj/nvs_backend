@@ -1,5 +1,12 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  Min,
+} from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SortOrder } from '../../common/enums/sort-order.enum';
@@ -29,7 +36,14 @@ export class GetDistrictsQueryDto extends PaginationQueryDto {
   isActive = true;
 
   @IsOptional()
-  @IsIn(['districtName', 'districtCode', 'stateId', 'roId', 'createdAt', 'updatedAt'])
+  @IsIn([
+    'districtName',
+    'districtCode',
+    'stateId',
+    'roId',
+    'createdAt',
+    'updatedAt',
+  ])
   sort = 'districtName';
 
   @IsOptional()

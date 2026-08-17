@@ -57,17 +57,32 @@ function nullable(value: string): string | null {
 
 export function readDistrictSeeds(csv: string): DistrictSeed[] {
   const [header, ...rows] = csv.trimEnd().split(/\r?\n/);
-  if (!header || JSON.stringify(parseCsvLine(header)) !== JSON.stringify(EXPECTED_HEADERS)) {
+  if (
+    !header ||
+    JSON.stringify(parseCsvLine(header)) !== JSON.stringify(EXPECTED_HEADERS)
+  ) {
     throw new Error('District seed CSV has unexpected headers.');
   }
 
   const districts = rows.map((row, index) => {
     const values = parseCsvLine(row);
     if (values.length !== EXPECTED_HEADERS.length) {
-      throw new Error(`District seed CSV row ${index + 2} has an invalid column count.`);
+      throw new Error(
+        `District seed CSV row ${index + 2} has an invalid column count.`,
+      );
     }
 
-    const [id, districtName, districtCode, stateId, isActive, languageId, oldDistrictCode, oldDistrictName, roId] = values;
+    const [
+      id,
+      districtName,
+      districtCode,
+      stateId,
+      isActive,
+      languageId,
+      oldDistrictCode,
+      oldDistrictName,
+      roId,
+    ] = values;
     return {
       id: Number(id),
       districtName,
@@ -81,8 +96,15 @@ export function readDistrictSeeds(csv: string): DistrictSeed[] {
     };
   });
 
-  if (districts.length !== 666 || districts.some(({ id, stateId }) => !Number.isInteger(id) || !Number.isInteger(stateId))) {
-    throw new Error('District seed CSV does not contain the expected 666 valid records.');
+  if (
+    districts.length !== 666 ||
+    districts.some(
+      ({ id, stateId }) => !Number.isInteger(id) || !Number.isInteger(stateId),
+    )
+  ) {
+    throw new Error(
+      'District seed CSV does not contain the expected 666 valid records.',
+    );
   }
 
   return districts;

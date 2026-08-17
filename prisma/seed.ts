@@ -2,6 +2,8 @@ import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 import { DISTRICTS } from './seed/districts';
+import { JNVS } from './seed/jnvs';
+import { STATES } from './seed/states';
 
 import {
   CONTENT_TYPES,
@@ -18,7 +20,6 @@ import {
   SAMPLE_PAGES,
   SAMPLE_PAGE_STATUS,
   SAMPLE_USERS,
-  STATES,
   WEBSITE_ORGANIZATION_TYPE_CODES,
 } from './seed/constants';
 
@@ -30,6 +31,7 @@ async function main(): Promise<void> {
   await seedRegions();
   const organizationTypesByCode = await seedOrganizationTypes();
   const organizationsByCode = await seedOrganizations(organizationTypesByCode);
+  await seedJnvs(organizationsByCode, organizationTypesByCode);
   const permissionsByKey = await seedPermissions();
   await seedRolePermissions(permissionsByKey);
   const usersByEmail = await seedUsers(
@@ -47,7 +49,9 @@ async function main(): Promise<void> {
 }
 
 async function seedDistricts(): Promise<void> {
-  const referencedStateIds = [...new Set(DISTRICTS.map(({ stateId }) => stateId))];
+  const referencedStateIds = [
+    ...new Set(DISTRICTS.map(({ stateId }) => stateId)),
+  ];
   const states = await prisma.state.findMany({
     where: { id: { in: referencedStateIds } },
     select: { id: true },
@@ -126,16 +130,20 @@ async function seedRegions(): Promise<void> {
 
 async function seedStates(): Promise<void> {
   await Promise.all(
-    STATES.map(([stateName, stateCode]) =>
+    STATES.map((state) =>
       prisma.state.upsert({
-        where: { stateCode },
+        where: { id: state.id },
         update: {
-          stateName,
+          stateName: state.stateName,
+          stateCode: state.stateCode,
+          isActive: state.isActive,
+          roId: state.roId,
+          isoCode: state.isoCode,
           isDeleted: false,
           deletedAt: null,
           deletedById: null,
         },
-        create: { stateName, stateCode },
+        create: state,
       }),
     ),
   );
@@ -206,6 +214,71 @@ async function seedOrganizations(
   }
 
   return organizationIds;
+}
+
+async function seedJnvs(
+  organizationsByCode: Map<string, number>,
+  organizationTypesByCode: Map<string, number>,
+): Promise<void> {
+  const jnvOrganizationTypeId = organizationTypesByCode.get('JNV');
+  if (!jnvOrganizationTypeId)
+    throw new Error('Seed organization type JNV was not resolved.');
+
+  const [regions, states] = await Promise.all([
+    prisma.region.findMany({ select: { id: true, regionCode: true } }),
+    prisma.state.findMany({ select: { id: true, stateCode: true } }),
+  ]);
+  const regionIds = new Map(
+    regions.map(({ id, regionCode }) => [regionCode, id]),
+  );
+  const stateIds = new Map(states.map(({ id, stateCode }) => [stateCode, id]));
+
+  for (const jnv of JNVS) {
+    const parentOrganizationId = organizationsByCode.get(
+      jnv.parentOrganizationCode,
+    );
+    const stateId = stateIds.get(jnv.stateCode);
+    const regionId = jnv.regionCode
+      ? regionIds.get(jnv.regionCode)
+      : null;
+    if (!parentOrganizationId)
+      throw new Error(
+        `Seed JNV ${jnv.organizationCode} parent ${jnv.parentOrganizationCode} was not resolved.`,
+      );
+    if (!stateId)
+      throw new Error(
+        `Seed JNV ${jnv.organizationCode} state ${jnv.stateCode} was not resolved.`,
+      );
+    if (jnv.regionCode && !regionId)
+      throw new Error(
+        `Seed JNV ${jnv.organizationCode} region ${jnv.regionCode} was not resolved.`,
+      );
+
+    const record = await prisma.organization.upsert({
+      where: { organizationCode: jnv.organizationCode },
+      update: {
+        organizationName: jnv.organizationName,
+        organizationTypeId: jnvOrganizationTypeId,
+        parentOrganizationId,
+        regionId,
+        stateId,
+        address: jnv.address,
+        isDeleted: false,
+        deletedAt: null,
+        deletedById: null,
+      },
+      create: {
+        organizationName: jnv.organizationName,
+        organizationCode: jnv.organizationCode,
+        organizationTypeId: jnvOrganizationTypeId,
+        parentOrganizationId,
+        regionId,
+        stateId,
+        address: jnv.address,
+      },
+    });
+    organizationsByCode.set(jnv.organizationCode, record.id);
+  }
 }
 
 async function seedPermissions(): Promise<Map<string, number>> {

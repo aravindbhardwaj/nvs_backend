@@ -1,24 +1,21 @@
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsIn, IsInt, IsOptional, Min } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SortOrder } from '../../common/enums/sort-order.enum';
 
 export class GetStatesQueryDto extends PaginationQueryDto {
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => {
-    if (value === undefined) {
-      return undefined;
-    }
-
-    return value === true || value === 'true';
-  })
-  @IsBoolean()
-  isDeleted?: boolean;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  ro_id?: number;
 
   @IsOptional()
-  @IsIn(['stateName', 'stateCode', 'createdAt', 'updatedAt'])
-  sort = 'createdAt';
+  @IsIn(['stateName', 'stateCode', 'roId', 'isoCode'])
+  sort = 'stateName';
 
-  order: SortOrder = SortOrder.DESC;
+  @IsOptional()
+  @IsEnum(SortOrder)
+  order: SortOrder = SortOrder.ASC;
 }

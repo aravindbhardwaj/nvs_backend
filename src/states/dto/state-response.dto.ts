@@ -2,6 +2,7 @@ export class StateResponseDto {
   id: number;
   stateName: string;
   stateCode: string;
-  createdAt: Date;
-  updatedAt: Date;
+  isActive: boolean;
+  roId: number | null;
+  isoCode: string;
 }
