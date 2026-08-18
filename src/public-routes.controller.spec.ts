@@ -4,6 +4,7 @@ import { PublicGalleryController } from './gallery/public-gallery.controller';
 import { PublicMediaController } from './media/public-media.controller';
 import { PublicMenusController } from './menus/public-menus.controller';
 import { PublicPagesController } from './pages/public-pages.controller';
+import { PublicJnvsController } from './organizations/public-jnvs.controller';
 
 describe('Public website controllers', () => {
   it.each([
@@ -12,6 +13,7 @@ describe('Public website controllers', () => {
     PublicBannersController,
     PublicGalleryController,
     PublicMenusController,
+    PublicJnvsController,
   ])('explicitly marks %p public', (controller) => {
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, controller)).toBe(true);
   });

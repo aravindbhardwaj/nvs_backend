@@ -12,7 +12,9 @@ import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { GetOrganizationsQueryDto } from './dto/get-organizations-query.dto';
+import { GetPublicJnvsQueryDto } from './dto/get-public-jnvs-query.dto';
 import { OrganizationResponseDto } from './dto/organization-response.dto';
+import { PublicJnvResponseDto } from './dto/public-jnv-response.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 
 const organizationInclude = {
@@ -35,6 +37,24 @@ const organizationTypeCodes = {
   regionalOffice: 'REGIONAL_OFFICE',
   jnv: 'JNV',
 } as const;
+
+const JNV_ORGANIZATION_TYPE_ID = 4;
+
+const publicJnvSelect = {
+  id: true,
+  organizationName: true,
+  organizationHindiName: true,
+  organizationCode: true,
+  address: true,
+  estdYear: true,
+  studentsCount: true,
+  state: { select: { stateName: true, isoCode: true } },
+  district: { select: { districtName: true, nameHi: true } },
+} satisfies Prisma.OrganizationSelect;
+
+type PublicJnvOrganization = Prisma.OrganizationGetPayload<{
+  select: typeof publicJnvSelect;
+}>;
 
 type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
   include: typeof organizationInclude;
@@ -107,6 +127,45 @@ export class OrganizationsService {
     });
     if (!organization) throw new NotFoundException('Organization not found.');
     return this.toResponse(organization);
+  }
+
+  async findPublicJnvs(
+    query: GetPublicJnvsQueryDto,
+  ): Promise<PaginatedResponseDto<PublicJnvResponseDto>> {
+    const stateCode = query.state_code?.trim().toUpperCase();
+    const where: Prisma.OrganizationWhereInput = {
+      organizationTypeId: JNV_ORGANIZATION_TYPE_ID,
+      isDeleted: false,
+      isFunctional: true,
+      ...(query.district_id ? { districtId: query.district_id } : {}),
+      ...(stateCode
+        ? {
+            state: {
+              isoCode: {
+                equals: `IN-${stateCode}`,
+                mode: 'insensitive',
+              },
+            },
+          }
+        : {}),
+    };
+    const [organizations, totalItems] = await this.prisma.$transaction([
+      this.prisma.organization.findMany({
+        where,
+        select: publicJnvSelect,
+        orderBy: [{ organizationName: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.organization.count({ where }),
+    ]);
+
+    return {
+      items: organizations.map((organization) =>
+        this.toPublicJnvResponse(organization),
+      ),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
   }
 
   async update(
@@ -666,6 +725,38 @@ export class OrganizationsService {
       createdAt: organization.createdAt,
       updatedAt: organization.updatedAt,
     };
+  }
+
+  private toPublicJnvResponse(
+    organization: PublicJnvOrganization,
+  ): PublicJnvResponseDto {
+    const stateCode = organization.state
+      ? this.publicStateCode(organization.state.isoCode)
+      : null;
+
+    return {
+      id: organization.id,
+      name: organization.organizationName,
+      stateCode,
+      address: organization.address,
+      state: organization.state?.stateName ?? null,
+      district: organization.district?.districtName ?? null,
+      schoolUrl: stateCode
+        ? `/nvs-school/${stateCode.toLowerCase()}/${this.publicSchoolCode(organization.organizationCode)}`
+        : null,
+      estd: organization.estdYear,
+      students: organization.studentsCount,
+      districtHi: organization.district?.nameHi ?? null,
+      nameHi: organization.organizationHindiName,
+    };
+  }
+
+  private publicStateCode(isoCode: string): string {
+    return isoCode.split('-').at(-1)?.toUpperCase() ?? isoCode.toUpperCase();
+  }
+
+  private publicSchoolCode(organizationCode: string): string {
+    return organizationCode.replace(/^JNV-/i, '').trim().toLowerCase();
   }
 
   private toAuditValues(organization: Organization): Prisma.InputJsonValue {
