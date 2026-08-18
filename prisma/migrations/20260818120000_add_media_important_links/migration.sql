@@ -1,0 +1,4 @@
+ALTER TABLE "nvs_media"
+  ADD COLUMN "important_link_1" BOOLEAN DEFAULT NULL,
+  ADD COLUMN "important_link_2" BOOLEAN DEFAULT NULL,
+  ADD COLUMN "important_link_3" BOOLEAN DEFAULT NULL;

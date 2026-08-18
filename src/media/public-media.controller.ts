@@ -25,6 +25,30 @@ export class PublicMediaController {
     };
   }
 
+  @Get('important-link-1')
+  async findImportantLink1(@Query() query: GetPublicMediaQueryDto) {
+    return {
+      message: 'Public important link 1 media retrieved successfully.',
+      data: await this.media.findImportantLinks(query, 'importantLink1'),
+    };
+  }
+
+  @Get('important-link-2')
+  async findImportantLink2(@Query() query: GetPublicMediaQueryDto) {
+    return {
+      message: 'Public important link 2 media retrieved successfully.',
+      data: await this.media.findImportantLinks(query, 'importantLink2'),
+    };
+  }
+
+  @Get('important-link-3')
+  async findImportantLink3(@Query() query: GetPublicMediaQueryDto) {
+    return {
+      message: 'Public important link 3 media retrieved successfully.',
+      data: await this.media.findImportantLinks(query, 'importantLink3'),
+    };
+  }
+
   @Get(':id/download')
   async download(
     @Param('id', ParseIntPipe) id: number,

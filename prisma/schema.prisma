@@ -90,7 +90,8 @@ model District {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  state State @relation(fields: [stateId], references: [id], onDelete: Restrict)
+  state         State          @relation(fields: [stateId], references: [id], onDelete: Restrict)
+  organizations Organization[]
 
   @@index([districtCode])
   @@index([stateId, isActive])
@@ -122,6 +123,9 @@ model Organization {
   parentOrganizationId  Int?      @map("parent_organization_id")
   regionId              Int?      @map("region_id")
   stateId               Int?      @map("state_id")
+  districtId            Int?      @map("district_id")
+  estdYear              Int?      @map("estd_year")
+  studentsCount         Int?      @map("students_count")
   address               String?   @db.Text
   isFunctional          Boolean   @default(true) @map("is_functional")
   createdAt             DateTime  @default(now()) @map("created_at")
@@ -137,6 +141,7 @@ model Organization {
   organizationType   OrganizationType @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
   region             Region?          @relation(fields: [regionId], references: [id], onDelete: Restrict)
   state              State?           @relation(fields: [stateId], references: [id], onDelete: Restrict)
+  district           District?        @relation(fields: [districtId], references: [id], onDelete: Restrict)
   createdBy          User?            @relation("OrganizationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy          User?            @relation("OrganizationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   deletedBy          User?            @relation("OrganizationDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
@@ -151,6 +156,7 @@ model Organization {
   @@index([parentOrganizationId])
   @@index([regionId])
   @@index([stateId])
+  @@index([districtId])
   @@index([isDeleted])
   @@map("nvs_organizations")
 }
@@ -365,6 +371,9 @@ model Media {
   visibleToAll          Boolean?  @map("visible_to_all")
   roIds                 String?   @map("ro_ids") @db.Text
   visibleToJnv          Boolean?  @map("visible_to_jnv")
+  importantLink1        Boolean?  @map("important_link_1")
+  importantLink2        Boolean?  @map("important_link_2")
+  importantLink3        Boolean?  @map("important_link_3")
   startDate             DateTime? @map("start_date") @db.Date
   endDate               DateTime? @map("end_date") @db.Date
   uploadedAt            DateTime  @default(now()) @map("uploaded_at")

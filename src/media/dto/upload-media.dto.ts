@@ -80,6 +80,21 @@ export class UploadMediaDto {
   visible_to_jnv?: boolean | null;
 
   @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  important_link_1?: boolean | null;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  important_link_2?: boolean | null;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  important_link_3?: boolean | null;
+
+  @IsOptional()
   @IsDateString({ strict: true })
   start_date?: string;
 

@@ -140,6 +140,32 @@ describe('MediaService', () => {
     );
   });
 
+  it('stores independent important-link flags during upload', async () => {
+    await service.upload(
+      {
+        titleEnglish: 'Important notice',
+        titleHindi: 'महत्वपूर्ण सूचना',
+        mediaTypeId: 1,
+        important_link_1: true,
+        important_link_2: null,
+        important_link_3: true,
+      },
+      file,
+      undefined,
+      headquartersUser,
+    );
+
+    expect(transaction.media.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          importantLink1: true,
+          importantLink2: null,
+          importantLink3: true,
+        }),
+      }),
+    );
+  });
+
   it('normalizes selected Regional Office IDs before storing selective visibility', async () => {
     await service.upload(
       {
@@ -348,6 +374,31 @@ describe('MediaService', () => {
               ]),
             }),
           ]),
+        }),
+        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+      }),
+    );
+  });
+
+  it('adds the requested important-link flag to the shared public visibility query', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+    prisma.organization.findFirst.mockResolvedValue({
+      id: 2,
+      parentOrganizationId: null,
+      organizationType: { code: 'HEADQUARTER' },
+    });
+
+    await service.findImportantLinks(
+      { page: 1, limit: 20, organization_id: 2 },
+      'importantLink2',
+    );
+
+    expect(prisma.media.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isDeleted: false,
+          isActive: true,
+          AND: expect.arrayContaining([{ importantLink2: true }]),
         }),
         orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
       }),

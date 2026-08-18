@@ -55,6 +55,27 @@ export class CreateOrganizationDto {
   @Min(1)
   stateId?: number;
 
+  /** Optional and nullable; references the existing District Master. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  districtId?: number | null;
+
+  /** Optional and nullable establishment year. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  estdYear?: number | null;
+
+  /** Optional and nullable; intended for JNV organizations. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  studentsCount?: number | null;
+
   @ValidateIf((_, value) => value !== undefined)
   @Transform(trimValue)
   @IsString()

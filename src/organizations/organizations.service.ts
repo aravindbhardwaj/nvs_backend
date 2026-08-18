@@ -26,12 +26,14 @@ const organizationInclude = {
   },
   region: { select: { id: true, regionName: true } },
   state: { select: { id: true, stateName: true } },
+  district: { select: { id: true, districtName: true } },
 } satisfies Prisma.OrganizationInclude;
 
 const organizationTypeCodes = {
   headquarters: 'HEADQUARTER',
   nli: 'NLI',
   regionalOffice: 'REGIONAL_OFFICE',
+  jnv: 'JNV',
 } as const;
 
 type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
@@ -113,15 +115,19 @@ export class OrganizationsService {
     actor: AuthenticatedUser,
   ): Promise<OrganizationResponseDto> {
     const existingOrganization = await this.findActiveOrganization(id);
+    const mergedDto = this.mergeWithExistingOrganization(
+      dto,
+      existingOrganization,
+    );
     await this.ensureValuesAreUnique(
-      dto.organizationName,
-      dto.organizationCode,
+      mergedDto.organizationName,
+      mergedDto.organizationCode,
       id,
     );
-    const normalized = await this.validateHierarchy(dto, id);
+    const normalized = await this.validateHierarchy(mergedDto, id);
     await this.ensureTypeChangeDoesNotInvalidateChildren(
       existingOrganization,
-      dto.organizationTypeId,
+      mergedDto.organizationTypeId,
     );
 
     const organization = await this.prisma.$transaction(async (transaction) => {
@@ -246,11 +252,9 @@ export class OrganizationsService {
     dto: CreateOrganizationDto,
     organizationId?: number,
   ): Promise<Prisma.OrganizationUncheckedCreateInput> {
-    const { organizationTypeId, parentOrganizationId, regionId, stateId } =
-      dto;
-    const organizationType = await this.ensureActiveOrganizationType(
-      organizationTypeId,
-    );
+    const { organizationTypeId, parentOrganizationId, regionId, stateId } = dto;
+    const organizationType =
+      await this.ensureActiveOrganizationType(organizationTypeId);
     if (parentOrganizationId === organizationId)
       throw new BadRequestException(
         'An organization cannot be its own parent.',
@@ -277,17 +281,22 @@ export class OrganizationsService {
             'Only one Headquarters organization may exist.',
           );
       }
-      return {
-        organizationName: dto.organizationName,
-        organizationHindiName: dto.organizationHindiName ?? null,
-        organizationCode: dto.organizationCode,
-        organizationTypeId,
-        address: dto.address ?? null,
-        isFunctional: dto.isFunctional ?? true,
-        parentOrganizationId: null,
-        regionId: null,
-        stateId: null,
-      };
+      return this.withSupplementalFields(
+        {
+          organizationName: dto.organizationName,
+          organizationHindiName: dto.organizationHindiName ?? null,
+          organizationCode: dto.organizationCode,
+          organizationTypeId,
+          address: dto.address ?? null,
+          isFunctional: dto.isFunctional ?? true,
+          parentOrganizationId: null,
+          regionId: null,
+          stateId: null,
+        },
+        dto,
+        null,
+        organizationType.code,
+      );
     }
     if (!parentOrganizationId)
       throw new BadRequestException(
@@ -315,17 +324,22 @@ export class OrganizationsService {
           'A Regional Office must not reference a state.',
         );
       await this.ensureActiveRegion(regionId);
-      return {
-        organizationName: dto.organizationName,
-        organizationHindiName: dto.organizationHindiName ?? null,
-        organizationCode: dto.organizationCode,
-        organizationTypeId,
-        address: dto.address ?? null,
-        isFunctional: dto.isFunctional ?? true,
-        parentOrganizationId,
-        regionId,
-        stateId: null,
-      };
+      return this.withSupplementalFields(
+        {
+          organizationName: dto.organizationName,
+          organizationHindiName: dto.organizationHindiName ?? null,
+          organizationCode: dto.organizationCode,
+          organizationTypeId,
+          address: dto.address ?? null,
+          isFunctional: dto.isFunctional ?? true,
+          parentOrganizationId,
+          regionId,
+          stateId: null,
+        },
+        dto,
+        null,
+        organizationType.code,
+      );
     }
     if (parent.organizationType.code !== organizationTypeCodes.regionalOffice)
       throw new BadRequestException('A JNV parent must be a Regional Office.');
@@ -340,16 +354,87 @@ export class OrganizationsService {
         'The parent Regional Office must reference a region.',
       );
     await this.ensureActiveState(stateId);
-    return {
-      organizationName: dto.organizationName,
-      organizationHindiName: dto.organizationHindiName ?? null,
-      organizationCode: dto.organizationCode,
-      organizationTypeId,
-      address: dto.address ?? null,
-      isFunctional: dto.isFunctional ?? true,
-      parentOrganizationId,
-      regionId: parent.regionId,
+    return this.withSupplementalFields(
+      {
+        organizationName: dto.organizationName,
+        organizationHindiName: dto.organizationHindiName ?? null,
+        organizationCode: dto.organizationCode,
+        organizationTypeId,
+        address: dto.address ?? null,
+        isFunctional: dto.isFunctional ?? true,
+        parentOrganizationId,
+        regionId: parent.regionId,
+        stateId,
+      },
+      dto,
       stateId,
+      organizationType.code,
+    );
+  }
+
+  private async withSupplementalFields(
+    data: Prisma.OrganizationUncheckedCreateInput,
+    dto: CreateOrganizationDto,
+    stateId: number | null,
+    organizationTypeCode: string,
+  ): Promise<Prisma.OrganizationUncheckedCreateInput> {
+    const districtId = dto.districtId ?? null;
+    const studentsCount = dto.studentsCount ?? null;
+
+    if (districtId !== null)
+      await this.ensureActiveDistrict(districtId, stateId);
+    if (
+      studentsCount !== null &&
+      organizationTypeCode !== organizationTypeCodes.jnv
+    )
+      throw new BadRequestException(
+        'studentsCount is only applicable to JNV organizations.',
+      );
+
+    return {
+      ...data,
+      districtId,
+      estdYear: dto.estdYear ?? null,
+      studentsCount,
+    };
+  }
+
+  private mergeWithExistingOrganization(
+    dto: UpdateOrganizationDto,
+    existing: OrganizationWithRelations,
+  ): CreateOrganizationDto {
+    return {
+      organizationName: dto.organizationName ?? existing.organizationName,
+      organizationHindiName:
+        dto.organizationHindiName === undefined
+          ? (existing.organizationHindiName ?? undefined)
+          : (dto.organizationHindiName ?? undefined),
+      organizationCode: dto.organizationCode ?? existing.organizationCode,
+      organizationTypeId: dto.organizationTypeId ?? existing.organizationTypeId,
+      parentOrganizationId:
+        dto.parentOrganizationId === undefined
+          ? (existing.parentOrganizationId ?? undefined)
+          : (dto.parentOrganizationId ?? undefined),
+      regionId:
+        dto.regionId === undefined
+          ? (existing.regionId ?? undefined)
+          : (dto.regionId ?? undefined),
+      stateId:
+        dto.stateId === undefined
+          ? (existing.stateId ?? undefined)
+          : (dto.stateId ?? undefined),
+      districtId:
+        dto.districtId === undefined ? existing.districtId : dto.districtId,
+      estdYear: dto.estdYear === undefined ? existing.estdYear : dto.estdYear,
+      studentsCount:
+        dto.studentsCount === undefined
+          ? existing.studentsCount
+          : dto.studentsCount,
+      address:
+        dto.address === undefined
+          ? (existing.address ?? undefined)
+          : (dto.address ?? undefined),
+      isFunctional: dto.isFunctional ?? existing.isFunctional,
     };
   }
 
@@ -392,7 +477,8 @@ export class OrganizationsService {
         'Organization cannot be restored because its parent organization has been deleted.',
       );
     if (
-      organization.organizationType.code === organizationTypeCodes.regionalOffice
+      organization.organizationType.code ===
+      organizationTypeCodes.regionalOffice
     ) {
       if (
         parent.organizationType.code !== organizationTypeCodes.headquarters ||
@@ -445,6 +531,22 @@ export class OrganizationsService {
     });
     if (!state)
       throw new NotFoundException('State not found or has been deleted.');
+  }
+
+  private async ensureActiveDistrict(
+    id: number,
+    stateId: number | null,
+  ): Promise<void> {
+    const district = await this.prisma.district.findFirst({
+      where: { id, isActive: true },
+      select: { id: true, stateId: true },
+    });
+    if (!district)
+      throw new NotFoundException('District not found or is inactive.');
+    if (stateId !== null && district.stateId !== stateId)
+      throw new BadRequestException(
+        'District must belong to the selected state.',
+      );
   }
 
   private async ensureActiveOrganizationType(id: number) {
@@ -501,6 +603,7 @@ export class OrganizationsService {
         : {}),
       ...(query.regionId ? { regionId: query.regionId } : {}),
       ...(query.stateId ? { stateId: query.stateId } : {}),
+      ...(query.districtId ? { districtId: query.districtId } : {}),
       ...(query.parentOrganizationId
         ? { parentOrganizationId: query.parentOrganizationId }
         : {}),
@@ -536,6 +639,9 @@ export class OrganizationsService {
       parentOrganizationId: organization.parentOrganizationId,
       regionId: organization.regionId,
       stateId: organization.stateId,
+      districtId: organization.districtId,
+      estdYear: organization.estdYear,
+      studentsCount: organization.studentsCount,
       address: organization.address,
       isFunctional: organization.isFunctional,
       parentOrganization: organization.parentOrganization
@@ -549,6 +655,12 @@ export class OrganizationsService {
         : null,
       state: organization.state
         ? { id: organization.state.id, name: organization.state.stateName }
+        : null,
+      district: organization.district
+        ? {
+            id: organization.district.id,
+            name: organization.district.districtName,
+          }
         : null,
       isDeleted: organization.isDeleted,
       createdAt: organization.createdAt,
@@ -566,6 +678,9 @@ export class OrganizationsService {
       parentOrganizationId: organization.parentOrganizationId,
       regionId: organization.regionId,
       stateId: organization.stateId,
+      districtId: organization.districtId,
+      estdYear: organization.estdYear,
+      studentsCount: organization.studentsCount,
       address: organization.address,
       isFunctional: organization.isFunctional,
       createdAt: organization.createdAt.toISOString(),

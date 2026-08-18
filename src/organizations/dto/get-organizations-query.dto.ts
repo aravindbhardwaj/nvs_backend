@@ -34,6 +34,12 @@ export class GetOrganizationsQueryDto extends PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  districtId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   parentOrganizationId?: number;
 
   @IsOptional()
@@ -52,6 +58,7 @@ export class GetOrganizationsQueryDto extends PaginationQueryDto {
     'organizationName',
     'organizationCode',
     'organizationTypeId',
+    'districtId',
     'createdAt',
     'updatedAt',
   ])

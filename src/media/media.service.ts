@@ -28,6 +28,9 @@ import { UpdateMediaDto } from './dto/update-media.dto';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { UPLOADS_ROOT, validateMediaFile } from './media.storage';
 
+type ImportantLinkField =
+  'importantLink1' | 'importantLink2' | 'importantLink3';
+
 @Injectable()
 export class MediaService {
   constructor(
@@ -73,6 +76,9 @@ export class MediaService {
           visibleToAll: visibility.visibleToAll,
           roIds: visibility.roIds,
           visibleToJnv: visibility.visibleToJnv,
+          importantLink1: dto.important_link_1 ?? null,
+          importantLink2: dto.important_link_2 ?? null,
+          importantLink3: dto.important_link_3 ?? null,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -206,6 +212,15 @@ export class MediaService {
           ...(dto.visible_to_jnv === undefined
             ? {}
             : { visibleToJnv: visibility.visibleToJnv }),
+          ...(dto.important_link_1 === undefined
+            ? {}
+            : { importantLink1: dto.important_link_1 }),
+          ...(dto.important_link_2 === undefined
+            ? {}
+            : { importantLink2: dto.important_link_2 }),
+          ...(dto.important_link_3 === undefined
+            ? {}
+            : { importantLink3: dto.important_link_3 }),
           ...(dto.start_date === undefined
             ? {}
             : {
@@ -368,6 +383,28 @@ export class MediaService {
     query: GetPublicMediaQueryDto,
   ): Promise<PaginatedResponseDto<PublicMediaResponseDto>> {
     const where = await this.publicWhere(query);
+    const [media, totalItems] = await this.prisma.$transaction([
+      this.prisma.media.findMany({
+        where,
+        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.media.count({ where }),
+    ]);
+    return {
+      items: media.map((item) =>
+        this.toPublicResponse(item, query.organization_id),
+      ),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  async findImportantLinks(
+    query: GetPublicMediaQueryDto,
+    importantLink: ImportantLinkField,
+  ): Promise<PaginatedResponseDto<PublicMediaResponseDto>> {
+    const where = await this.publicWhere(query, importantLink);
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
         where,
@@ -697,6 +734,7 @@ export class MediaService {
 
   private async publicWhere(
     query: Pick<GetPublicMediaQueryDto, 'organization_id' | 'media_type_id'>,
+    importantLink?: ImportantLinkField,
   ): Promise<Prisma.MediaWhereInput> {
     const today = toCalendarDate(new Date().toISOString().slice(0, 10));
     const dateConditions: Prisma.MediaWhereInput[] = [
@@ -709,6 +747,7 @@ export class MediaService {
       ...(query.media_type_id ? { mediaTypeId: query.media_type_id } : {}),
       AND: dateConditions,
     };
+    if (importantLink) dateConditions.push({ [importantLink]: true });
     if (query.organization_id === undefined) {
       dateConditions.push({
         visibleToAll: true,
@@ -829,6 +868,9 @@ export class MediaService {
       visible_to_all: media.visibleToAll,
       ro_ids: media.roIds,
       visible_to_jnv: media.visibleToJnv,
+      important_link_1: media.importantLink1,
+      important_link_2: media.importantLink2,
+      important_link_3: media.importantLink3,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt,
@@ -866,6 +908,9 @@ export class MediaService {
       visibleToAll: media.visibleToAll,
       roIds: media.roIds,
       visibleToJnv: media.visibleToJnv,
+      importantLink1: media.importantLink1,
+      importantLink2: media.importantLink2,
+      importantLink3: media.importantLink3,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
       uploadedAt: media.uploadedAt.toISOString(),

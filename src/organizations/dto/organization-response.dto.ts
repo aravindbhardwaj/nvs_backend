@@ -19,11 +19,15 @@ export class OrganizationResponseDto {
   parentOrganizationId: number | null;
   regionId: number | null;
   stateId: number | null;
+  districtId: number | null;
+  estdYear: number | null;
+  studentsCount: number | null;
   address: string | null;
   isFunctional: boolean;
   parentOrganization: OrganizationReferenceDto | null;
   region: OrganizationReferenceDto | null;
   state: OrganizationReferenceDto | null;
+  district: OrganizationReferenceDto | null;
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
