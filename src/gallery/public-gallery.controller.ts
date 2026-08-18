@@ -7,13 +7,15 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { GetGalleryImagesQueryDto } from './dto/get-gallery-images-query.dto';
+import { Public } from '../auth/decorators/public.decorator';
+import { GetPublicGalleryImagesQueryDto } from './dto/get-public-gallery-images-query.dto';
 import { GalleryService } from './gallery.service';
 
+@Public()
 @Controller('api/public/gallery')
 export class PublicGalleryController {
   constructor(private readonly gallery: GalleryService) {}
-  @Get() async findAll(@Query() query: GetGalleryImagesQueryDto) {
+  @Get() async findAll(@Query() query: GetPublicGalleryImagesQueryDto) {
     return {
       message: 'Public gallery images retrieved successfully.',
       data: await this.gallery.findPublic(query),

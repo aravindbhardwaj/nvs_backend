@@ -24,6 +24,7 @@ import {
   PublicGalleryImageResponseDto,
 } from './dto/gallery-image-response.dto';
 import { GetGalleryImagesQueryDto } from './dto/get-gallery-images-query.dto';
+import { GetPublicGalleryImagesQueryDto } from './dto/get-public-gallery-images-query.dto';
 import { ReorderGalleryImagesDto } from './dto/reorder-gallery-images.dto';
 import { UpdateGalleryImageDto } from './dto/update-gallery-image.dto';
 import { GALLERY_UPLOADS_ROOT, validateGalleryImage } from './gallery.storage';
@@ -313,12 +314,16 @@ export class GalleryService {
   }
 
   async findPublic(
-    query: GetGalleryImagesQueryDto,
+    query: GetPublicGalleryImagesQueryDto,
   ): Promise<PaginatedResponseDto<PublicGalleryImageResponseDto>> {
     const where = {
       isDeleted: false,
       isActive: true,
-      ...(query.organizationId ? { organizationId: query.organizationId } : {}),
+      ...(query.organization_id ? { organizationId: query.organization_id } : {}),
+      AND: [
+        { OR: [{ startDate: null }, { startDate: { lte: new Date() } }] },
+        { OR: [{ endDate: null }, { endDate: { gte: new Date() } }] },
+      ],
     };
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
@@ -345,7 +350,15 @@ export class GalleryService {
     const image = actor
       ? await this.active(id)
       : await this.prisma.galleryImage.findFirst({
-          where: { id, isDeleted: false, isActive: true },
+          where: {
+            id,
+            isDeleted: false,
+            isActive: true,
+            AND: [
+              { OR: [{ startDate: null }, { startDate: { lte: new Date() } }] },
+              { OR: [{ endDate: null }, { endDate: { gte: new Date() } }] },
+            ],
+          },
         });
     if (!image) throw new NotFoundException('Gallery image not found.');
     if (actor) this.ownership.assertAccess(image.organizationId, actor);
@@ -472,18 +485,16 @@ export class GalleryService {
   private publicResponse(image: GalleryImage): PublicGalleryImageResponseDto {
     return {
       id: image.id,
-      organizationId: image.organizationId,
-      titleEnglish: image.titleEnglish,
-      titleHindi: image.titleHindi,
-      descriptionEnglish: image.descriptionEnglish,
-      descriptionHindi: image.descriptionHindi,
-      altTextEnglish: image.altTextEnglish,
-      altTextHindi: image.altTextHindi,
-      imageUrl: `/api/public/gallery/${image.id}/image`,
-      displayOrder: image.displayOrder,
+      title_english: image.titleEnglish,
+      title_hindi: image.titleHindi,
+      description_english: image.descriptionEnglish,
+      description_hindi: image.descriptionHindi,
+      alt_text_english: image.altTextEnglish,
+      alt_text_hindi: image.altTextHindi,
+      image_url: `/api/public/gallery/${image.id}/image`,
+      display_order: image.displayOrder,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
-      createdAt: image.createdAt,
     };
   }
   private auditValues(image: GalleryImage): Prisma.InputJsonValue {

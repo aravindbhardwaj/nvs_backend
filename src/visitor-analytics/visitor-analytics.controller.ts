@@ -36,4 +36,5 @@ export class VisitorAnalyticsController {
       data: await this.visitorAnalyticsService.report(query),
     };
   }
+
 }

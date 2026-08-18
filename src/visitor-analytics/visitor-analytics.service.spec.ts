@@ -7,6 +7,7 @@ describe('VisitorAnalyticsService', () => {
     visitorSession: {
       upsert: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
     },
   };
   const service = new VisitorAnalyticsService(prisma as never);
@@ -44,6 +45,13 @@ describe('VisitorAnalyticsService', () => {
         update: expect.objectContaining({ usedHindi: true }),
       }),
     );
+  });
+
+  it('returns only the aggregate number of recorded sessions publicly', async () => {
+    prisma.visitorSession.count.mockResolvedValue(2);
+
+    await expect(service.publicCount()).resolves.toEqual({ total_visits: 2 });
+    expect(prisma.visitorSession.count).toHaveBeenCalledWith();
   });
 
   it('reports sessions, unique visitors, bilingual activity, and daily breakdowns', async () => {

@@ -92,6 +92,10 @@ export class VisitorAnalyticsService {
     };
   }
 
+  async publicCount(): Promise<{ total_visits: number }> {
+    return { total_visits: await this.prisma.visitorSession.count() };
+  }
+
   private assertValidDateRange(query: VisitorReportQueryDto): void {
     const fromDate = toCalendarDate(query.from_date);
     const toDate = toCalendarDate(query.to_date);

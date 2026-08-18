@@ -8,9 +8,11 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 
+import { Public } from '../auth/decorators/public.decorator';
 import { BannersService } from './banners.service';
 import { GetPublicBannersQueryDto } from './dto/get-public-banners-query.dto';
 
+@Public()
 @Controller('api/public/banners')
 export class PublicBannersController {
   constructor(private readonly bannersService: BannersService) {}
@@ -26,9 +28,13 @@ export class PublicBannersController {
   @Get(':id/image')
   async image(
     @Param('id', ParseIntPipe) id: number,
+    @Query('organization_id') organizationId: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
-    const image = await this.bannersService.publicImageStream(id);
+    const image = await this.bannersService.publicImageStream(
+      id,
+      organizationId === undefined ? undefined : Number(organizationId),
+    );
     response.setHeader('Content-Type', image.mimeType);
     image.stream.on('error', () => response.destroy());
     image.stream.pipe(response);

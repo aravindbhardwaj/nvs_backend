@@ -1,8 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
+import { Public } from '../auth/decorators/public.decorator';
 import { GetMenuNavigationQueryDto } from './dto/get-menu-navigation-query.dto';
 import { MenusService } from './menus.service';
 
+@Public()
 @Controller('api/public/menus')
 export class PublicMenusController {
   constructor(private readonly menusService: MenusService) {}

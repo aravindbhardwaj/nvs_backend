@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
+  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -59,6 +60,14 @@ export class UpdatePageDto {
   @IsString()
   @IsNotEmpty()
   contentHindi?: string;
+
+  @IsOptional()
+  @IsDateString()
+  start_date?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  end_date?: string | null;
 
   @IsOptional()
   @Type(() => Number)

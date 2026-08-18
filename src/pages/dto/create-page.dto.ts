@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
+  IsDateString,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -59,6 +60,14 @@ export class CreatePageDto {
   @IsOptional()
   @IsEnum(PageStatus)
   status?: PageStatus;
+
+  @IsOptional()
+  @IsDateString()
+  start_date?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  end_date?: string | null;
 
   @IsOptional()
   @Type(() => Number)

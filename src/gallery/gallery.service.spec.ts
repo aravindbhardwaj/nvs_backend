@@ -38,7 +38,7 @@ describe('GalleryService', () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
     await service.findPublic({ page: 1, limit: 20 });
     expect(prisma.galleryImage.findMany.mock.calls[0][0]).toMatchObject({
-      where: { isDeleted: false, isActive: true },
+      where: expect.objectContaining({ isDeleted: false, isActive: true }),
       orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
     });
   });

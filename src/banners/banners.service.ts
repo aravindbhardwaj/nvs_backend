@@ -314,7 +314,7 @@ export class BannersService {
   async findDisplayable(
     query: GetPublicBannersQueryDto,
   ): Promise<PaginatedResponseDto<PublicBannerResponseDto>> {
-    const where = this.displayableWhere(query.organizationId);
+    const where = await this.publicDisplayableWhere(query.organization_id);
     const [banners, totalItems] = await this.prisma.$transaction([
       this.prisma.banner.findMany({
         where,
@@ -325,7 +325,9 @@ export class BannersService {
       this.prisma.banner.count({ where }),
     ]);
     return {
-      items: banners.map((banner) => this.toPublicResponse(banner)),
+      items: banners.map((banner) =>
+        this.toPublicResponse(banner, query.organization_id),
+      ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
   }
@@ -341,12 +343,12 @@ export class BannersService {
     return this.openImage(banner);
   }
 
-  async publicImageStream(id: number): Promise<{
+  async publicImageStream(id: number, organizationId?: number): Promise<{
     stream: ReturnType<typeof createReadStream>;
     mimeType: string;
   }> {
     const banner = await this.prisma.banner.findFirst({
-      where: { id, ...this.displayableWhere() },
+      where: { id, ...(await this.publicDisplayableWhere(organizationId)) },
     });
     if (!banner) throw new NotFoundException('Displayable banner not found.');
     return this.openImage(banner);
@@ -541,6 +543,68 @@ export class BannersService {
     };
   }
 
+  private async publicDisplayableWhere(
+    organizationId?: number,
+  ): Promise<Prisma.BannerWhereInput> {
+    if (
+      organizationId !== undefined &&
+      (!Number.isSafeInteger(organizationId) || organizationId < 1)
+    )
+      throw new BadRequestException(
+        'organization_id must be a positive integer.',
+      );
+    const base = this.displayableWhere();
+    const dateConditions: Prisma.BannerWhereInput[] = base.AND
+      ? Array.isArray(base.AND)
+        ? base.AND
+        : [base.AND]
+      : [];
+    if (organizationId === undefined)
+      return {
+        ...base,
+        AND: [
+          ...dateConditions,
+          { visibleToAll: true },
+        ],
+      };
+
+    const organization = await this.prisma.organization.findFirst({
+      where: { id: organizationId, isDeleted: false },
+      select: {
+        id: true,
+        parentOrganizationId: true,
+        organizationType: { select: { code: true } },
+      },
+    });
+    if (!organization) throw new NotFoundException('Organization not found.');
+
+    const sharedFromHeadquarters: Prisma.BannerWhereInput = {
+      visibleToAll: true,
+      organization: { organizationType: { code: 'HEADQUARTER' } },
+    };
+    const visibleToOrganization: Prisma.BannerWhereInput[] = [
+      { organizationId: organization.id },
+      sharedFromHeadquarters,
+    ];
+    if (
+      organization.organizationType.code === 'JNV' &&
+      organization.parentOrganizationId
+    ) {
+      visibleToOrganization.push({
+        visibleToAll: true,
+        organizationId: organization.parentOrganizationId,
+        organization: { organizationType: { code: 'REGIONAL_OFFICE' } },
+      });
+    }
+    return {
+      ...base,
+      AND: [
+        ...dateConditions,
+        { OR: visibleToOrganization },
+      ],
+    };
+  }
+
   private assertDisplayDates(
     startDate?: string | null,
     endDate?: string | null,
@@ -599,18 +663,22 @@ export class BannersService {
     };
   }
 
-  private toPublicResponse(banner: Banner): PublicBannerResponseDto {
+  private toPublicResponse(
+    banner: Banner,
+    organizationId?: number,
+  ): PublicBannerResponseDto {
     return {
       id: banner.id,
-      organizationId: banner.organizationId,
-      titleEnglish: banner.titleEnglish,
-      titleHindi: banner.titleHindi,
-      descriptionEnglish: banner.descriptionEnglish,
-      descriptionHindi: banner.descriptionHindi,
-      altTextEnglish: banner.altTextEnglish,
-      altTextHindi: banner.altTextHindi,
-      imageUrl: `/api/public/banners/${banner.id}/image`,
-      displayOrder: banner.displayOrder,
+      title_english: banner.titleEnglish,
+      title_hindi: banner.titleHindi,
+      description_english: banner.descriptionEnglish,
+      description_hindi: banner.descriptionHindi,
+      alt_text_english: banner.altTextEnglish,
+      alt_text_hindi: banner.altTextHindi,
+      image_url: `/api/public/banners/${banner.id}/image${
+        organizationId ? `?organization_id=${organizationId}` : ''
+      }`,
+      display_order: banner.displayOrder,
       start_date: formatCalendarDate(banner.startDate),
       end_date: formatCalendarDate(banner.endDate),
     };

@@ -9,10 +9,17 @@ import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.in
 import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import {
+  formatCalendarDate,
+  isInvalidDateRange,
+  toCalendarDate,
+} from '../common/utils/calendar-date.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { GetPagesQueryDto } from './dto/get-pages-query.dto';
+import { GetPublicPagesQueryDto } from './dto/get-public-pages-query.dto';
 import { PageResponseDto } from './dto/page-response.dto';
+import { PublicPageResponseDto } from './dto/public-page-response.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 
 @Injectable()
@@ -26,6 +33,7 @@ export class PagesService {
     dto: CreatePageDto,
     actor: AuthenticatedUser,
   ): Promise<PageResponseDto> {
+    this.assertDateRange(dto.start_date, dto.end_date);
     this.ownership.assertAccess(dto.organizationId, actor);
     await this.ensureActiveOrganization(dto.organizationId);
     await this.ensureActiveContentType(dto.contentTypeId);
@@ -50,6 +58,8 @@ export class PagesService {
           status,
           displayOrder: dto.displayOrder ?? 0,
           publishedAt: status === PageStatus.PUBLISHED ? new Date() : null,
+          startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
+          endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -107,6 +117,33 @@ export class PagesService {
     return this.toResponse(page);
   }
 
+  async findPublic(
+    query: GetPublicPagesQueryDto,
+  ): Promise<PaginatedResponseDto<PublicPageResponseDto>> {
+    const where = this.publicWhere(query);
+    const [pages, totalItems] = await this.prisma.$transaction([
+      this.prisma.page.findMany({
+        where,
+        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.page.count({ where }),
+    ]);
+    return {
+      items: pages.map((page) => this.toPublicResponse(page)),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  async findPublicBySlug(slug: string): Promise<PublicPageResponseDto> {
+    const page = await this.prisma.page.findFirst({
+      where: { slug, ...this.publicWhere({}) },
+    });
+    if (!page) throw new NotFoundException('Public page not found.');
+    return this.toPublicResponse(page);
+  }
+
   async update(
     id: number,
     dto: UpdatePageDto,
@@ -116,6 +153,14 @@ export class PagesService {
     this.ownership.assertAccess(existingPage.organizationId, actor);
     const organizationId = dto.organizationId ?? existingPage.organizationId;
     const contentTypeId = dto.contentTypeId ?? existingPage.contentTypeId;
+    this.assertDateRange(
+      dto.start_date === undefined
+        ? formatCalendarDate(existingPage.startDate)
+        : dto.start_date,
+      dto.end_date === undefined
+        ? formatCalendarDate(existingPage.endDate)
+        : dto.end_date,
+    );
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     await this.ensureActiveContentType(contentTypeId);
@@ -164,6 +209,12 @@ export class PagesService {
           ...(dto.displayOrder !== undefined
             ? { displayOrder: dto.displayOrder }
             : {}),
+          ...(dto.start_date === undefined
+            ? {}
+            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+          ...(dto.end_date === undefined
+            ? {}
+            : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
           updatedById: actor.id,
         },
       });
@@ -387,6 +438,30 @@ export class PagesService {
     return where;
   }
 
+  private publicWhere(
+    query: Pick<GetPublicPagesQueryDto, 'organization_id' | 'content_type_id'>,
+  ): Prisma.PageWhereInput {
+    const today = toCalendarDate(new Date().toISOString().slice(0, 10));
+    return {
+      isDeleted: false,
+      status: PageStatus.PUBLISHED,
+      ...(query.organization_id ? { organizationId: query.organization_id } : {}),
+      ...(query.content_type_id ? { contentTypeId: query.content_type_id } : {}),
+      AND: [
+        { OR: [{ startDate: null }, { startDate: { lte: today } }] },
+        { OR: [{ endDate: null }, { endDate: { gte: today } }] },
+      ],
+    };
+  }
+
+  private assertDateRange(
+    startDate?: string | null,
+    endDate?: string | null,
+  ): void {
+    if (isInvalidDateRange(startDate, endDate))
+      throw new ConflictException('End date must not be earlier than start date.');
+  }
+
   private async generateUniqueSlug(
     title: string,
     transaction: Prisma.TransactionClient,
@@ -454,8 +529,27 @@ export class PagesService {
       status: page.status,
       displayOrder: page.displayOrder,
       publishedAt: page.publishedAt,
+      start_date: formatCalendarDate(page.startDate),
+      end_date: formatCalendarDate(page.endDate),
       createdAt: page.createdAt,
       updatedAt: page.updatedAt,
+    };
+  }
+
+  private toPublicResponse(page: Page): PublicPageResponseDto {
+    return {
+      id: page.id,
+      content_type_id: page.contentTypeId,
+      title_english: page.titleEnglish,
+      title_hindi: page.titleHindi,
+      slug: page.slug,
+      short_description_english: page.shortDescriptionEnglish,
+      short_description_hindi: page.shortDescriptionHindi,
+      content_english: page.contentEnglish,
+      content_hindi: page.contentHindi,
+      display_order: page.displayOrder,
+      start_date: formatCalendarDate(page.startDate),
+      end_date: formatCalendarDate(page.endDate),
     };
   }
 

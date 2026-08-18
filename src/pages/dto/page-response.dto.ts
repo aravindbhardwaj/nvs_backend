@@ -14,6 +14,8 @@ export class PageResponseDto {
   status: PageStatus;
   displayOrder: number;
   publishedAt: Date | null;
+  start_date: string | null;
+  end_date: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
