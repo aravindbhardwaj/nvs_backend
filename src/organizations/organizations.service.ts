@@ -279,9 +279,11 @@ export class OrganizationsService {
       }
       return {
         organizationName: dto.organizationName,
+        organizationHindiName: dto.organizationHindiName ?? null,
         organizationCode: dto.organizationCode,
         organizationTypeId,
         address: dto.address ?? null,
+        isFunctional: dto.isFunctional ?? true,
         parentOrganizationId: null,
         regionId: null,
         stateId: null,
@@ -315,9 +317,11 @@ export class OrganizationsService {
       await this.ensureActiveRegion(regionId);
       return {
         organizationName: dto.organizationName,
+        organizationHindiName: dto.organizationHindiName ?? null,
         organizationCode: dto.organizationCode,
         organizationTypeId,
         address: dto.address ?? null,
+        isFunctional: dto.isFunctional ?? true,
         parentOrganizationId,
         regionId,
         stateId: null,
@@ -338,9 +342,11 @@ export class OrganizationsService {
     await this.ensureActiveState(stateId);
     return {
       organizationName: dto.organizationName,
+      organizationHindiName: dto.organizationHindiName ?? null,
       organizationCode: dto.organizationCode,
       organizationTypeId,
       address: dto.address ?? null,
+      isFunctional: dto.isFunctional ?? true,
       parentOrganizationId,
       regionId: parent.regionId,
       stateId,
@@ -523,6 +529,7 @@ export class OrganizationsService {
     return {
       id: organization.id,
       organizationName: organization.organizationName,
+      organizationHindiName: organization.organizationHindiName,
       organizationCode: organization.organizationCode,
       organizationTypeId: organization.organizationTypeId,
       organizationType: organization.organizationType,
@@ -530,6 +537,7 @@ export class OrganizationsService {
       regionId: organization.regionId,
       stateId: organization.stateId,
       address: organization.address,
+      isFunctional: organization.isFunctional,
       parentOrganization: organization.parentOrganization
         ? {
             id: organization.parentOrganization.id,
@@ -552,12 +560,14 @@ export class OrganizationsService {
     return {
       id: organization.id,
       organizationName: organization.organizationName,
+      organizationHindiName: organization.organizationHindiName,
       organizationCode: organization.organizationCode,
       organizationTypeId: organization.organizationTypeId,
       parentOrganizationId: organization.parentOrganizationId,
       regionId: organization.regionId,
       stateId: organization.stateId,
       address: organization.address,
+      isFunctional: organization.isFunctional,
       createdAt: organization.createdAt.toISOString(),
       updatedAt: organization.updatedAt.toISOString(),
       createdById: organization.createdById,

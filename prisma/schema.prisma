@@ -114,21 +114,23 @@ model OrganizationType {
 }
 
 model Organization {
-  id                   Int       @id @default(autoincrement())
-  organizationName     String    @map("organization_name") @db.VarChar(255)
-  organizationCode     String    @unique @map("organization_code") @db.VarChar(30)
-  organizationTypeId   Int       @map("organization_type_id")
-  parentOrganizationId Int?      @map("parent_organization_id")
-  regionId             Int?      @map("region_id")
-  stateId              Int?      @map("state_id")
-  address              String?   @db.Text
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
-  createdById          Int?      @map("created_by")
-  updatedById          Int?      @map("updated_by")
-  isDeleted            Boolean   @default(false) @map("is_deleted")
-  deletedAt            DateTime? @map("deleted_at")
-  deletedById          Int?      @map("deleted_by")
+  id                    Int       @id @default(autoincrement())
+  organizationName      String    @map("organization_name") @db.VarChar(255)
+  organizationHindiName String?   @map("organization_hindi_name") @db.VarChar(255)
+  organizationCode      String    @unique @map("organization_code") @db.VarChar(30)
+  organizationTypeId    Int       @map("organization_type_id")
+  parentOrganizationId  Int?      @map("parent_organization_id")
+  regionId              Int?      @map("region_id")
+  stateId               Int?      @map("state_id")
+  address               String?   @db.Text
+  isFunctional          Boolean   @default(true) @map("is_functional")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  createdById           Int?      @map("created_by")
+  updatedById           Int?      @map("updated_by")
+  isDeleted             Boolean   @default(false) @map("is_deleted")
+  deletedAt             DateTime? @map("deleted_at")
+  deletedById           Int?      @map("deleted_by")
 
   parentOrganization Organization?    @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id], onDelete: Restrict)
   childOrganizations Organization[]   @relation("OrganizationHierarchy")

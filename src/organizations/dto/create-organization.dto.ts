@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -18,6 +19,12 @@ export class CreateOrganizationDto {
   @IsNotEmpty()
   @MaxLength(255)
   organizationName: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @MaxLength(255)
+  organizationHindiName?: string;
 
   @Transform(trimValue)
   @IsString()
@@ -53,4 +60,8 @@ export class CreateOrganizationDto {
   @IsString()
   @MaxLength(5000)
   address?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isFunctional?: boolean;
 }
