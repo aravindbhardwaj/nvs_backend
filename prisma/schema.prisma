@@ -52,6 +52,7 @@ model Region {
 model State {
   id          Int       @id @default(autoincrement())
   stateName   String    @unique @map("state_name") @db.VarChar(150)
+  nameHi      String?   @map("name_hi") @db.Text
   stateCode   String    @unique @map("state_code") @db.VarChar(20)
   isActive    Boolean   @default(true) @map("is_active")
   roId        Int?      @map("ro_id")
@@ -80,6 +81,7 @@ model State {
 model District {
   id              Int      @id
   districtName    String   @map("district_name") @db.VarChar(255)
+  nameHi          String?  @map("name_hi") @db.Text
   districtCode    String   @map("district_code") @db.VarChar(20)
   stateId         Int      @map("state_id")
   isActive        Boolean  @map("is_active")

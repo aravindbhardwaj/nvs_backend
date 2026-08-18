@@ -54,6 +54,7 @@ export class DistrictsService {
     return {
       id: district.id,
       districtName: district.districtName,
+      nameHi: district.nameHi,
       districtCode: district.districtCode,
       stateId: district.stateId,
       isActive: district.isActive,

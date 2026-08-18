@@ -55,6 +55,7 @@ export class StatesService {
     return {
       id: state.id,
       stateName: state.stateName,
+      nameHi: state.nameHi,
       stateCode: state.stateCode,
       isActive: state.isActive,
       roId: state.roId,

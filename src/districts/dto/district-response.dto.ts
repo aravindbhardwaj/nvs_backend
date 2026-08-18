@@ -1,6 +1,7 @@
 export class DistrictResponseDto {
   id: number;
   districtName: string;
+  nameHi: string | null;
   districtCode: string;
   stateId: number;
   isActive: boolean;
