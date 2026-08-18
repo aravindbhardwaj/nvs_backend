@@ -1,7 +1,10 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { config } from 'dotenv';
 
-config({ path: process.env.DOTENV_CONFIG_PATH ?? '.env' });
+config({
+  path: process.env.DOTENV_CONFIG_PATH ?? '.env',
+  override: true,
+});
 const prisma = new PrismaClient();
 
 const TARGET_MASTER_NAMES = [
