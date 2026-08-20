@@ -61,7 +61,7 @@ export class GalleryService {
           mimeType: file.mimetype,
           extension: this.extension(file.originalname),
           fileSize: BigInt(file.size),
-          displayOrder: dto.displayOrder ?? 0,
+          display_order: dto.display_order ?? 0,
           isActive: dto.isActive ?? true,
           startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
           endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
@@ -103,7 +103,7 @@ export class GalleryService {
               mimeType: file.mimetype,
               extension: this.extension(file.originalname),
               fileSize: BigInt(file.size),
-              displayOrder: (dto.displayOrder ?? 0) + index,
+              display_order: (dto.display_order ?? 0) + index,
               isActive: dto.isActive ?? true,
               startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
               endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
@@ -175,7 +175,7 @@ export class GalleryService {
           descriptionHindi: dto.descriptionHindi,
           altTextEnglish: dto.altTextEnglish,
           altTextHindi: dto.altTextHindi,
-          displayOrder: dto.displayOrder,
+          display_order: dto.display_order,
           isActive: dto.isActive,
           ...(dto.start_date === undefined
             ? {}
@@ -307,11 +307,11 @@ export class GalleryService {
     );
     await this.prisma.$transaction(async (tx) =>
       Promise.all(
-        dto.images.map(async ({ id, displayOrder }) => {
+        dto.images.map(async ({ id, display_order }) => {
           const previous = images.find((image) => image.id === id)!;
           const updated = await tx.galleryImage.update({
             where: { id },
-            data: { displayOrder, updatedById: actor.id },
+            data: { display_order, updatedById: actor.id },
           });
           await this.audit(tx, actor.id, 'REORDER', updated, previous);
         }),
@@ -336,7 +336,7 @@ export class GalleryService {
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
         where,
-        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+        orderBy: [{ display_order: 'asc' }, { createdAt: 'desc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -486,7 +486,7 @@ export class GalleryService {
       mimeType: image.mimeType,
       extension: image.extension,
       fileSize: image.fileSize.toString(),
-      displayOrder: image.displayOrder,
+      display_order: image.display_order,
       isActive: image.isActive,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
@@ -505,7 +505,7 @@ export class GalleryService {
       alt_text_english: image.altTextEnglish,
       alt_text_hindi: image.altTextHindi,
       image_url: `/api/public/gallery/${image.id}/image`,
-      display_order: image.displayOrder,
+      display_order: image.display_order,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
     };
@@ -525,7 +525,7 @@ export class GalleryService {
       mimeType: image.mimeType,
       extension: image.extension,
       fileSize: image.fileSize.toString(),
-      displayOrder: image.displayOrder,
+      display_order: image.display_order,
       isActive: image.isActive,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),

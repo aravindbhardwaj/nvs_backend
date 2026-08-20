@@ -397,32 +397,32 @@ async function seedReferenceData(): Promise<{
   mediaTypesByCode: Map<string, number>;
 }> {
   const contentTypes = await Promise.all(
-    CONTENT_TYPES.map(([code, nameEnglish], displayOrder) =>
+    CONTENT_TYPES.map(([code, nameEnglish], display_order) =>
       prisma.contentType.upsert({
         where: { nameEnglish },
         update: {
           code,
-          displayOrder,
+          display_order,
           isDeleted: false,
           deletedAt: null,
           deletedById: null,
         },
-        create: { code, nameEnglish, nameHindi: null, displayOrder },
+        create: { code, nameEnglish, nameHindi: null, display_order },
       }),
     ),
   );
   const mediaTypes = await Promise.all(
-    MEDIA_TYPES.map(([code, nameEnglish], displayOrder) =>
+    MEDIA_TYPES.map(([code, nameEnglish], display_order) =>
       prisma.mediaType.upsert({
         where: { nameEnglish },
         update: {
           code,
-          displayOrder,
+          display_order,
           isDeleted: false,
           deletedAt: null,
           deletedById: null,
         },
-        create: { code, nameEnglish, nameHindi: null, displayOrder },
+        create: { code, nameEnglish, nameHindi: null, display_order },
       }),
     ),
   );
@@ -515,7 +515,7 @@ async function seedMenus(
         titleEnglish: menu.titleEnglish,
         contentTypeId: null,
         mediaTypeId: mediaTypeId ?? null,
-        displayOrder: index + 1,
+        display_order: index + 1,
         superAdminId,
       });
     }
@@ -532,7 +532,7 @@ async function seedMenus(
         titleEnglish: menu.titleEnglish,
         contentTypeId,
         mediaTypeId: null,
-        displayOrder: index + 1,
+        display_order: index + 1,
         superAdminId,
       });
     }
@@ -545,7 +545,7 @@ async function upsertFirstLevelMenu({
   titleEnglish,
   contentTypeId,
   mediaTypeId,
-  displayOrder,
+  display_order,
   superAdminId,
 }: {
   organizationTypeId: number;
@@ -553,7 +553,7 @@ async function upsertFirstLevelMenu({
   titleEnglish: string;
   contentTypeId: number | null;
   mediaTypeId: number | null;
-  displayOrder: number;
+  display_order: number;
   superAdminId: number;
 }): Promise<void> {
   const data = {
@@ -562,7 +562,7 @@ async function upsertFirstLevelMenu({
     mediaTypeId,
     externalUrl: null,
     linkTarget: 1,
-    displayOrder,
+    display_order,
     isActive: true,
     isDeleted: false,
     deletedAt: null,

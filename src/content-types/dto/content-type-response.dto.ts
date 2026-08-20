@@ -4,7 +4,7 @@ export class ContentTypeResponseDto {
   nameHindi: string | null;
   descriptionEnglish: string | null;
   descriptionHindi: string | null;
-  displayOrder: number;
+  display_order: number;
   createdAt: Date;
   updatedAt: Date;
 }

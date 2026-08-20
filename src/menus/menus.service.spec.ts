@@ -31,7 +31,7 @@ describe('MenusService', () => {
         mediaTypeId: null,
         externalUrl: null,
         linkTarget: 1,
-        displayOrder: 1,
+        display_order: 1,
       },
       {
         id: 2,
@@ -42,7 +42,7 @@ describe('MenusService', () => {
         mediaTypeId: null,
         externalUrl: null,
         linkTarget: 1,
-        displayOrder: 1,
+        display_order: 1,
       },
       {
         id: 3,
@@ -53,7 +53,7 @@ describe('MenusService', () => {
         mediaTypeId: null,
         externalUrl: 'https://example.com',
         linkTarget: 2,
-        displayOrder: 1,
+        display_order: 1,
       },
     ];
     const tree = (service as any).toTree(menus);

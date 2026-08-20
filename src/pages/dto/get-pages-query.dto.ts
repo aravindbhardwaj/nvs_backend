@@ -41,12 +41,12 @@ export class GetPagesQueryDto extends PaginationQueryDto {
     'titleEnglish',
     'slug',
     'status',
-    'displayOrder',
+    'display_order',
     'publishedAt',
     'createdAt',
     'updatedAt',
   ])
-  sort = 'displayOrder';
+  sort = 'display_order';
 
   order: SortOrder = SortOrder.ASC;
 }

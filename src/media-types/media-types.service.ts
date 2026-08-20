@@ -235,7 +235,7 @@ export class MediaTypesService {
       nameHindi: mediaType.nameHindi,
       descriptionEnglish: mediaType.descriptionEnglish,
       descriptionHindi: mediaType.descriptionHindi,
-      displayOrder: mediaType.displayOrder,
+      display_order: mediaType.display_order,
       createdAt: mediaType.createdAt,
       updatedAt: mediaType.updatedAt,
     };
@@ -248,7 +248,7 @@ export class MediaTypesService {
       nameHindi: mediaType.nameHindi,
       descriptionEnglish: mediaType.descriptionEnglish,
       descriptionHindi: mediaType.descriptionHindi,
-      displayOrder: mediaType.displayOrder,
+      display_order: mediaType.display_order,
       createdAt: mediaType.createdAt.toISOString(),
       updatedAt: mediaType.updatedAt.toISOString(),
       createdById: mediaType.createdById,

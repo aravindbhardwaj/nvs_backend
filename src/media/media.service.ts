@@ -71,7 +71,7 @@ export class MediaService {
           fileSize: BigInt(file.size),
           checksum: await this.checksum(file.path),
           ...(hindiFile ? await this.hindiFileData(hindiFile) : {}),
-          displayOrder: dto.display_order ?? 0,
+          display_order: dto.display_order ?? 0,
           isActive: dto.is_active ?? true,
           visibleToAll: visibility.visibleToAll,
           roIds: visibility.roIds,
@@ -203,7 +203,7 @@ export class MediaService {
           descriptionEnglish: dto.descriptionEnglish,
           descriptionHindi: dto.descriptionHindi,
           mediaTypeId: dto.mediaTypeId,
-          displayOrder: dto.display_order,
+          display_order: dto.display_order,
           isActive: dto.is_active,
           ...(dto.visible_to_all === undefined
             ? {}
@@ -386,7 +386,7 @@ export class MediaService {
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
         where,
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -408,7 +408,7 @@ export class MediaService {
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
         where,
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -814,7 +814,7 @@ export class MediaService {
     | Prisma.MediaOrderByWithRelationInput
     | Prisma.MediaOrderByWithRelationInput[] {
     if (query.sort === 'display_order')
-      return [{ displayOrder: query.order }, { id: 'asc' }];
+      return [{ display_order: query.order }, { id: 'asc' }];
     if (query.sort === 'is_active') return { isActive: query.order };
     return { [query.sort]: query.order };
   }
@@ -863,7 +863,7 @@ export class MediaService {
       hindiDownloadUrl: media.hindiFilePath
         ? `/api/media/${media.id}/download/hindi`
         : null,
-      display_order: media.displayOrder,
+      display_order: media.display_order,
       is_active: media.isActive,
       visible_to_all: media.visibleToAll,
       ro_ids: media.roIds,
@@ -903,7 +903,7 @@ export class MediaService {
       hindiExtension: media.hindiExtension,
       hindiFileSize: media.hindiFileSize?.toString() ?? null,
       hindiChecksum: media.hindiChecksum,
-      displayOrder: media.displayOrder,
+      display_order: media.display_order,
       isActive: media.isActive,
       visibleToAll: media.visibleToAll,
       roIds: media.roIds,

@@ -35,5 +35,5 @@ export class CreateContentTypeDto {
 
   @IsOptional()
   @IsInt()
-  displayOrder?: number;
+  display_order?: number;
 }

@@ -64,7 +64,7 @@ export class BannersService {
           mimeType: file.mimetype,
           extension: this.extensionOf(file.originalname),
           fileSize: BigInt(file.size),
-          displayOrder: dto.displayOrder ?? 0,
+          display_order: dto.display_order ?? 0,
           isActive: dto.isActive ?? true,
           visibleToAll: dto.visible_to_all ?? null,
           startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
@@ -137,7 +137,7 @@ export class BannersService {
           descriptionHindi: dto.descriptionHindi,
           altTextEnglish: dto.altTextEnglish,
           altTextHindi: dto.altTextHindi,
-          displayOrder: dto.displayOrder,
+          display_order: dto.display_order,
           isActive: dto.isActive,
           ...(dto.visible_to_all === undefined
             ? {}
@@ -318,7 +318,7 @@ export class BannersService {
     const [banners, totalItems] = await this.prisma.$transaction([
       this.prisma.banner.findMany({
         where,
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -650,7 +650,7 @@ export class BannersService {
       mimeType: banner.mimeType,
       extension: banner.extension,
       fileSize: banner.fileSize.toString(),
-      displayOrder: banner.displayOrder,
+      display_order: banner.display_order,
       isActive: banner.isActive,
       visible_to_all: banner.visibleToAll,
       start_date: formatCalendarDate(banner.startDate),
@@ -676,7 +676,7 @@ export class BannersService {
       image_url: `/api/public/banners/${banner.id}/image${
         organizationId ? `?organization_id=${organizationId}` : ''
       }`,
-      display_order: banner.displayOrder,
+      display_order: banner.display_order,
       start_date: formatCalendarDate(banner.startDate),
       end_date: formatCalendarDate(banner.endDate),
     };
@@ -697,7 +697,7 @@ export class BannersService {
       mimeType: banner.mimeType,
       extension: banner.extension,
       fileSize: banner.fileSize.toString(),
-      displayOrder: banner.displayOrder,
+      display_order: banner.display_order,
       isActive: banner.isActive,
       visibleToAll: banner.visibleToAll,
       startDate: banner.startDate?.toISOString() ?? null,

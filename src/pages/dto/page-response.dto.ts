@@ -12,7 +12,7 @@ export class PageResponseDto {
   contentEnglish: string;
   contentHindi: string | null;
   status: PageStatus;
-  displayOrder: number;
+  display_order: number;
   publishedAt: Date | null;
   start_date: string | null;
   end_date: string | null;

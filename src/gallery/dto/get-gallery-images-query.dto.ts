@@ -18,7 +18,7 @@ export class GetGalleryImagesQueryDto extends PaginationQueryDto {
   @IsBoolean()
   isDeleted?: boolean;
   @IsOptional()
-  @IsIn(['titleEnglish', 'displayOrder', 'isActive', 'createdAt', 'updatedAt'])
-  sort = 'displayOrder';
+  @IsIn(['titleEnglish', 'display_order', 'isActive', 'createdAt', 'updatedAt'])
+  sort = 'display_order';
   order: SortOrder = SortOrder.ASC;
 }

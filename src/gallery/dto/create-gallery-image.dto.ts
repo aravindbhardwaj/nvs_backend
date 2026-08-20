@@ -39,7 +39,7 @@ export class CreateGalleryImageDto {
   @IsString()
   @MaxLength(255)
   altTextHindi?: string;
-  @IsOptional() @Type(() => Number) @IsInt() displayOrder?: number;
+  @IsOptional() @Type(() => Number) @IsInt() display_order?: number;
   @IsOptional() @Transform(boolean) @IsBoolean() isActive?: boolean;
   @IsOptional() @IsDateString({ strict: true }) start_date?: string;
   @IsOptional() @IsDateString({ strict: true }) end_date?: string;

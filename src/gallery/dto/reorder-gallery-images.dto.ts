@@ -11,7 +11,7 @@ import { MAX_GALLERY_UPLOAD_COUNT } from '../gallery.constants';
 
 class GalleryImageOrderDto {
   @Type(() => Number) @IsInt() @Min(1) id: number;
-  @Type(() => Number) @IsInt() displayOrder: number;
+  @Type(() => Number) @IsInt() display_order: number;
 }
 
 export class ReorderGalleryImagesDto {

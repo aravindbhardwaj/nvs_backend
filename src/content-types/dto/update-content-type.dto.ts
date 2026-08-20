@@ -36,5 +36,5 @@ export class UpdateContentTypeDto {
 
   @IsOptional()
   @IsInt()
-  displayOrder?: number;
+  display_order?: number;
 }

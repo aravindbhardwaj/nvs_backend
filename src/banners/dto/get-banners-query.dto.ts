@@ -28,14 +28,14 @@ export class GetBannersQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn([
     'titleEnglish',
-    'displayOrder',
+    'display_order',
     'isActive',
     'startDate',
     'endDate',
     'createdAt',
     'updatedAt',
   ])
-  sort = 'displayOrder';
+  sort = 'display_order';
 
   order: SortOrder = SortOrder.ASC;
 }

@@ -36,5 +36,5 @@ export class UpdateMediaTypeDto {
 
   @IsOptional()
   @IsInt()
-  displayOrder?: number;
+  display_order?: number;
 }

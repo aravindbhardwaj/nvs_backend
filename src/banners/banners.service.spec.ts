@@ -90,7 +90,7 @@ describe('BannersService', () => {
       mimeType: 'image/png',
       extension: 'png',
       fileSize: BigInt(8),
-      displayOrder: 0,
+      display_order: 0,
       isActive: true,
       visibleToAll: false,
       startDate: null,
@@ -130,7 +130,7 @@ describe('BannersService', () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
 
     await service.findAll(
-      { page: 1, limit: 20, sort: 'displayOrder', order: 'asc' },
+      { page: 1, limit: 20, sort: 'display_order', order: 'asc' },
       actor,
     );
 
@@ -139,7 +139,7 @@ describe('BannersService', () => {
         isDeleted: false,
         AND: [{ organizationId: 5 }],
       },
-      orderBy: { displayOrder: 'asc' },
+      orderBy: { display_order: 'asc' },
     });
   });
 
@@ -147,7 +147,7 @@ describe('BannersService', () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
 
     await service.findAll(
-      { page: 1, limit: 20, sort: 'displayOrder', order: 'asc' },
+      { page: 1, limit: 20, sort: 'display_order', order: 'asc' },
       { ...actor, role: Role.JNV, organizationId: 28 },
     );
 
@@ -180,7 +180,7 @@ describe('BannersService', () => {
 
     expect(prisma.banner.findMany.mock.calls[0][0]).toMatchObject({
       where: { isDeleted: false, isActive: true },
-      orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+      orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
     });
   });
 });

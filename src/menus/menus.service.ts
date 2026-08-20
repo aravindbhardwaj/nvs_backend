@@ -38,7 +38,7 @@ export class MenusService {
           mediaTypeId: dto.media_type_id ?? null,
           externalUrl: dto.external_url ?? null,
           linkTarget: dto.link_target ?? LINK_TARGET.SAME_PAGE,
-          displayOrder: dto.display_order ?? 0,
+          display_order: dto.display_order ?? 0,
           isActive: dto.is_active ?? true,
           createdById: actor.id,
           updatedById: actor.id,
@@ -57,7 +57,7 @@ export class MenusService {
     const [items, totalItems] = await this.prisma.$transaction([
       this.prisma.menu.findMany({
         where,
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -135,7 +135,7 @@ export class MenusService {
             : { linkTarget: dto.link_target }),
           ...(dto.display_order === undefined
             ? {}
-            : { displayOrder: dto.display_order }),
+            : { display_order: dto.display_order }),
           ...(dto.is_active === undefined ? {} : { isActive: dto.is_active }),
           updatedById: actor.id,
         },
@@ -186,7 +186,7 @@ export class MenusService {
         isActive: true,
         isDeleted: false,
       },
-      orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+      orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
     });
     return this.toTree(menus);
   }
@@ -363,7 +363,7 @@ export class MenusService {
       media_type_id: menu.mediaTypeId,
       external_url: menu.externalUrl,
       link_target: menu.linkTarget,
-      display_order: menu.displayOrder,
+      display_order: menu.display_order,
       is_active: menu.isActive,
       created_at: menu.createdAt,
       updated_at: menu.updatedAt,
@@ -380,7 +380,7 @@ export class MenusService {
       media_type_id: menu.mediaTypeId,
       external_url: menu.externalUrl,
       link_target: menu.linkTarget,
-      display_order: menu.displayOrder,
+      display_order: menu.display_order,
       children: [],
     };
   }
@@ -417,7 +417,7 @@ export class MenusService {
       media_type_id: menu.mediaTypeId,
       external_url: menu.externalUrl,
       link_target: menu.linkTarget,
-      display_order: menu.displayOrder,
+      display_order: menu.display_order,
       is_active: menu.isActive,
       is_deleted: menu.isDeleted,
     };

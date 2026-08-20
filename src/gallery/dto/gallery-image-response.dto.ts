@@ -11,7 +11,7 @@ export class GalleryImageResponseDto {
   mimeType: string;
   extension: string;
   fileSize: string;
-  displayOrder: number;
+  display_order: number;
   isActive: boolean;
   start_date: string | null;
   end_date: string | null;

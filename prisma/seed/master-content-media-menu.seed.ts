@@ -243,13 +243,13 @@ async function upsertMasterData(
   contentTypesByCode: Map<string, number>;
   mediaTypesByCode: Map<string, number>;
 }> {
-  for (const [displayOrder, nameEnglish] of TARGET_MASTER_NAMES.entries()) {
+  for (const [display_order, nameEnglish] of TARGET_MASTER_NAMES.entries()) {
     const code = codeFor(nameEnglish);
     await transaction.contentType.upsert({
       where: { nameEnglish },
       update: {
         code,
-        displayOrder: displayOrder + 1,
+        display_order: display_order + 1,
         isDeleted: false,
         deletedAt: null,
         deletedById: null,
@@ -258,14 +258,14 @@ async function upsertMasterData(
         nameEnglish,
         code,
         nameHindi: null,
-        displayOrder: displayOrder + 1,
+        display_order: display_order + 1,
       },
     });
     await transaction.mediaType.upsert({
       where: { nameEnglish },
       update: {
         code,
-        displayOrder: displayOrder + 1,
+        display_order: display_order + 1,
         isDeleted: false,
         deletedAt: null,
         deletedById: null,
@@ -274,7 +274,7 @@ async function upsertMasterData(
         nameEnglish,
         code,
         nameHindi: null,
-        displayOrder: displayOrder + 1,
+        display_order: display_order + 1,
       },
     });
   }
@@ -288,7 +288,7 @@ async function upsertMasterData(
         deletedAt: null,
         deletedById: null,
       },
-      create: { nameEnglish, code, nameHindi: null, displayOrder: 0 },
+      create: { nameEnglish, code, nameHindi: null, display_order: 0 },
     });
   }
 
@@ -321,7 +321,7 @@ async function upsertMenu(
     titleEnglish: string;
     contentTypeId: number | null;
     mediaTypeId: number | null;
-    displayOrder: number;
+    display_order: number;
     userId: number | null;
   },
 ): Promise<void> {
@@ -342,7 +342,7 @@ async function upsertMenu(
     mediaTypeId: input.mediaTypeId,
     externalUrl: null,
     linkTarget: 1,
-    displayOrder: input.displayOrder,
+    display_order: input.display_order,
     isActive: true,
     isDeleted: false,
     deletedAt: null,
@@ -414,7 +414,7 @@ async function seedMenus(
         titleEnglish: menu.titleEnglish,
         contentTypeId: null,
         mediaTypeId: mediaTypeId ?? null,
-        displayOrder: index + 1,
+        display_order: index + 1,
         userId,
       });
     }
@@ -435,7 +435,7 @@ async function seedMenus(
         titleEnglish: menu.titleEnglish,
         contentTypeId: contentTypeId ?? null,
         mediaTypeId: null,
-        displayOrder: index + 1,
+        display_order: index + 1,
         userId,
       });
     }

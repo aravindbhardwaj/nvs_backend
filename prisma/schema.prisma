@@ -260,7 +260,7 @@ model ContentType {
   nameHindi          String?   @map("name_hindi") @db.VarChar(150)
   descriptionEnglish String?   @map("description_english") @db.Text
   descriptionHindi   String?   @map("description_hindi") @db.Text
-  displayOrder       Int       @default(0) @map("display_order")
+  display_order       Int       @default(0) @map("display_order")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
   createdById        Int?      @map("created_by")
@@ -275,7 +275,7 @@ model ContentType {
   pages     Page[]
   menus     Menu[]
 
-  @@index([displayOrder])
+  @@index([display_order])
   @@index([isDeleted])
   @@map("nvs_content_types")
 }
@@ -287,7 +287,7 @@ model MediaType {
   nameHindi          String?   @map("name_hindi") @db.VarChar(150)
   descriptionEnglish String?   @map("description_english") @db.Text
   descriptionHindi   String?   @map("description_hindi") @db.Text
-  displayOrder       Int       @default(0) @map("display_order")
+  display_order       Int       @default(0) @map("display_order")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
   createdById        Int?      @map("created_by")
@@ -302,7 +302,7 @@ model MediaType {
   media     Media[]
   menus     Menu[]
 
-  @@index([displayOrder])
+  @@index([display_order])
   @@index([isDeleted])
   @@map("nvs_media_types")
 }
@@ -319,7 +319,7 @@ model Page {
   contentEnglish          String     @map("content_english") @db.Text
   contentHindi            String?    @map("content_hindi") @db.Text
   status                  PageStatus @default(DRAFT)
-  displayOrder            Int        @default(0) @map("display_order")
+  display_order            Int        @default(0) @map("display_order")
   publishedAt             DateTime?  @map("published_at")
   startDate               DateTime?  @map("start_date") @db.Date
   endDate                 DateTime?  @map("end_date") @db.Date
@@ -342,7 +342,7 @@ model Page {
   @@index([contentTypeId])
   @@index([status])
   @@index([status, isDeleted, startDate, endDate])
-  @@index([displayOrder])
+  @@index([display_order])
   @@index([isDeleted])
   @@map("nvs_pages")
 }
@@ -369,7 +369,7 @@ model Media {
   hindiExtension        String?   @map("hindi_extension") @db.VarChar(20)
   hindiFileSize         BigInt?   @map("hindi_file_size")
   hindiChecksum         String?   @map("hindi_checksum") @db.VarChar(255)
-  displayOrder          Int       @default(0) @map("display_order")
+  display_order          Int       @default(0) @map("display_order")
   isActive              Boolean   @default(true) @map("is_active")
   visibleToAll          Boolean?  @map("visible_to_all")
   roIds                 String?   @map("ro_ids") @db.Text
@@ -398,8 +398,8 @@ model Media {
   @@index([mediaTypeId])
   @@index([mimeType])
   @@index([isActive])
-  @@index([displayOrder])
-  @@index([organizationId, isActive, displayOrder])
+  @@index([display_order])
+  @@index([organizationId, isActive, display_order])
   @@index([organizationId, visibleToAll])
   @@index([createdAt])
   @@index([isDeleted])
@@ -420,7 +420,7 @@ model Banner {
   mimeType           String    @map("mime_type") @db.VarChar(100)
   extension          String    @db.VarChar(20)
   fileSize           BigInt    @map("file_size")
-  displayOrder       Int       @default(0) @map("display_order")
+  display_order       Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
   visibleToAll       Boolean?  @map("visible_to_all")
   startDate          DateTime? @map("start_date") @db.Date
@@ -440,8 +440,8 @@ model Banner {
 
   @@index([organizationId])
   @@index([isActive])
-  @@index([displayOrder])
-  @@index([organizationId, isActive, displayOrder])
+  @@index([display_order])
+  @@index([organizationId, isActive, display_order])
   @@index([isDeleted])
   @@map("nvs_banners")
 }
@@ -460,7 +460,7 @@ model GalleryImage {
   mimeType           String    @map("mime_type") @db.VarChar(100)
   extension          String    @map("extension") @db.VarChar(20)
   fileSize           BigInt    @map("file_size")
-  displayOrder       Int       @default(0) @map("display_order")
+  display_order       Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
   startDate          DateTime? @map("start_date") @db.Date
   endDate            DateTime? @map("end_date") @db.Date
@@ -479,8 +479,8 @@ model GalleryImage {
 
   @@index([organizationId])
   @@index([isActive])
-  @@index([displayOrder])
-  @@index([organizationId, isActive, displayOrder])
+  @@index([display_order])
+  @@index([organizationId, isActive, display_order])
   @@index([isDeleted])
   @@map("nvs_gallery_images")
 }
@@ -496,7 +496,7 @@ model Menu {
   mediaTypeId        Int?      @map("media_type_id")
   externalUrl        String?   @map("external_url") @db.VarChar(2048)
   linkTarget         Int       @default(1) @map("link_target")
-  displayOrder       Int       @default(0) @map("display_order")
+  display_order       Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
@@ -515,7 +515,7 @@ model Menu {
   updatedBy        User?            @relation("MenuUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   deletedBy        User?            @relation("MenuDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
-  @@index([organizationTypeId, menuLocation, parentMenuId, displayOrder])
+  @@index([organizationTypeId, menuLocation, parentMenuId, display_order])
   @@index([contentTypeId])
   @@index([mediaTypeId])
   @@index([isActive])

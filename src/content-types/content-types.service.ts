@@ -241,7 +241,7 @@ export class ContentTypesService {
       nameHindi: contentType.nameHindi,
       descriptionEnglish: contentType.descriptionEnglish,
       descriptionHindi: contentType.descriptionHindi,
-      displayOrder: contentType.displayOrder,
+      display_order: contentType.display_order,
       createdAt: contentType.createdAt,
       updatedAt: contentType.updatedAt,
     };
@@ -254,7 +254,7 @@ export class ContentTypesService {
       nameHindi: contentType.nameHindi,
       descriptionEnglish: contentType.descriptionEnglish,
       descriptionHindi: contentType.descriptionHindi,
-      displayOrder: contentType.displayOrder,
+      display_order: contentType.display_order,
       createdAt: contentType.createdAt.toISOString(),
       updatedAt: contentType.updatedAt.toISOString(),
       createdById: contentType.createdById,

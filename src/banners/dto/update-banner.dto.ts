@@ -57,7 +57,7 @@ export class UpdateBannerDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  displayOrder?: number;
+  display_order?: number;
 
   @IsOptional()
   @Transform(toBoolean)

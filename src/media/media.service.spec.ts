@@ -132,7 +132,7 @@ describe('MediaService', () => {
     expect(transaction.media.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          displayOrder: 2,
+          display_order: 2,
           isActive: false,
           visibleToAll: true,
         }),
@@ -327,7 +327,7 @@ describe('MediaService', () => {
             },
           ],
         },
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
       }),
     );
   });
@@ -375,7 +375,7 @@ describe('MediaService', () => {
             }),
           ]),
         }),
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
       }),
     );
   });
@@ -400,7 +400,7 @@ describe('MediaService', () => {
           isActive: true,
           AND: expect.arrayContaining([{ importantLink2: true }]),
         }),
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
       }),
     );
   });

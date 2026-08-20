@@ -11,7 +11,7 @@ export class BannerResponseDto {
   mimeType: string;
   extension: string;
   fileSize: string;
-  displayOrder: number;
+  display_order: number;
   isActive: boolean;
   visible_to_all: boolean | null;
   start_date: string | null;

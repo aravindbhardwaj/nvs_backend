@@ -25,12 +25,12 @@ describe('GalleryService', () => {
   it('limits a non-super-admin management list to the actor organization', async () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
     await service.findAll(
-      { page: 1, limit: 20, sort: 'displayOrder', order: 'asc' },
+      { page: 1, limit: 20, sort: 'display_order', order: 'asc' },
       actor,
     );
     expect(prisma.galleryImage.findMany.mock.calls[0][0]).toMatchObject({
       where: { organizationId: 5, isDeleted: false },
-      orderBy: { displayOrder: 'asc' },
+      orderBy: { display_order: 'asc' },
     });
   });
 
@@ -39,7 +39,7 @@ describe('GalleryService', () => {
     await service.findPublic({ page: 1, limit: 20 });
     expect(prisma.galleryImage.findMany.mock.calls[0][0]).toMatchObject({
       where: expect.objectContaining({ isDeleted: false, isActive: true }),
-      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ display_order: 'asc' }, { createdAt: 'desc' }],
     });
   });
 
@@ -74,7 +74,7 @@ describe('GalleryService', () => {
       throw new ForbiddenException();
     });
     await expect(
-      service.reorder({ images: [{ id: 1, displayOrder: 1 }] }, actor),
+      service.reorder({ images: [{ id: 1, display_order: 1 }] }, actor),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

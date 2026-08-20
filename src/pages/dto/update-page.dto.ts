@@ -72,5 +72,5 @@ export class UpdatePageDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  displayOrder?: number;
+  display_order?: number;
 }

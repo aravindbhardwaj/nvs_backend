@@ -56,7 +56,7 @@ export class PagesService {
           contentEnglish: dto.contentEnglish,
           contentHindi: dto.contentHindi,
           status,
-          displayOrder: dto.displayOrder ?? 0,
+          display_order: dto.display_order ?? 0,
           publishedAt: status === PageStatus.PUBLISHED ? new Date() : null,
           startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
           endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
@@ -124,7 +124,7 @@ export class PagesService {
     const [pages, totalItems] = await this.prisma.$transaction([
       this.prisma.page.findMany({
         where,
-        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -206,8 +206,8 @@ export class PagesService {
           ...(dto.contentHindi !== undefined
             ? { contentHindi: dto.contentHindi }
             : {}),
-          ...(dto.displayOrder !== undefined
-            ? { displayOrder: dto.displayOrder }
+          ...(dto.display_order !== undefined
+            ? { display_order: dto.display_order }
             : {}),
           ...(dto.start_date === undefined
             ? {}
@@ -537,7 +537,7 @@ export class PagesService {
       contentEnglish: page.contentEnglish,
       contentHindi: page.contentHindi,
       status: page.status,
-      displayOrder: page.displayOrder,
+      display_order: page.display_order,
       publishedAt: page.publishedAt,
       start_date: formatCalendarDate(page.startDate),
       end_date: formatCalendarDate(page.endDate),
@@ -557,7 +557,7 @@ export class PagesService {
       short_description_hindi: page.shortDescriptionHindi,
       content_english: page.contentEnglish,
       content_hindi: page.contentHindi,
-      display_order: page.displayOrder,
+      display_order: page.display_order,
       start_date: formatCalendarDate(page.startDate),
       end_date: formatCalendarDate(page.endDate),
     };
@@ -576,7 +576,7 @@ export class PagesService {
       contentEnglish: page.contentEnglish,
       contentHindi: page.contentHindi,
       status: page.status,
-      displayOrder: page.displayOrder,
+      display_order: page.display_order,
       publishedAt: page.publishedAt?.toISOString() ?? null,
       createdAt: page.createdAt.toISOString(),
       updatedAt: page.updatedAt.toISOString(),
