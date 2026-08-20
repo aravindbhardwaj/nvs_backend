@@ -10,4 +10,6 @@ export class PublicJnvResponseDto {
   students: number | null;
   districtHi: string | null;
   nameHi: string | null;
+  dc_ro_name: string | null;
+  ro_name: string | null;
 }

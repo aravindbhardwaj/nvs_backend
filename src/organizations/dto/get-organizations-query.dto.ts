@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  Max,
   IsOptional,
   Min,
 } from 'class-validator';
@@ -12,6 +13,13 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SortOrder } from '../../common/enums/sort-order.enum';
 
 export class GetOrganizationsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  limit = 20;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

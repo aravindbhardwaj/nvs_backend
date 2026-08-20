@@ -26,12 +26,14 @@ describe('OrganizationsService public JNV queries', () => {
       [
         {
           id: 112,
-          organizationName: 'JNV SRI SATHYA SAI (ANANTAPUR)',
-          organizationHindiName: 'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी',
+        organizationName: 'JNV SRI SATHYA SAI (ANANTAPUR), Andhra Pradesh',
+        organizationHindiName:
+          'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी, श्री सत्य साईं',
           organizationCode: 'JNV-SSSA',
           address: 'LEPAKSHI, SRI SATHYA SAI (ANANTAPUR) - 515331',
           estdYear: 1987,
           studentsCount: 0,
+          region: { regionCode: 'BHOPAL', regionName: 'Bhopal Region' },
           state: { stateName: 'Andhra Pradesh', isoCode: 'IN-AP' },
           district: {
             districtName: 'SRI SATHYA SAI (ANANTAPUR)',
@@ -58,6 +60,8 @@ describe('OrganizationsService public JNV queries', () => {
           students: 0,
           districtHi: 'श्री सत्य साईं (अनंतपुर)',
           nameHi: 'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी',
+          dc_ro_name: 'BHOPAL',
+          ro_name: 'Bhopal Region',
         },
       ],
       meta: {
@@ -114,6 +118,7 @@ describe('OrganizationsService public JNV queries', () => {
           address: null,
           estdYear: null,
           studentsCount: null,
+          region: null,
           state: null,
           district: null,
         },
@@ -135,6 +140,8 @@ describe('OrganizationsService public JNV queries', () => {
       students: null,
       districtHi: null,
       nameHi: null,
+      dc_ro_name: null,
+      ro_name: null,
     });
   });
 });

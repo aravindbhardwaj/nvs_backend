@@ -48,6 +48,7 @@ const publicJnvSelect = {
   address: true,
   estdYear: true,
   studentsCount: true,
+  region: { select: { regionCode: true, regionName: true } },
   state: { select: { stateName: true, isoCode: true } },
   district: { select: { districtName: true, nameHi: true } },
 } satisfies Prisma.OrganizationSelect;
@@ -736,7 +737,7 @@ export class OrganizationsService {
 
     return {
       id: organization.id,
-      name: organization.organizationName,
+      name: organization.organizationName.split(',', 1)[0].trim(),
       stateCode,
       address: organization.address,
       state: organization.state?.stateName ?? null,
@@ -747,7 +748,9 @@ export class OrganizationsService {
       estd: organization.estdYear,
       students: organization.studentsCount,
       districtHi: organization.district?.nameHi ?? null,
-      nameHi: organization.organizationHindiName,
+      nameHi: organization.organizationHindiName?.split(',', 1)[0].trim() ?? null,
+      dc_ro_name: organization.region?.regionCode ?? null,
+      ro_name: organization.region?.regionName ?? null,
     };
   }
 
