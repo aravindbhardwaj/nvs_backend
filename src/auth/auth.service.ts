@@ -36,7 +36,9 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly refreshTokenService: RefreshTokenService,
   ) {}
-  private async findUserByEmail(email: string): Promise<UserWithOrganizationType | null> {
+  private async findUserByEmail(
+    email: string,
+  ): Promise<UserWithOrganizationType | null> {
     return this.prisma.user.findUnique({
       where: {
         email: email.toLowerCase(),
@@ -45,7 +47,9 @@ export class AuthService {
     });
   }
 
-  private async ensureUserCanLogin(user: UserWithOrganizationType): Promise<void> {
+  private async ensureUserCanLogin(
+    user: UserWithOrganizationType,
+  ): Promise<void> {
     if (user.isDeleted || user.deletedAt) {
       await this.createAuthenticationAuditLog(user.id, 'LOGIN_FAILED', {
         reason: 'USER_DELETED',
@@ -75,7 +79,9 @@ export class AuthService {
     }
   }
 
-  private async recordFailedLogin(user: UserWithOrganizationType): Promise<boolean> {
+  private async recordFailedLogin(
+    user: UserWithOrganizationType,
+  ): Promise<boolean> {
     const maxAttempts = this.configService.getOrThrow<number>(
       'auth.login.maxAttempts',
     );

@@ -168,9 +168,14 @@ export class RefreshTokenService {
   }
 
   private async findMatchingToken(
-    records: (RefreshToken & { user: User & { organizationType: { code: string } } })[],
+    records: (RefreshToken & {
+      user: User & { organizationType: { code: string } };
+    })[],
     refreshToken: string,
-  ): Promise<(RefreshToken & { user: User & { organizationType: { code: string } } }) | undefined> {
+  ): Promise<
+    | (RefreshToken & { user: User & { organizationType: { code: string } } })
+    | undefined
+  > {
     for (const record of records) {
       if (await this.passwordService.compare(refreshToken, record.tokenHash)) {
         return record;

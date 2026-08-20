@@ -26,9 +26,9 @@ describe('OrganizationsService public JNV queries', () => {
       [
         {
           id: 112,
-        organizationName: 'JNV SRI SATHYA SAI (ANANTAPUR), Andhra Pradesh',
-        organizationHindiName:
-          'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी, श्री सत्य साईं',
+          organizationName: 'JNV SRI SATHYA SAI (ANANTAPUR), Andhra Pradesh',
+          organizationHindiName:
+            'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी, श्री सत्य साईं',
           organizationCode: 'JNV-SSSA',
           address: 'LEPAKSHI, SRI SATHYA SAI (ANANTAPUR) - 515331',
           estdYear: 1987,

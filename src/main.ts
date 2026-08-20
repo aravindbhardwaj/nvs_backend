@@ -49,9 +49,7 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
 
-  logger.log(
-    `Application started on http://localhost:${port}`,
-  );
+  logger.log(`Application started on http://localhost:${port}`);
 }
 
 bootstrap();

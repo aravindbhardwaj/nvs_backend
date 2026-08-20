@@ -41,7 +41,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const response = exception.getResponse();
-    
+
       if (typeof response === 'string') {
         message = response;
       } else if (
@@ -50,10 +50,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         'message' in response
       ) {
         const value = (response as { message: string | string[] }).message;
-    
-        message = Array.isArray(value)
-          ? value.join(', ')
-          : value;
+
+        message = Array.isArray(value) ? value.join(', ') : value;
       }
     }
 

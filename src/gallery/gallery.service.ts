@@ -161,7 +161,9 @@ export class GalleryService {
       dto.start_date === undefined
         ? formatCalendarDate(previous.startDate)
         : dto.start_date,
-      dto.end_date === undefined ? formatCalendarDate(previous.endDate) : dto.end_date,
+      dto.end_date === undefined
+        ? formatCalendarDate(previous.endDate)
+        : dto.end_date,
     );
     const image = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.galleryImage.update({
@@ -177,7 +179,11 @@ export class GalleryService {
           isActive: dto.isActive,
           ...(dto.start_date === undefined
             ? {}
-            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+            : {
+                startDate: dto.start_date
+                  ? toCalendarDate(dto.start_date)
+                  : null,
+              }),
           ...(dto.end_date === undefined
             ? {}
             : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
@@ -319,7 +325,9 @@ export class GalleryService {
     const where = {
       isDeleted: false,
       isActive: true,
-      ...(query.organization_id ? { organizationId: query.organization_id } : {}),
+      ...(query.organization_id
+        ? { organizationId: query.organization_id }
+        : {}),
       AND: [
         { OR: [{ startDate: null }, { startDate: { lte: new Date() } }] },
         { OR: [{ endDate: null }, { endDate: { gte: new Date() } }] },
@@ -383,9 +391,14 @@ export class GalleryService {
       );
     return image;
   }
-  private assertDateRange(startDate?: string | null, endDate?: string | null): void {
+  private assertDateRange(
+    startDate?: string | null,
+    endDate?: string | null,
+  ): void {
     if (isInvalidDateRange(startDate, endDate))
-      throw new BadRequestException('End date must not be earlier than start date.');
+      throw new BadRequestException(
+        'End date must not be earlier than start date.',
+      );
   }
   private async ensureActiveOrganization(id: number): Promise<void> {
     const organization = await this.prisma.organization.findFirst({

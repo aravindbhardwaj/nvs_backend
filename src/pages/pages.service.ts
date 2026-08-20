@@ -211,7 +211,11 @@ export class PagesService {
             : {}),
           ...(dto.start_date === undefined
             ? {}
-            : { startDate: dto.start_date ? toCalendarDate(dto.start_date) : null }),
+            : {
+                startDate: dto.start_date
+                  ? toCalendarDate(dto.start_date)
+                  : null,
+              }),
           ...(dto.end_date === undefined
             ? {}
             : { endDate: dto.end_date ? toCalendarDate(dto.end_date) : null }),
@@ -445,8 +449,12 @@ export class PagesService {
     return {
       isDeleted: false,
       status: PageStatus.PUBLISHED,
-      ...(query.organization_id ? { organizationId: query.organization_id } : {}),
-      ...(query.content_type_id ? { contentTypeId: query.content_type_id } : {}),
+      ...(query.organization_id
+        ? { organizationId: query.organization_id }
+        : {}),
+      ...(query.content_type_id
+        ? { contentTypeId: query.content_type_id }
+        : {}),
       AND: [
         { OR: [{ startDate: null }, { startDate: { lte: today } }] },
         { OR: [{ endDate: null }, { endDate: { gte: today } }] },
@@ -459,7 +467,9 @@ export class PagesService {
     endDate?: string | null,
   ): void {
     if (isInvalidDateRange(startDate, endDate))
-      throw new ConflictException('End date must not be earlier than start date.');
+      throw new ConflictException(
+        'End date must not be earlier than start date.',
+      );
   }
 
   private async generateUniqueSlug(

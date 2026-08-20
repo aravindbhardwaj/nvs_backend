@@ -23,7 +23,7 @@ describe('BannersService', () => {
   const configService = { get: jest.fn().mockReturnValue(5) };
   const service = new BannersService(
     prisma as never,
-    ownership as never,
+    ownership,
     configService as never,
   );
 

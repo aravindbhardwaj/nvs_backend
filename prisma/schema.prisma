@@ -120,7 +120,7 @@ model Organization {
   id                    Int       @id @default(autoincrement())
   organizationName      String    @map("organization_name") @db.VarChar(255)
   organizationHindiName String?   @map("organization_hindi_name") @db.VarChar(255)
-  organizationCode      String    @unique @map("organization_code") @db.VarChar(30)
+  organizationCode      String    @map("organization_code") @db.VarChar(30)
   organizationTypeId    Int       @map("organization_type_id")
   parentOrganizationId  Int?      @map("parent_organization_id")
   regionId              Int?      @map("region_id")
@@ -128,6 +128,7 @@ model Organization {
   districtId            Int?      @map("district_id")
   estdYear              Int?      @map("estd_year")
   studentsCount         Int?      @map("students_count")
+  schoolUrl             String?   @unique @map("school_url") @db.VarChar(255)
   address               String?   @db.Text
   isFunctional          Boolean   @default(true) @map("is_functional")
   createdAt             DateTime  @default(now()) @map("created_at")

@@ -8,6 +8,11 @@ export type JnvSeed = {
   regionCode: string | null;
   stateCode: string;
   address: string | null;
+  organizationHindiName: string | null;
+  districtId: number;
+  estdYear: number | null;
+  studentsCount: number | null;
+  schoolUrl: string;
 };
 
 const EXPECTED_HEADERS = [
@@ -17,6 +22,11 @@ const EXPECTED_HEADERS = [
   'regionCode',
   'stateCode',
   'address',
+  'organizationHindiName',
+  'districtId',
+  'estdYear',
+  'studentsCount',
+  'schoolUrl',
 ];
 
 function parseCsvLine(line: string): string[] {
@@ -71,6 +81,11 @@ export function readJnvSeeds(csv: string): JnvSeed[] {
       regionCode,
       stateCode,
       address,
+      organizationHindiName,
+      districtId,
+      estdYear,
+      studentsCount,
+      schoolUrl,
     ] = values;
     return {
       organizationCode,
@@ -79,32 +94,41 @@ export function readJnvSeeds(csv: string): JnvSeed[] {
       regionCode: nullable(regionCode),
       stateCode,
       address: nullable(address),
+      organizationHindiName: nullable(organizationHindiName),
+      districtId: Number(districtId),
+      estdYear: nullable(estdYear) === null ? null : Number(estdYear),
+      studentsCount:
+        nullable(studentsCount) === null ? null : Number(studentsCount),
+      schoolUrl,
     };
   });
 
   if (
-    jnvs.length !== 675 ||
+    jnvs.length !== 664 ||
     jnvs.some(
       ({
         organizationCode,
         organizationName,
         parentOrganizationCode,
         stateCode,
+        districtId,
+        schoolUrl,
       }) =>
         organizationCode === '' ||
         organizationName === '' ||
         parentOrganizationCode === '' ||
-        stateCode === '',
+        stateCode === '' ||
+        !Number.isInteger(districtId) ||
+        schoolUrl === '',
     ) ||
-    new Set(jnvs.map(({ organizationCode }) => organizationCode)).size !==
-      jnvs.length
+    new Set(jnvs.map(({ schoolUrl }) => schoolUrl)).size !== jnvs.length
   ) {
-    throw new Error('JNV seed CSV does not contain 675 valid unique records.');
+    throw new Error('JNV seed CSV does not contain 664 valid unique records.');
   }
 
   return jnvs;
 }
 
 export const JNVS = readJnvSeeds(
-  readFileSync(join(__dirname, 'data', 'jnvs.csv'), 'utf8'),
+  readFileSync(join(__dirname, 'data', 'jnvs-enriched.csv'), 'utf8'),
 );

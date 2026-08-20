@@ -424,7 +424,9 @@ export class UsersService {
         'Organization not found or has been deleted.',
       );
     if (!organizationType)
-      throw new NotFoundException('Organization type not found or is inactive.');
+      throw new NotFoundException(
+        'Organization type not found or is inactive.',
+      );
     if (
       organizationType.code !== 'SUPER_ADMIN' &&
       organization.organizationTypeId !== organizationTypeId

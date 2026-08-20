@@ -181,35 +181,35 @@ async function seedOrganizations(
         `Seed organization type ${organization.typeCode} was not resolved.`,
       );
 
-    const record = await prisma.organization.upsert({
+    const organizationData = {
+      organizationName: organization.name,
+      organizationTypeId,
+      parentOrganizationId,
+      regionId: organization.regionCode
+        ? (regionIds.get(organization.regionCode) ?? null)
+        : null,
+      stateId: organization.stateCode
+        ? (stateIds.get(organization.stateCode) ?? null)
+        : null,
+      isDeleted: false,
+      deletedAt: null,
+      deletedById: null,
+    };
+    const existing = await prisma.organization.findFirst({
       where: { organizationCode: organization.code },
-      update: {
-        organizationName: organization.name,
-        organizationTypeId,
-        parentOrganizationId,
-        regionId: organization.regionCode
-          ? (regionIds.get(organization.regionCode) ?? null)
-          : null,
-        stateId: organization.stateCode
-          ? (stateIds.get(organization.stateCode) ?? null)
-          : null,
-        isDeleted: false,
-        deletedAt: null,
-        deletedById: null,
-      },
-      create: {
-        organizationName: organization.name,
-        organizationCode: organization.code,
-        organizationTypeId,
-        parentOrganizationId,
-        regionId: organization.regionCode
-          ? (regionIds.get(organization.regionCode) ?? null)
-          : null,
-        stateId: organization.stateCode
-          ? (stateIds.get(organization.stateCode) ?? null)
-          : null,
-      },
+      orderBy: { id: 'asc' },
     });
+    const record = existing
+      ? await prisma.organization.update({
+          where: { id: existing.id },
+          data: organizationData,
+        })
+      : await prisma.organization.create({
+          data: {
+            organizationCode: organization.code,
+            ...organizationData,
+          },
+        });
     organizationIds.set(organization.code, record.id);
   }
 
@@ -224,14 +224,16 @@ async function seedJnvs(
   if (!jnvOrganizationTypeId)
     throw new Error('Seed organization type JNV was not resolved.');
 
-  const [regions, states] = await Promise.all([
+  const [regions, states, districts] = await Promise.all([
     prisma.region.findMany({ select: { id: true, regionCode: true } }),
     prisma.state.findMany({ select: { id: true, stateCode: true } }),
+    prisma.district.findMany({ select: { id: true, stateId: true, isActive: true } }),
   ]);
   const regionIds = new Map(
     regions.map(({ id, regionCode }) => [regionCode, id]),
   );
   const stateIds = new Map(states.map(({ id, stateCode }) => [stateCode, id]));
+  const districtsById = new Map(districts.map((district) => [district.id, district]));
 
   for (const jnv of JNVS) {
     const parentOrganizationId = organizationsByCode.get(
@@ -253,15 +255,26 @@ async function seedJnvs(
       throw new Error(
         `Seed JNV ${jnv.organizationCode} region ${jnv.regionCode} was not resolved.`,
       );
+    const district = districtsById.get(jnv.districtId);
+    if (!district || !district.isActive || district.stateId !== stateId) {
+      throw new Error(
+        `Seed JNV ${jnv.organizationCode} district ${jnv.districtId} was not resolved for state ${jnv.stateCode}.`,
+      );
+    }
 
     const record = await prisma.organization.upsert({
-      where: { organizationCode: jnv.organizationCode },
+      where: { schoolUrl: jnv.schoolUrl },
       update: {
         organizationName: jnv.organizationName,
         organizationTypeId: jnvOrganizationTypeId,
         parentOrganizationId,
         regionId,
         stateId,
+        districtId: jnv.districtId,
+        organizationHindiName: jnv.organizationHindiName,
+        estdYear: jnv.estdYear,
+        studentsCount: jnv.studentsCount,
+        schoolUrl: jnv.schoolUrl,
         address: jnv.address,
         isDeleted: false,
         deletedAt: null,
@@ -274,6 +287,11 @@ async function seedJnvs(
         parentOrganizationId,
         regionId,
         stateId,
+        districtId: jnv.districtId,
+        organizationHindiName: jnv.organizationHindiName,
+        estdYear: jnv.estdYear,
+        studentsCount: jnv.studentsCount,
+        schoolUrl: jnv.schoolUrl,
         address: jnv.address,
       },
     });

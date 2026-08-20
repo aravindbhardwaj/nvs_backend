@@ -1,4 +1,11 @@
-import { Controller, Get, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -18,12 +25,18 @@ export class AuditLogsController {
   @Get()
   @RequirePermission('AUDIT_LOG_VIEW')
   async findAll(@Query() query: GetAuditLogsQueryDto) {
-    return { message: 'Audit logs retrieved successfully.', data: await this.auditLogsService.findAll(query) };
+    return {
+      message: 'Audit logs retrieved successfully.',
+      data: await this.auditLogsService.findAll(query),
+    };
   }
 
   @Get(':id')
   @RequirePermission('AUDIT_LOG_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
-    return { message: 'Audit log retrieved successfully.', data: await this.auditLogsService.findOne(id) };
+    return {
+      message: 'Audit log retrieved successfully.',
+      data: await this.auditLogsService.findOne(id),
+    };
   }
 }

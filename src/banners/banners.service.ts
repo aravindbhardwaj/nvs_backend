@@ -343,7 +343,10 @@ export class BannersService {
     return this.openImage(banner);
   }
 
-  async publicImageStream(id: number, organizationId?: number): Promise<{
+  async publicImageStream(
+    id: number,
+    organizationId?: number,
+  ): Promise<{
     stream: ReturnType<typeof createReadStream>;
     mimeType: string;
   }> {
@@ -562,10 +565,7 @@ export class BannersService {
     if (organizationId === undefined)
       return {
         ...base,
-        AND: [
-          ...dateConditions,
-          { visibleToAll: true },
-        ],
+        AND: [...dateConditions, { visibleToAll: true }],
       };
 
     const organization = await this.prisma.organization.findFirst({
@@ -598,10 +598,7 @@ export class BannersService {
     }
     return {
       ...base,
-      AND: [
-        ...dateConditions,
-        { OR: visibleToOrganization },
-      ],
+      AND: [...dateConditions, { OR: visibleToOrganization }],
     };
   }
 

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
@@ -124,7 +128,9 @@ export class UserPermissionsService {
     return permissions;
   }
 
-  private async findOverrides(userId: number): Promise<UserPermissionWithPermission[]> {
+  private async findOverrides(
+    userId: number,
+  ): Promise<UserPermissionWithPermission[]> {
     return this.prisma.userPermission.findMany({
       where: { userId },
       include: userPermissionWithPermission,
@@ -132,9 +138,14 @@ export class UserPermissionsService {
     });
   }
 
-  private ensureActorIsNotTarget(userId: number, actor: AuthenticatedUser): void {
+  private ensureActorIsNotTarget(
+    userId: number,
+    actor: AuthenticatedUser,
+  ): void {
     if (userId === actor.id) {
-      throw new BadRequestException('Users cannot modify their own permission overrides.');
+      throw new BadRequestException(
+        'Users cannot modify their own permission overrides.',
+      );
     }
   }
 
@@ -143,14 +154,19 @@ export class UserPermissionsService {
     overrides: UserPermissionWithPermission[] | PermissionOverrideDto[],
     permissions?: Prisma.PermissionGetPayload<Record<string, never>>[],
   ): UserPermissionsResponseDto {
-    const permissionById = new Map(permissions?.map((permission) => [permission.id, permission]));
+    const permissionById = new Map(
+      permissions?.map((permission) => [permission.id, permission]),
+    );
     const mapped = overrides.map((override) => {
-      const permission = 'permission' in override
-        ? override.permission
-        : permissionById.get(override.permissionId);
+      const permission =
+        'permission' in override
+          ? override.permission
+          : permissionById.get(override.permissionId);
 
       if (!permission) {
-        throw new BadRequestException('Permission override could not be resolved.');
+        throw new BadRequestException(
+          'Permission override could not be resolved.',
+        );
       }
 
       return {
@@ -159,12 +175,16 @@ export class UserPermissionsService {
         module: permission.module,
         action: permission.action,
         description: permission.description,
-        createdAt: 'createdAt' in override ? override.createdAt : permission.createdAt,
+        createdAt:
+          'createdAt' in override ? override.createdAt : permission.createdAt,
         allowed: override.allowed,
       };
     });
 
-    return { userId, permissions: mapped as UserPermissionOverrideResponseDto[] };
+    return {
+      userId,
+      permissions: mapped,
+    };
   }
 
   private toAuditValues(
@@ -172,14 +192,17 @@ export class UserPermissionsService {
     overrides: UserPermissionWithPermission[] | PermissionOverrideDto[],
     permissions?: Prisma.PermissionGetPayload<Record<string, never>>[],
   ): Prisma.InputJsonValue {
-    const permissionById = new Map(permissions?.map((permission) => [permission.id, permission]));
+    const permissionById = new Map(
+      permissions?.map((permission) => [permission.id, permission]),
+    );
 
     return {
       userId,
       overrides: overrides.map((override) => {
-        const permission = 'permission' in override
-          ? override.permission
-          : permissionById.get(override.permissionId);
+        const permission =
+          'permission' in override
+            ? override.permission
+            : permissionById.get(override.permissionId);
 
         return {
           permissionId: override.permissionId,

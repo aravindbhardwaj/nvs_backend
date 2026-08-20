@@ -1,12 +1,5 @@
 import { Transform } from 'class-transformer';
-import {
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { SortOrder } from '../enums/sort-order.enum';
 
 export class PaginationQueryDto {
@@ -37,5 +30,5 @@ export class PaginationQueryDto {
 
   @IsOptional()
   @IsEnum(SortOrder)
-  order: SortOrder = SortOrder.ASC;  
+  order: SortOrder = SortOrder.ASC;
 }

@@ -26,12 +26,27 @@ export class AuditLogsService {
     await this.prisma.auditLog.create({ data: input });
   }
 
-  async findAll(query: GetAuditLogsQueryDto): Promise<PaginatedResponseDto<unknown>> {
+  async findAll(
+    query: GetAuditLogsQueryDto,
+  ): Promise<PaginatedResponseDto<unknown>> {
     const where: Prisma.AuditLogWhereInput = {
-      ...(query.module ? { module: { equals: query.module, mode: 'insensitive' } } : {}),
+      ...(query.module
+        ? { module: { equals: query.module, mode: 'insensitive' } }
+        : {}),
       ...(query.userId ? { userId: query.userId } : {}),
-      ...(query.action ? { action: { equals: query.action, mode: 'insensitive' } } : {}),
-      ...((query.dateFrom || query.dateTo) ? { createdAt: { ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}), ...(query.dateTo ? { lte: new Date(`${query.dateTo}T23:59:59.999Z`) } : {}) } } : {}),
+      ...(query.action
+        ? { action: { equals: query.action, mode: 'insensitive' } }
+        : {}),
+      ...(query.dateFrom || query.dateTo
+        ? {
+            createdAt: {
+              ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}),
+              ...(query.dateTo
+                ? { lte: new Date(`${query.dateTo}T23:59:59.999Z`) }
+                : {}),
+            },
+          }
+        : {}),
     };
     if (query.search?.trim()) {
       const search = query.search.trim();
@@ -39,14 +54,32 @@ export class AuditLogsService {
         { module: { contains: search, mode: 'insensitive' } },
         { entity: { contains: search, mode: 'insensitive' } },
         { action: { contains: search, mode: 'insensitive' } },
-        { user: { is: { OR: [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }] } } },
+        {
+          user: {
+            is: {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
       ];
     }
     const [items, totalItems] = await this.prisma.$transaction([
-      this.prisma.auditLog.findMany({ where, include: { user: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: query.order }, skip: (query.page - 1) * query.limit, take: query.limit }),
+      this.prisma.auditLog.findMany({
+        where,
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: query.order },
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
       this.prisma.auditLog.count({ where }),
     ]);
-    return { items, meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems) };
+    return {
+      items,
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
   }
 
   async findOne(id: number) {

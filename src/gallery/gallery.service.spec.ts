@@ -19,7 +19,7 @@ describe('GalleryService', () => {
     $transaction: jest.fn(),
   };
   const ownership = { assertAccess: jest.fn() };
-  const service = new GalleryService(prisma as never, ownership as never);
+  const service = new GalleryService(prisma as never, ownership);
   beforeEach(() => jest.clearAllMocks());
 
   it('limits a non-super-admin management list to the actor organization', async () => {

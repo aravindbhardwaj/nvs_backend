@@ -22,7 +22,10 @@ describe('PermissionsGuard', () => {
       getAllAndOverride: jest.fn().mockReturnValue(['MENU_VIEW']),
     };
     const effectivePermissions = { resolve: jest.fn() };
-    const guard = new PermissionsGuard(reflector as never, effectivePermissions as never);
+    const guard = new PermissionsGuard(
+      reflector as never,
+      effectivePermissions as never,
+    );
 
     await expect(
       guard.canActivate(
@@ -43,8 +46,13 @@ describe('PermissionsGuard', () => {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(['MENU_VIEW']),
     };
-    const effectivePermissions = { resolve: jest.fn().mockResolvedValue(new Set()) };
-    const guard = new PermissionsGuard(reflector as never, effectivePermissions as never);
+    const effectivePermissions = {
+      resolve: jest.fn().mockResolvedValue(new Set()),
+    };
+    const guard = new PermissionsGuard(
+      reflector as never,
+      effectivePermissions as never,
+    );
 
     await expect(
       guard.canActivate(

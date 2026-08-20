@@ -34,7 +34,9 @@ export class PermissionsGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('You do not have permission to access this resource.');
+      throw new ForbiddenException(
+        'You do not have permission to access this resource.',
+      );
     }
 
     // Super Admin is the system-wide administrative role. Its access must not
@@ -48,8 +50,14 @@ export class PermissionsGuard implements CanActivate {
       user.role,
     );
 
-    if (!requiredPermissions.every((permission) => effectivePermissions.has(permission))) {
-      throw new ForbiddenException('You do not have permission to access this resource.');
+    if (
+      !requiredPermissions.every((permission) =>
+        effectivePermissions.has(permission),
+      )
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to access this resource.',
+      );
     }
 
     return true;

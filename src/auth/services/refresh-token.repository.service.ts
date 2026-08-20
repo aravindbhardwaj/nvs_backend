@@ -9,7 +9,9 @@ export class RefreshTokenRepositoryService {
 
   findAll() {
     return this.prisma.refreshToken.findMany({
-      include: { user: { include: { organizationType: { select: { code: true } } } } },
+      include: {
+        user: { include: { organizationType: { select: { code: true } } } },
+      },
     });
   }
 

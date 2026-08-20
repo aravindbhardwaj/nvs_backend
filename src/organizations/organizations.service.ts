@@ -45,6 +45,7 @@ const publicJnvSelect = {
   organizationName: true,
   organizationHindiName: true,
   organizationCode: true,
+  schoolUrl: true,
   address: true,
   estdYear: true,
   studentsCount: true,
@@ -742,13 +743,16 @@ export class OrganizationsService {
       address: organization.address,
       state: organization.state?.stateName ?? null,
       district: organization.district?.districtName ?? null,
-      schoolUrl: stateCode
-        ? `/nvs-school/${stateCode.toLowerCase()}/${this.publicSchoolCode(organization.organizationCode)}`
-        : null,
+      schoolUrl:
+        organization.schoolUrl ??
+        (stateCode
+          ? `/nvs-school/${stateCode.toLowerCase()}/${this.publicSchoolCode(organization.organizationCode)}`
+          : null),
       estd: organization.estdYear,
       students: organization.studentsCount,
       districtHi: organization.district?.nameHi ?? null,
-      nameHi: organization.organizationHindiName?.split(',', 1)[0].trim() ?? null,
+      nameHi:
+        organization.organizationHindiName?.split(',', 1)[0].trim() ?? null,
       dc_ro_name: organization.region?.regionCode ?? null,
       ro_name: organization.region?.regionName ?? null,
     };

@@ -6,10 +6,12 @@ describe('EffectivePermissionsService', () => {
   it('applies user overrides after role permissions', async () => {
     const prisma = {
       rolePermission: {
-        findMany: jest.fn().mockResolvedValue([
-          { permission: { permissionKey: 'PAGE_VIEW' } },
-          { permission: { permissionKey: 'PAGE_UPDATE' } },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { permission: { permissionKey: 'PAGE_VIEW' } },
+            { permission: { permissionKey: 'PAGE_UPDATE' } },
+          ]),
       },
       userPermission: {
         findMany: jest.fn().mockResolvedValue([

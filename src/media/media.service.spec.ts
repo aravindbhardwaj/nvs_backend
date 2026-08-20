@@ -37,7 +37,7 @@ describe('MediaService', () => {
     $transaction: jest.fn(),
   };
   const ownership = { assertAccess: jest.fn() };
-  const service = new MediaService(prisma as never, ownership as never);
+  const service = new MediaService(prisma as never, ownership);
 
   beforeEach(() => {
     jest.clearAllMocks();
