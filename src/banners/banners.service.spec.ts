@@ -1,6 +1,11 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 
+jest.mock('./banner.storage', () => ({
+  BANNER_UPLOADS_ROOT: 'resources/banner_uploads',
+  validateBannerImage: jest.fn(),
+}));
+
 import { BannersService } from './banners.service';
 
 const actor = {
@@ -16,7 +21,10 @@ describe('BannersService', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      create: jest.fn(),
     },
+    auditLog: { create: jest.fn() },
+    organization: { findFirst: jest.fn() },
     $transaction: jest.fn(),
   };
   const ownership = { assertAccess: jest.fn() };
@@ -65,6 +73,57 @@ describe('BannersService', () => {
       ForbiddenException,
     );
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('applies the target organization banner limit to a super administrator', async () => {
+    const createdBanner = {
+      id: 1,
+      organizationId: 6,
+      titleEnglish: 'Banner',
+      titleHindi: 'बैनर',
+      descriptionEnglish: null,
+      descriptionHindi: null,
+      altTextEnglish: null,
+      altTextHindi: null,
+      storedFilename: 'banner.png',
+      imagePath: 'resources/banner_uploads/banner.png',
+      mimeType: 'image/png',
+      extension: 'png',
+      fileSize: BigInt(8),
+      displayOrder: 0,
+      isActive: true,
+      visibleToAll: false,
+      startDate: null,
+      endDate: null,
+      isDeleted: false,
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback({ banner: prisma.banner, auditLog: prisma.auditLog }),
+    );
+    ownership.assertAccess.mockReset();
+    prisma.organization.findFirst.mockResolvedValue({ id: 6 });
+    prisma.banner.count.mockResolvedValue(4);
+    prisma.banner.create.mockResolvedValue(createdBanner);
+
+    await service.create(
+      { organizationId: 6, titleEnglish: 'Banner', titleHindi: 'बैनर' },
+      {
+        filename: 'banner.png',
+        path: 'resources/banner_uploads/banner.png',
+        mimetype: 'image/png',
+        originalname: 'banner.png',
+        size: 8,
+      } as Express.Multer.File,
+      { ...actor, role: Role.SUPER_ADMIN },
+    );
+
+    expect(prisma.banner.count).toHaveBeenCalledWith({
+      where: { organizationId: 6, isDeleted: false },
+    });
+    expect(prisma.banner.create).toHaveBeenCalled();
   });
 
   it('includes only the actor organization for a Headquarters management list', async () => {

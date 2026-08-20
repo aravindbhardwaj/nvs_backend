@@ -49,7 +49,7 @@ export class BannersService {
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     const banner = await this.prisma.$transaction(async (transaction) => {
-      await this.assertBannerUploadLimit(transaction, actor.id);
+      await this.assertBannerUploadLimit(transaction, organizationId);
       const createdBanner = await transaction.banner.create({
         data: {
           organizationId,
@@ -289,7 +289,7 @@ export class BannersService {
       });
       if (!existing) throw new NotFoundException('Deleted banner not found.');
       this.ownership.assertAccess(existing.organizationId, actor);
-      await this.assertBannerUploadLimit(transaction, existing.createdById);
+      await this.assertBannerUploadLimit(transaction, existing.organizationId);
       const restoredBanner = await transaction.banner.update({
         where: { id },
         data: {
@@ -513,21 +513,22 @@ export class BannersService {
 
   private async assertBannerUploadLimit(
     transaction: Prisma.TransactionClient,
-    createdById: number | null | undefined,
+    organizationId: number,
   ): Promise<void> {
-    if (!createdById) return;
-    const limit = this.maxBannersPerUser();
+    const limit = this.maxBannersPerOrganization();
     const count = await transaction.banner.count({
-      where: { createdById, isDeleted: false },
+      where: { organizationId, isDeleted: false },
     });
     if (count >= limit) {
-      throw new BadRequestException('Maximum banner upload limit reached.');
+      throw new BadRequestException(
+        'Maximum banner limit for this organization has been reached.',
+      );
     }
   }
 
-  private maxBannersPerUser(): number {
+  private maxBannersPerOrganization(): number {
     const configured = this.configService.get<number>(
-      'banner.maxBannersPerUser',
+      'banner.maxBannersPerOrganization',
       5,
     );
     return Number.isSafeInteger(configured) && configured > 0 ? configured : 5;
