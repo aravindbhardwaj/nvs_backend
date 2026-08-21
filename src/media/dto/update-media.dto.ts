@@ -50,6 +50,13 @@ export class UpdateMediaDto {
   mediaTypeId?: number;
 
   @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  sharedMediaTypeIds?: string | null;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   display_order?: number;

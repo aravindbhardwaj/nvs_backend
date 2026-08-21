@@ -51,6 +51,10 @@ export class MediaService {
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     await this.ensureActiveMediaType(dto.mediaTypeId);
+    const sharedMediaTypeIds = await this.resolveSharedMediaTypeIds(
+      dto.sharedMediaTypeIds,
+      dto.mediaTypeId,
+    );
     const visibility = await this.resolveVisibility(dto, organizationId);
     const media = await this.prisma.$transaction(async (transaction) => {
       const createdMedia = await transaction.media.create({
@@ -76,6 +80,7 @@ export class MediaService {
           visibleToAll: visibility.visibleToAll,
           roIds: visibility.roIds,
           visibleToJnv: visibility.visibleToJnv,
+          sharedMediaTypeIds,
           importantLink1: dto.important_link_1 ?? null,
           importantLink2: dto.important_link_2 ?? null,
           importantLink3: dto.important_link_3 ?? null,
@@ -181,6 +186,12 @@ export class MediaService {
     this.ownership.assertAccess(existing.organizationId, actor);
     if (dto.mediaTypeId !== undefined)
       await this.ensureActiveMediaType(dto.mediaTypeId);
+    const mediaTypeId = dto.mediaTypeId ?? existing.mediaTypeId;
+    const sharedMediaTypeIds = await this.resolveSharedMediaTypeIds(
+      dto.sharedMediaTypeIds,
+      mediaTypeId,
+      existing.sharedMediaTypeIds,
+    );
     this.assertDateRange(
       dto.start_date === undefined
         ? formatCalendarDate(existing.startDate)
@@ -203,6 +214,9 @@ export class MediaService {
           descriptionEnglish: dto.descriptionEnglish,
           descriptionHindi: dto.descriptionHindi,
           mediaTypeId: dto.mediaTypeId,
+          ...(dto.sharedMediaTypeIds === undefined
+            ? {}
+            : { sharedMediaTypeIds }),
           display_order: dto.display_order,
           isActive: dto.is_active,
           ...(dto.visible_to_all === undefined
@@ -502,6 +516,41 @@ export class MediaService {
       throw new NotFoundException('Media type not found or has been deleted.');
   }
 
+  private async resolveSharedMediaTypeIds(
+    value: string | null | undefined,
+    primaryMediaTypeId: number,
+    existingValue: string | null = null,
+  ): Promise<string | null> {
+    const source = value === undefined ? (existingValue ?? null) : value;
+    if (source === null) return null;
+    const tokens = source.split(',');
+    if (
+      tokens.length === 0 ||
+      tokens.some((token) => !/^\d+$/.test(token.trim()))
+    )
+      throw new BadRequestException(
+        'sharedMediaTypeIds must be a comma-separated list of media type IDs.',
+      );
+    const ids = [...new Set(tokens.map((token) => Number(token.trim())))];
+    if (ids.some((id) => !Number.isSafeInteger(id) || id < 1))
+      throw new BadRequestException(
+        'sharedMediaTypeIds must contain positive media type IDs.',
+      );
+    if (ids.includes(primaryMediaTypeId))
+      throw new BadRequestException(
+        'sharedMediaTypeIds must not include the primary mediaTypeId.',
+      );
+    const mediaTypes = await this.prisma.mediaType.findMany({
+      where: { id: { in: ids }, isDeleted: false },
+      select: { id: true },
+    });
+    if (mediaTypes.length !== ids.length)
+      throw new BadRequestException(
+        'Every sharedMediaTypeIds value must identify an active media type.',
+      );
+    return ids.sort((left, right) => left - right).join(',');
+  }
+
   private async ensureActiveOrganization(id: number): Promise<void> {
     const organization = await this.prisma.organization.findFirst({
       where: { id, isDeleted: false },
@@ -611,7 +660,9 @@ export class MediaService {
   ): Promise<Prisma.MediaWhereInput> {
     const where: Prisma.MediaWhereInput = {
       isDeleted: query.isDeleted ?? false,
-      ...(query.mediaTypeId ? { mediaTypeId: query.mediaTypeId } : {}),
+      ...(query.mediaTypeId
+        ? { OR: this.mediaTypeMatchWhere(query.mediaTypeId) }
+        : {}),
       ...(query.is_active === undefined ? {} : { isActive: query.is_active }),
     };
     const visibilityWhere = await this.visibilityWhere(query, actor);
@@ -732,6 +783,17 @@ export class MediaService {
     };
   }
 
+  private mediaTypeMatchWhere(mediaTypeId: number): Prisma.MediaWhereInput[] {
+    const token = String(mediaTypeId);
+    return [
+      { mediaTypeId },
+      { sharedMediaTypeIds: token },
+      { sharedMediaTypeIds: { startsWith: `${token},` } },
+      { sharedMediaTypeIds: { endsWith: `,${token}` } },
+      { sharedMediaTypeIds: { contains: `,${token},` } },
+    ];
+  }
+
   private async publicWhere(
     query: Pick<GetPublicMediaQueryDto, 'organization_id' | 'media_type_id'>,
     importantLink?: ImportantLinkField,
@@ -744,7 +806,9 @@ export class MediaService {
     const where: Prisma.MediaWhereInput = {
       isDeleted: false,
       isActive: true,
-      ...(query.media_type_id ? { mediaTypeId: query.media_type_id } : {}),
+      ...(query.media_type_id
+        ? { OR: this.mediaTypeMatchWhere(query.media_type_id) }
+        : {}),
       AND: dateConditions,
     };
     if (importantLink) dateConditions.push({ [importantLink]: true });
@@ -846,6 +910,7 @@ export class MediaService {
       id: media.id,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
+      sharedMediaTypeIds: media.sharedMediaTypeIds,
       titleEnglish: media.titleEnglish,
       titleHindi: media.titleHindi,
       descriptionEnglish: media.descriptionEnglish,
@@ -885,6 +950,7 @@ export class MediaService {
       id: media.id,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
+      sharedMediaTypeIds: media.sharedMediaTypeIds,
       titleEnglish: media.titleEnglish,
       titleHindi: media.titleHindi,
       descriptionEnglish: media.descriptionEnglish,

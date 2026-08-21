@@ -32,7 +32,7 @@ describe('MediaService', () => {
   };
   const prisma = {
     organization: { findFirst: jest.fn(), findMany: jest.fn() },
-    mediaType: { findFirst: jest.fn() },
+    mediaType: { findFirst: jest.fn(), findMany: jest.fn() },
     media: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -47,6 +47,9 @@ describe('MediaService', () => {
       Promise.resolve(where.id.in.map((id: number) => ({ id }))),
     );
     prisma.mediaType.findFirst.mockResolvedValue({ id: 1 });
+    prisma.mediaType.findMany.mockImplementation(({ where }) =>
+      Promise.resolve(where.id.in.map((id: number) => ({ id }))),
+    );
     jest.spyOn(service as never, 'checksum').mockResolvedValue('checksum');
     prisma.$transaction.mockImplementation((callback) => callback(transaction));
     transaction.media.create.mockImplementation(({ data }) => ({
@@ -161,6 +164,56 @@ describe('MediaService', () => {
           importantLink1: true,
           importantLink2: null,
           importantLink3: true,
+        }),
+      }),
+    );
+  });
+
+  it('normalizes and stores shared media type IDs during upload', async () => {
+    await service.upload(
+      {
+        titleEnglish: 'Circular shared as a notice',
+        titleHindi: 'सूचना के रूप में साझा परिपत्र',
+        mediaTypeId: 1,
+        sharedMediaTypeIds: '5,2,5',
+      },
+      file,
+      undefined,
+      headquartersUser,
+    );
+
+    expect(transaction.media.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ sharedMediaTypeIds: '2,5' }),
+      }),
+    );
+  });
+
+  it('matches the requested media type against primary and shared media types', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+
+    await service.findAll(
+      {
+        page: 1,
+        limit: 20,
+        sort: 'display_order',
+        order: 'asc',
+        organizationId: 1,
+        mediaTypeId: 2,
+      },
+      superAdmin,
+    );
+
+    expect(prisma.media.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { mediaTypeId: 2 },
+            { sharedMediaTypeIds: '2' },
+            { sharedMediaTypeIds: { startsWith: '2,' } },
+            { sharedMediaTypeIds: { endsWith: ',2' } },
+            { sharedMediaTypeIds: { contains: ',2,' } },
+          ],
         }),
       }),
     );
@@ -352,7 +405,13 @@ describe('MediaService', () => {
         where: expect.objectContaining({
           isDeleted: false,
           isActive: true,
-          mediaTypeId: 2,
+          OR: [
+            { mediaTypeId: 2 },
+            { sharedMediaTypeIds: '2' },
+            { sharedMediaTypeIds: { startsWith: '2,' } },
+            { sharedMediaTypeIds: { endsWith: ',2' } },
+            { sharedMediaTypeIds: { contains: ',2,' } },
+          ],
           AND: expect.arrayContaining([
             expect.objectContaining({
               OR: expect.arrayContaining([

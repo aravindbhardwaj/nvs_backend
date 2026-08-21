@@ -374,6 +374,7 @@ model Media {
   visibleToAll          Boolean?  @map("visible_to_all")
   roIds                 String?   @map("ro_ids") @db.Text
   visibleToJnv          Boolean?  @map("visible_to_jnv")
+  sharedMediaTypeIds    String?   @map("shared_media_type_ids") @db.Text
   importantLink1        Boolean?  @map("important_link_1")
   importantLink2        Boolean?  @map("important_link_2")
   importantLink3        Boolean?  @map("important_link_3")
