@@ -153,6 +153,7 @@ model Organization {
   media              Media[]
   banners            Banner[]
   galleryImages      GalleryImage[]
+  visitorSessions    VisitorSession[]
 
   @@index([organizationCode])
   @@index([organizationTypeId])
@@ -526,8 +527,9 @@ model Menu {
 
 model VisitorSession {
   id             Int      @id @default(autoincrement())
+  organizationId Int?     @map("organization_id")
   visitorId      String   @map("visitor_id") @db.VarChar(36)
-  sessionId      String   @unique @map("session_id") @db.VarChar(36)
+  sessionId      String   @map("session_id") @db.VarChar(36)
   usedEnglish    Boolean  @default(false) @map("used_english")
   usedHindi      Boolean  @default(false) @map("used_hindi")
   startedAt      DateTime @default(now()) @map("started_at")
@@ -535,6 +537,11 @@ model VisitorSession {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, sessionId])
+  @@index([organizationId])
+  @@index([organizationId, startedAt])
   @@index([visitorId])
   @@index([startedAt])
   @@map("visitor_sessions")

@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 
 import { Public } from '../auth/decorators/public.decorator';
+import { VisitorCountQueryDto } from './dto/visitor-count-query.dto';
 import { VisitorAnalyticsService } from './visitor-analytics.service';
 
 @Public()
@@ -10,10 +11,10 @@ export class PublicVisitorAnalyticsController {
 
   @Get('visitor-count')
   @Public()
-  async visitorCount() {
+  async visitorCount(@Query() query: VisitorCountQueryDto) {
     return {
       message: 'Visitor count retrieved successfully.',
-      data: await this.visitorAnalytics.publicCount(),
+      data: await this.visitorAnalytics.publicCount(query.organization_id),
     };
   }
 }

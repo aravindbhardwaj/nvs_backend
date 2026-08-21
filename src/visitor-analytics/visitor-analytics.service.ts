@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import {
   formatCalendarDate,
@@ -19,16 +23,23 @@ export class VisitorAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async captureVisit(dto: CaptureVisitDto): Promise<void> {
+    await this.ensureActiveOrganization(dto.organization_id);
     const now = new Date();
     const usesEnglish = dto.language === VISITOR_LANGUAGE.ENGLISH;
 
     await this.prisma.visitorSession.upsert({
-      where: { sessionId: dto.session_id },
+      where: {
+        organizationId_sessionId: {
+          organizationId: dto.organization_id,
+          sessionId: dto.session_id,
+        },
+      },
       update: {
         lastActivityAt: now,
         ...(usesEnglish ? { usedEnglish: true } : { usedHindi: true }),
       },
       create: {
+        organizationId: dto.organization_id,
         visitorId: dto.visitor_id,
         sessionId: dto.session_id,
         usedEnglish: usesEnglish,
@@ -48,7 +59,12 @@ export class VisitorAnalyticsService {
     toDateExclusive.setUTCDate(toDateExclusive.getUTCDate() + 1);
 
     const sessions = await this.prisma.visitorSession.findMany({
-      where: { startedAt: { gte: fromDate, lt: toDateExclusive } },
+      where: {
+        startedAt: { gte: fromDate, lt: toDateExclusive },
+        ...(query.organization_id
+          ? { organizationId: query.organization_id }
+          : {}),
+      },
       select: {
         visitorId: true,
         startedAt: true,
@@ -92,8 +108,21 @@ export class VisitorAnalyticsService {
     };
   }
 
-  async publicCount(): Promise<{ total_visits: number }> {
-    return { total_visits: await this.prisma.visitorSession.count() };
+  async publicCount(organizationId: number): Promise<{ total_visits: number }> {
+    await this.ensureActiveOrganization(organizationId);
+    return {
+      total_visits: await this.prisma.visitorSession.count({
+        where: { organizationId },
+      }),
+    };
+  }
+
+  private async ensureActiveOrganization(id: number): Promise<void> {
+    const organization = await this.prisma.organization.findFirst({
+      where: { id, isDeleted: false },
+      select: { id: true },
+    });
+    if (!organization) throw new NotFoundException('Organization not found.');
   }
 
   private assertValidDateRange(query: VisitorReportQueryDto): void {
