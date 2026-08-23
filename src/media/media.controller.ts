@@ -11,15 +11,11 @@ import {
   Put,
   Query,
   Res,
-  UploadedFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import {
-  FileFieldsInterceptor,
-  FileInterceptor,
-} from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Role } from '@prisma/client';
 import type { Response } from 'express';
 
@@ -159,20 +155,41 @@ export class MediaController {
 
   @Put(':id/file')
   @RequirePermission('MEDIA_UPLOAD')
-  @UseInterceptors(FileInterceptor('file', uploadOptions))
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'hindiFile', maxCount: 1 },
+      ],
+      uploadOptions,
+    ),
+  )
   async replaceFile(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFiles()
+    files: { file?: Express.Multer.File[]; hindiFile?: Express.Multer.File[] },
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    if (!file) throw new BadRequestException('A document file is required.');
+    const file = files?.file?.[0];
+    const hindiFile = files?.hindiFile?.[0];
+    if (!file && !hindiFile)
+      throw new BadRequestException('A document file is required.');
+    if (file && hindiFile)
+      throw new BadRequestException(
+        'Provide either file or hindiFile, not both.',
+      );
     try {
       return {
         message: 'Document replaced successfully.',
-        data: await this.mediaService.replaceFile(id, file, user),
+        data: await this.mediaService.replaceFile(
+          id,
+          file ?? hindiFile!,
+          user,
+          Boolean(hindiFile),
+        ),
       };
     } catch (error) {
-      await this.mediaService.cleanupUploadedFile(file);
+      await this.mediaService.cleanupUploadedFiles([file, hindiFile]);
       throw error;
     }
   }

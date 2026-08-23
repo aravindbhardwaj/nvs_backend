@@ -219,7 +219,7 @@ describe('MediaService', () => {
     );
   });
 
-  it('normalizes selected Regional Office IDs before storing selective visibility', async () => {
+  it('normalizes selected Regional Office and JNV IDs before storing selective visibility', async () => {
     await service.upload(
       {
         titleEnglish: 'Selective notice',
@@ -227,7 +227,7 @@ describe('MediaService', () => {
         mediaTypeId: 1,
         visible_to_all: false,
         ro_ids: '10,12,10',
-        visible_to_jnv: true,
+        jnv_ids: '28,29,28',
       },
       file,
       undefined,
@@ -239,7 +239,7 @@ describe('MediaService', () => {
         data: expect.objectContaining({
           visibleToAll: false,
           roIds: '10,12',
-          visibleToJnv: true,
+          jnvIds: '28,29',
         }),
       }),
     );
@@ -252,9 +252,10 @@ describe('MediaService', () => {
 
   it.each([
     [{ visible_to_all: true, ro_ids: '10,12' }],
-    [{ visible_to_all: true, visible_to_jnv: true }],
-    [{ visible_to_all: false, visible_to_jnv: true }],
+    [{ visible_to_all: true, jnv_ids: '28' }],
+    [{ visible_to_all: false, jnv_ids: '28' }],
     [{ ro_ids: '10,abc,12' }],
+    [{ ro_ids: '10', jnv_ids: '28,abc' }],
   ])(
     'rejects invalid selective visibility configuration',
     async (visibility) => {
@@ -307,13 +308,19 @@ describe('MediaService', () => {
             expect.objectContaining({
               OR: expect.arrayContaining([
                 expect.objectContaining({
-                  visibleToAll: { not: true },
-                  OR: [
-                    { roIds: '10' },
-                    { roIds: { startsWith: '10,' } },
-                    { roIds: { endsWith: ',10' } },
-                    { roIds: { contains: ',10,' } },
-                  ],
+                  AND: expect.arrayContaining([
+                    {
+                      OR: [{ visibleToAll: false }, { visibleToAll: null }],
+                    },
+                    {
+                      OR: [
+                        { roIds: '10' },
+                        { roIds: { startsWith: '10,' } },
+                        { roIds: { endsWith: ',10' } },
+                        { roIds: { contains: ',10,' } },
+                      ],
+                    },
+                  ]),
                 }),
               ]),
             }),
@@ -323,7 +330,7 @@ describe('MediaService', () => {
     );
   });
 
-  it('uses parent RO selective scope and stable display ordering for JNVs', async () => {
+  it('uses explicit JNV selective scope and stable display ordering for JNVs', async () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
     prisma.organization.findFirst.mockResolvedValue({
       id: 28,
@@ -357,17 +364,30 @@ describe('MediaService', () => {
                   },
                 },
                 {
-                  visibleToAll: { not: true },
-                  visibleToJnv: true,
                   organization: {
                     organizationType: { code: 'HEADQUARTER' },
                   },
-                  OR: [
-                    { roIds: '10' },
-                    { roIds: { startsWith: '10,' } },
-                    { roIds: { endsWith: ',10' } },
-                    { roIds: { contains: ',10,' } },
-                  ],
+                  AND: expect.arrayContaining([
+                    {
+                      OR: [{ visibleToAll: false }, { visibleToAll: null }],
+                    },
+                    {
+                      OR: [
+                        { roIds: '10' },
+                        { roIds: { startsWith: '10,' } },
+                        { roIds: { endsWith: ',10' } },
+                        { roIds: { contains: ',10,' } },
+                      ],
+                    },
+                    {
+                      OR: [
+                        { jnvIds: '28' },
+                        { jnvIds: { startsWith: '28,' } },
+                        { jnvIds: { endsWith: ',28' } },
+                        { jnvIds: { contains: ',28,' } },
+                      ],
+                    },
+                  ]),
                 },
                 {
                   visibleToAll: true,
@@ -385,7 +405,7 @@ describe('MediaService', () => {
     );
   });
 
-  it('applies parent RO selective scope and public eligibility in the public JNV listing', async () => {
+  it('applies explicit JNV selective scope and public eligibility in the public JNV listing', async () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
     prisma.organization.findFirst.mockResolvedValue({
       id: 28,
@@ -421,13 +441,26 @@ describe('MediaService', () => {
                   organizationId: 10,
                 }),
                 expect.objectContaining({
-                  visibleToAll: { not: true },
-                  visibleToJnv: true,
-                  OR: [
-                    { roIds: '10' },
-                    { roIds: { startsWith: '10,' } },
-                    { roIds: { endsWith: ',10' } },
-                    { roIds: { contains: ',10,' } },
+                  AND: [
+                    {
+                      OR: [{ visibleToAll: false }, { visibleToAll: null }],
+                    },
+                    {
+                      OR: [
+                        { roIds: '10' },
+                        { roIds: { startsWith: '10,' } },
+                        { roIds: { endsWith: ',10' } },
+                        { roIds: { contains: ',10,' } },
+                      ],
+                    },
+                    {
+                      OR: [
+                        { jnvIds: '28' },
+                        { jnvIds: { startsWith: '28,' } },
+                        { jnvIds: { endsWith: ',28' } },
+                        { jnvIds: { contains: ',28,' } },
+                      ],
+                    },
                   ],
                 }),
               ]),

@@ -374,7 +374,7 @@ model Media {
   isActive              Boolean   @default(true) @map("is_active")
   visibleToAll          Boolean?  @map("visible_to_all")
   roIds                 String?   @map("ro_ids") @db.Text
-  visibleToJnv          Boolean?  @map("visible_to_jnv")
+  jnvIds                String?   @map("jnv_ids") @db.Text
   sharedMediaTypeIds    String?   @map("shared_media_type_ids") @db.Text
   importantLink1        Boolean?  @map("important_link_1")
   importantLink2        Boolean?  @map("important_link_2")

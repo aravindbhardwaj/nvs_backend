@@ -79,7 +79,7 @@ export class MediaService {
           isActive: dto.is_active ?? true,
           visibleToAll: visibility.visibleToAll,
           roIds: visibility.roIds,
-          visibleToJnv: visibility.visibleToJnv,
+          jnvIds: visibility.jnvIds,
           sharedMediaTypeIds,
           importantLink1: dto.important_link_1 ?? null,
           importantLink2: dto.important_link_2 ?? null,
@@ -223,9 +223,7 @@ export class MediaService {
             ? {}
             : { visibleToAll: visibility.visibleToAll }),
           ...(dto.ro_ids === undefined ? {} : { roIds: visibility.roIds }),
-          ...(dto.visible_to_jnv === undefined
-            ? {}
-            : { visibleToJnv: visibility.visibleToJnv }),
+          ...(dto.jnv_ids === undefined ? {} : { jnvIds: visibility.jnvIds }),
           ...(dto.important_link_1 === undefined
             ? {}
             : { importantLink1: dto.important_link_1 }),
@@ -264,18 +262,23 @@ export class MediaService {
     id: number,
     file: Express.Multer.File,
     actor: AuthenticatedUser,
+    isHindiFile = false,
   ): Promise<MediaResponseDto> {
     validateMediaFile(file);
     const existing = await this.findActiveMedia(id);
     this.ownership.assertAccess(existing.organizationId, actor);
     const replacementData = {
-      originalFilename: this.sanitizeFilename(file.originalname),
-      storedFilename: file.filename,
-      filePath: this.toStoredPath(file.path),
-      mimeType: file.mimetype,
-      extension: this.extensionOf(file.originalname),
-      fileSize: BigInt(file.size),
-      checksum: await this.checksum(file.path),
+      ...(isHindiFile
+        ? await this.hindiFileData(file)
+        : {
+            originalFilename: this.sanitizeFilename(file.originalname),
+            storedFilename: file.filename,
+            filePath: this.toStoredPath(file.path),
+            mimeType: file.mimetype,
+            extension: this.extensionOf(file.originalname),
+            fileSize: BigInt(file.size),
+            checksum: await this.checksum(file.path),
+          }),
       uploadedAt: new Date(),
       updatedById: actor.id,
     };
@@ -294,16 +297,21 @@ export class MediaService {
       return updatedMedia;
     });
     try {
-      await this.removePhysicalFile(existing.filePath);
+      const previousFilePath = isHindiFile
+        ? existing.hindiFilePath
+        : existing.filePath;
+      if (previousFilePath) await this.removePhysicalFile(previousFilePath);
     } catch {
       await this.prisma.media.update({
         where: { id },
         data: {
-          ...this.mediaFileData(existing),
+          ...(isHindiFile
+            ? this.hindiMediaFileData(existing)
+            : this.mediaFileData(existing)),
           updatedById: existing.updatedById,
         },
       });
-      await this.removePhysicalFile(replacementData.filePath).catch(
+      await this.removePhysicalFile(this.toStoredPath(file.path)).catch(
         () => undefined,
       );
       throw new InternalServerErrorException(
@@ -471,6 +479,49 @@ export class MediaService {
     };
   }
 
+  async publicDownloadHindi(
+    id: number,
+    organizationId?: number,
+  ): Promise<{
+    stream: ReturnType<typeof createReadStream>;
+    filename: string;
+    mimeType: string;
+  }> {
+    if (
+      organizationId !== undefined &&
+      (!Number.isSafeInteger(organizationId) || organizationId < 1)
+    )
+      throw new BadRequestException(
+        'organization_id must be a positive integer.',
+      );
+    const media = await this.prisma.media.findFirst({
+      where: {
+        id,
+        ...(await this.publicWhere({ organization_id: organizationId })),
+      },
+    });
+    if (!media) throw new NotFoundException('Public media not found.');
+    if (
+      !media.hindiFilePath ||
+      !media.hindiOriginalFilename ||
+      !media.hindiMimeType
+    )
+      throw new NotFoundException('Hindi document file is not available.');
+    const filePath = this.absolutePath(media.hindiFilePath);
+    try {
+      await access(filePath);
+    } catch {
+      throw new NotFoundException(
+        'The Hindi document file is no longer available.',
+      );
+    }
+    return {
+      stream: createReadStream(filePath),
+      filename: media.hindiOriginalFilename,
+      mimeType: media.hindiMimeType,
+    };
+  }
+
   private async findActiveMedia(id: number): Promise<Media> {
     const media = await this.prisma.media.findFirst({
       where: { id, isDeleted: false },
@@ -565,14 +616,14 @@ export class MediaService {
   private async resolveVisibility(
     dto: Pick<
       UploadMediaDto | UpdateMediaDto,
-      'visible_to_all' | 'ro_ids' | 'visible_to_jnv'
+      'visible_to_all' | 'ro_ids' | 'jnv_ids'
     >,
     organizationId: number,
     existing?: Media,
   ): Promise<{
     visibleToAll: boolean | null;
     roIds: string | null;
-    visibleToJnv: boolean | null;
+    jnvIds: string | null;
   }> {
     const visibleToAll =
       dto.visible_to_all === undefined
@@ -582,25 +633,26 @@ export class MediaService {
       dto.ro_ids === undefined
         ? (existing?.roIds ?? null)
         : this.normalizeRoIds(dto.ro_ids);
-    const visibleToJnv =
-      dto.visible_to_jnv === undefined
-        ? (existing?.visibleToJnv ?? null)
-        : (dto.visible_to_jnv ?? null);
+    const jnvIds =
+      dto.jnv_ids === undefined
+        ? (existing?.jnvIds ?? null)
+        : this.normalizeJnvIds(dto.jnv_ids);
 
-    if (visibleToAll === true && (roIds !== null || visibleToJnv === true))
+    if (visibleToAll === true && (roIds !== null || jnvIds !== null))
       throw new BadRequestException(
-        'visible_to_all=true cannot be combined with ro_ids or visible_to_jnv=true.',
+        'visible_to_all=true cannot be combined with ro_ids or jnv_ids.',
       );
-    if (visibleToJnv === true && roIds === null)
+    if (jnvIds !== null && roIds === null)
       throw new BadRequestException(
-        'visible_to_jnv=true requires at least one Regional Office in ro_ids.',
+        'jnv_ids requires at least one Regional Office in ro_ids.',
       );
 
     if (roIds !== null) {
       await this.ensureHeadquartersSelectiveSharing(organizationId);
       await this.ensureRegionalOffices(roIds);
     }
-    return { visibleToAll, roIds, visibleToJnv };
+    if (jnvIds !== null) await this.ensureJnvOrganizations(jnvIds, roIds!);
+    return { visibleToAll, roIds, jnvIds };
   }
 
   private normalizeRoIds(value: string | null): string | null {
@@ -617,6 +669,24 @@ export class MediaService {
     if (ids.some((id) => !Number.isSafeInteger(id) || id < 1))
       throw new BadRequestException(
         'ro_ids must contain positive Regional Office IDs.',
+      );
+    return ids.join(',');
+  }
+
+  private normalizeJnvIds(value: string | null): string | null {
+    if (value === null) return null;
+    const tokens = value.split(',');
+    if (
+      tokens.length === 0 ||
+      tokens.some((token) => !/^\d+$/.test(token.trim()))
+    )
+      throw new BadRequestException(
+        'jnv_ids must be a comma-separated list of JNV organization IDs.',
+      );
+    const ids = [...new Set(tokens.map((token) => Number(token.trim())))];
+    if (ids.some((id) => !Number.isSafeInteger(id) || id < 1))
+      throw new BadRequestException(
+        'jnv_ids must contain positive JNV organization IDs.',
       );
     return ids.join(',');
   }
@@ -651,6 +721,27 @@ export class MediaService {
     if (organizations.length !== ids.length)
       throw new BadRequestException(
         'Every ro_ids value must identify an active Regional Office.',
+      );
+  }
+
+  private async ensureJnvOrganizations(
+    jnvIds: string,
+    roIds: string,
+  ): Promise<void> {
+    const ids = jnvIds.split(',').map(Number);
+    const regionalOfficeIds = roIds.split(',').map(Number);
+    const organizations = await this.prisma.organization.findMany({
+      where: {
+        id: { in: ids },
+        parentOrganizationId: { in: regionalOfficeIds },
+        isDeleted: false,
+        organizationType: { code: 'JNV', isActive: true },
+      },
+      select: { id: true },
+    });
+    if (organizations.length !== ids.length)
+      throw new BadRequestException(
+        'Every jnv_ids value must identify an active JNV under one of the selected Regional Offices.',
       );
   }
 
@@ -725,10 +816,8 @@ export class MediaService {
       visibleToAll: true,
       organization: { organizationType: { code: 'HEADQUARTER' } },
     };
-    const headquartersSelectiveForRo = (
-      roId: number,
-      forJnv = false,
-    ): Prisma.MediaWhereInput => this.headquartersSelectiveWhere(roId, forJnv);
+    const headquartersSelectiveForRo = (roId: number): Prisma.MediaWhereInput =>
+      this.headquartersSelectiveWhere(roId);
     const ownOrganization: Prisma.MediaWhereInput = {
       organizationId: actor.organizationId,
     };
@@ -751,7 +840,12 @@ export class MediaService {
         select: { parentOrganizationId: true },
       });
       const selective = organization?.parentOrganizationId
-        ? [headquartersSelectiveForRo(organization.parentOrganizationId, true)]
+        ? [
+            this.headquartersSelectiveWhere(
+              organization.parentOrganizationId,
+              actor.organizationId,
+            ),
+          ]
         : [];
       return {
         OR: [
@@ -779,6 +873,18 @@ export class MediaService {
         { roIds: { startsWith: `${token},` } },
         { roIds: { endsWith: `,${token}` } },
         { roIds: { contains: `,${token},` } },
+      ],
+    };
+  }
+
+  private exactJnvIdsWhere(jnvId: number): Prisma.MediaWhereInput {
+    const token = String(jnvId);
+    return {
+      OR: [
+        { jnvIds: token },
+        { jnvIds: { startsWith: `${token},` } },
+        { jnvIds: { endsWith: `,${token}` } },
+        { jnvIds: { contains: `,${token},` } },
       ],
     };
   }
@@ -851,7 +957,7 @@ export class MediaService {
         publicVisibility.push(
           this.headquartersSelectiveWhere(
             organization.parentOrganizationId,
-            true,
+            organization.id,
           ),
         );
       }
@@ -862,13 +968,19 @@ export class MediaService {
 
   private headquartersSelectiveWhere(
     roId: number,
-    forJnv = false,
+    jnvId?: number,
   ): Prisma.MediaWhereInput {
+    const selectivelyVisible: Prisma.MediaWhereInput = {
+      OR: [{ visibleToAll: false }, { visibleToAll: null }],
+    };
+
     return {
-      visibleToAll: { not: true },
-      ...(forJnv ? { visibleToJnv: true } : {}),
       organization: { organizationType: { code: 'HEADQUARTER' } },
-      ...this.exactRoIdsWhere(roId),
+      AND: [
+        selectivelyVisible,
+        this.exactRoIdsWhere(roId),
+        ...(jnvId === undefined ? [] : [this.exactJnvIdsWhere(jnvId)]),
+      ],
     };
   }
 
@@ -932,7 +1044,7 @@ export class MediaService {
       is_active: media.isActive,
       visible_to_all: media.visibleToAll,
       ro_ids: media.roIds,
-      visible_to_jnv: media.visibleToJnv,
+      jnv_ids: media.jnvIds,
       important_link_1: media.importantLink1,
       important_link_2: media.importantLink2,
       important_link_3: media.importantLink3,
@@ -973,7 +1085,7 @@ export class MediaService {
       isActive: media.isActive,
       visibleToAll: media.visibleToAll,
       roIds: media.roIds,
-      visibleToJnv: media.visibleToJnv,
+      jnvIds: media.jnvIds,
       importantLink1: media.importantLink1,
       importantLink2: media.importantLink2,
       importantLink3: media.importantLink3,
@@ -1006,6 +1118,13 @@ export class MediaService {
       download_url: `/api/public/media/${media.id}/download${
         organizationId === undefined ? '' : `?organization_id=${organizationId}`
       }`,
+      hindi_download_url: media.hindiFilePath
+        ? `/api/public/media/${media.id}/download/hindi${
+            organizationId === undefined
+              ? ''
+              : `?organization_id=${organizationId}`
+          }`
+        : null,
     };
   }
 
@@ -1018,6 +1137,19 @@ export class MediaService {
       extension: media.extension,
       fileSize: media.fileSize,
       checksum: media.checksum,
+      uploadedAt: media.uploadedAt,
+    };
+  }
+
+  private hindiMediaFileData(media: Media) {
+    return {
+      hindiOriginalFilename: media.hindiOriginalFilename,
+      hindiStoredFilename: media.hindiStoredFilename,
+      hindiFilePath: media.hindiFilePath,
+      hindiMimeType: media.hindiMimeType,
+      hindiExtension: media.hindiExtension,
+      hindiFileSize: media.hindiFileSize,
+      hindiChecksum: media.hindiChecksum,
       uploadedAt: media.uploadedAt,
     };
   }

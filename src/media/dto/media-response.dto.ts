@@ -22,7 +22,7 @@ export class MediaResponseDto {
   is_active: boolean;
   visible_to_all: boolean | null;
   ro_ids: string | null;
-  visible_to_jnv: boolean | null;
+  jnv_ids: string | null;
   important_link_1: boolean | null;
   important_link_2: boolean | null;
   important_link_3: boolean | null;

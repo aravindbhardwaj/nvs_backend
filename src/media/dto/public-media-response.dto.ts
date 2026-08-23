@@ -8,4 +8,5 @@ export class PublicMediaResponseDto {
   start_date: string | null;
   end_date: string | null;
   download_url: string;
+  hindi_download_url: string | null;
 }

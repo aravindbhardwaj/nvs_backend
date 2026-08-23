@@ -67,4 +67,23 @@ export class PublicMediaController {
     document.stream.on('error', () => response.destroy());
     document.stream.pipe(response);
   }
+
+  @Get(':id/download/hindi')
+  async downloadHindi(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('organization_id') organizationId: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const document = await this.media.publicDownloadHindi(
+      id,
+      organizationId === undefined ? undefined : Number(organizationId),
+    );
+    response.setHeader('Content-Type', document.mimeType);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(document.filename)}`,
+    );
+    document.stream.on('error', () => response.destroy());
+    document.stream.pipe(response);
+  }
 }

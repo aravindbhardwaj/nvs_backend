@@ -82,9 +82,11 @@ export class UploadMediaDto {
   ro_ids?: string | null;
 
   @IsOptional()
-  @Transform(toBoolean)
-  @IsBoolean()
-  visible_to_jnv?: boolean | null;
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  jnv_ids?: string | null;
 
   @IsOptional()
   @Transform(toBoolean)
