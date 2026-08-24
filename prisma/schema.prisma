@@ -465,6 +465,7 @@ model GalleryImage {
   fileSize           BigInt    @map("file_size")
   display_order       Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
+  visibleToAll       Boolean?  @map("visible_to_all")
   startDate          DateTime? @map("start_date") @db.Date
   endDate            DateTime? @map("end_date") @db.Date
   createdAt          DateTime  @default(now()) @map("created_at")
@@ -484,6 +485,7 @@ model GalleryImage {
   @@index([isActive])
   @@index([display_order])
   @@index([organizationId, isActive, display_order])
+  @@index([organizationId, visibleToAll])
   @@index([isDeleted])
   @@map("nvs_gallery_images")
 }

@@ -23,9 +23,14 @@ export class PublicGalleryController {
   }
   @Get(':id/image') async image(
     @Param('id', ParseIntPipe) id: number,
+    @Query('organization_id') organizationId: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
-    const image = await this.gallery.imageStream(id);
+    const image = await this.gallery.imageStream(
+      id,
+      undefined,
+      organizationId === undefined ? undefined : Number(organizationId),
+    );
     response.setHeader('Content-Type', image.mimeType);
     image.stream.on('error', () => response.destroy());
     image.stream.pipe(response);

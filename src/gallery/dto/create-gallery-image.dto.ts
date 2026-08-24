@@ -41,6 +41,7 @@ export class CreateGalleryImageDto {
   altTextHindi?: string;
   @IsOptional() @Type(() => Number) @IsInt() display_order?: number;
   @IsOptional() @Transform(boolean) @IsBoolean() isActive?: boolean;
+  @IsOptional() @Transform(boolean) @IsBoolean() visible_to_all?: boolean;
   @IsOptional() @IsDateString({ strict: true }) start_date?: string;
   @IsOptional() @IsDateString({ strict: true }) end_date?: string;
 }

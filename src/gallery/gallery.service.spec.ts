@@ -22,15 +22,43 @@ describe('GalleryService', () => {
   const service = new GalleryService(prisma as never, ownership);
   beforeEach(() => jest.clearAllMocks());
 
-  it('limits a non-super-admin management list to the actor organization', async () => {
+  it('limits a Headquarters management list to the actor organization', async () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
     await service.findAll(
       { page: 1, limit: 20, sort: 'display_order', order: 'asc' },
       actor,
     );
     expect(prisma.galleryImage.findMany.mock.calls[0][0]).toMatchObject({
-      where: { organizationId: 5, isDeleted: false },
+      where: { isDeleted: false, AND: [{ organizationId: 5 }] },
       orderBy: { display_order: 'asc' },
+    });
+  });
+
+  it('includes own, Headquarters, and parent Regional Office images for a JNV', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+    await service.findAll(
+      { page: 1, limit: 20, sort: 'display_order', order: 'asc' },
+      { ...actor, role: Role.JNV, organizationId: 28 },
+    );
+    expect(prisma.galleryImage.findMany.mock.calls[0][0].where).toMatchObject({
+      AND: [
+        {
+          OR: [
+            { organizationId: 28 },
+            {
+              visibleToAll: true,
+              organization: { organizationType: { code: 'HEADQUARTER' } },
+            },
+            {
+              visibleToAll: true,
+              organization: {
+                organizationType: { code: 'REGIONAL_OFFICE' },
+                childOrganizations: { some: { id: 28 } },
+              },
+            },
+          ],
+        },
+      ],
     });
   });
 
@@ -38,7 +66,11 @@ describe('GalleryService', () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
     await service.findPublic({ page: 1, limit: 20 });
     expect(prisma.galleryImage.findMany.mock.calls[0][0]).toMatchObject({
-      where: expect.objectContaining({ isDeleted: false, isActive: true }),
+      where: expect.objectContaining({
+        isDeleted: false,
+        isActive: true,
+        AND: expect.arrayContaining([{ visibleToAll: true }]),
+      }),
       orderBy: [{ display_order: 'asc' }, { createdAt: 'desc' }],
     });
   });

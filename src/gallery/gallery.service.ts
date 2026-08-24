@@ -63,6 +63,7 @@ export class GalleryService {
           fileSize: BigInt(file.size),
           display_order: dto.display_order ?? 0,
           isActive: dto.isActive ?? true,
+          visibleToAll: dto.visible_to_all ?? null,
           startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
           endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           createdById: actor.id,
@@ -105,6 +106,7 @@ export class GalleryService {
               fileSize: BigInt(file.size),
               display_order: (dto.display_order ?? 0) + index,
               isActive: dto.isActive ?? true,
+              visibleToAll: dto.visible_to_all ?? null,
               startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
               endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
               createdById: actor.id,
@@ -145,8 +147,7 @@ export class GalleryService {
     id: number,
     actor: AuthenticatedUser,
   ): Promise<GalleryImageResponseDto> {
-    const image = await this.active(id);
-    this.ownership.assertAccess(image.organizationId, actor);
+    const image = await this.viewable(id, actor);
     return this.response(image);
   }
 
@@ -177,6 +178,9 @@ export class GalleryService {
           altTextHindi: dto.altTextHindi,
           display_order: dto.display_order,
           isActive: dto.isActive,
+          ...(dto.visible_to_all === undefined
+            ? {}
+            : { visibleToAll: dto.visible_to_all }),
           ...(dto.start_date === undefined
             ? {}
             : {
@@ -322,17 +326,7 @@ export class GalleryService {
   async findPublic(
     query: GetPublicGalleryImagesQueryDto,
   ): Promise<PaginatedResponseDto<PublicGalleryImageResponseDto>> {
-    const where = {
-      isDeleted: false,
-      isActive: true,
-      ...(query.organization_id
-        ? { organizationId: query.organization_id }
-        : {}),
-      AND: [
-        { OR: [{ startDate: null }, { startDate: { lte: new Date() } }] },
-        { OR: [{ endDate: null }, { endDate: { gte: new Date() } }] },
-      ],
-    };
+    const where = await this.publicWhere(query.organization_id);
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
         where,
@@ -343,7 +337,9 @@ export class GalleryService {
       this.prisma.galleryImage.count({ where }),
     ]);
     return {
-      items: images.map((image) => this.publicResponse(image)),
+      items: images.map((image) =>
+        this.publicResponse(image, query.organization_id),
+      ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
   }
@@ -351,25 +347,17 @@ export class GalleryService {
   async imageStream(
     id: number,
     actor?: AuthenticatedUser,
+    organizationId?: number,
   ): Promise<{
     stream: ReturnType<typeof createReadStream>;
     mimeType: string;
   }> {
     const image = actor
-      ? await this.active(id)
+      ? await this.viewable(id, actor)
       : await this.prisma.galleryImage.findFirst({
-          where: {
-            id,
-            isDeleted: false,
-            isActive: true,
-            AND: [
-              { OR: [{ startDate: null }, { startDate: { lte: new Date() } }] },
-              { OR: [{ endDate: null }, { endDate: { gte: new Date() } }] },
-            ],
-          },
+          where: { id, ...(await this.publicWhere(organizationId)) },
         });
     if (!image) throw new NotFoundException('Gallery image not found.');
-    if (actor) this.ownership.assertAccess(image.organizationId, actor);
     const path = this.absolutePath(image.imagePath);
     await access(path).catch(() => {
       throw new NotFoundException('The gallery image is no longer available.');
@@ -384,6 +372,24 @@ export class GalleryService {
   private async active(id: number): Promise<GalleryImage> {
     const image = await this.prisma.galleryImage.findFirst({
       where: { id, isDeleted: false },
+    });
+    if (!image)
+      throw new NotFoundException(
+        'Gallery image not found or has been deleted.',
+      );
+    return image;
+  }
+  private async viewable(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<GalleryImage> {
+    const visibility = this.visibilityWhere({}, actor);
+    const image = await this.prisma.galleryImage.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+        ...(visibility ? { AND: [visibility] } : {}),
+      },
     });
     if (!image)
       throw new NotFoundException(
@@ -417,12 +423,9 @@ export class GalleryService {
     const where: Prisma.GalleryImageWhereInput = {
       isDeleted: query.isDeleted ?? false,
       ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
-      ...(actor.role === Role.SUPER_ADMIN
-        ? query.organizationId
-          ? { organizationId: query.organizationId }
-          : {}
-        : { organizationId: actor.organizationId }),
     };
+    const visibility = this.visibilityWhere(query, actor);
+    if (visibility) where.AND = [visibility];
     if (query.search?.trim())
       where.OR = [
         {
@@ -452,6 +455,87 @@ export class GalleryService {
         },
       ];
     return where;
+  }
+  private visibilityWhere(
+    query: Pick<GetGalleryImagesQueryDto, 'organizationId'>,
+    actor: AuthenticatedUser,
+  ): Prisma.GalleryImageWhereInput | undefined {
+    if (actor.role === Role.SUPER_ADMIN)
+      return query.organizationId
+        ? { organizationId: query.organizationId }
+        : undefined;
+    if (query.organizationId) return { organizationId: actor.organizationId };
+
+    const own = { organizationId: actor.organizationId };
+    const headquartersShared: Prisma.GalleryImageWhereInput = {
+      visibleToAll: true,
+      organization: { organizationType: { code: 'HEADQUARTER' } },
+    };
+    if (actor.role === Role.HEADQUARTER) return own;
+    if (actor.role === Role.NLI || actor.role === Role.REGIONAL)
+      return { OR: [own, headquartersShared] };
+    if (actor.role === Role.JNV)
+      return {
+        OR: [
+          own,
+          headquartersShared,
+          {
+            visibleToAll: true,
+            organization: {
+              organizationType: { code: 'REGIONAL_OFFICE' },
+              childOrganizations: { some: { id: actor.organizationId } },
+            },
+          },
+        ],
+      };
+    return own;
+  }
+  private async publicWhere(
+    organizationId?: number,
+  ): Promise<Prisma.GalleryImageWhereInput> {
+    if (
+      organizationId !== undefined &&
+      (!Number.isSafeInteger(organizationId) || organizationId < 1)
+    )
+      throw new BadRequestException(
+        'organization_id must be a positive integer.',
+      );
+    const now = new Date();
+    const dates: Prisma.GalleryImageWhereInput[] = [
+      { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+      { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+    ];
+    const base = { isDeleted: false, isActive: true };
+    if (organizationId === undefined)
+      return { ...base, AND: [...dates, { visibleToAll: true }] };
+
+    const organization = await this.prisma.organization.findFirst({
+      where: { id: organizationId, isDeleted: false },
+      select: {
+        id: true,
+        parentOrganizationId: true,
+        organizationType: { select: { code: true } },
+      },
+    });
+    if (!organization) throw new NotFoundException('Organization not found.');
+
+    const visible: Prisma.GalleryImageWhereInput[] = [
+      { organizationId: organization.id },
+      {
+        visibleToAll: true,
+        organization: { organizationType: { code: 'HEADQUARTER' } },
+      },
+    ];
+    if (
+      organization.organizationType.code === 'JNV' &&
+      organization.parentOrganizationId
+    )
+      visible.push({
+        visibleToAll: true,
+        organizationId: organization.parentOrganizationId,
+        organization: { organizationType: { code: 'REGIONAL_OFFICE' } },
+      });
+    return { ...base, AND: [...dates, { OR: visible }] };
   }
   private async audit(
     tx: Prisma.TransactionClient,
@@ -488,6 +572,7 @@ export class GalleryService {
       fileSize: image.fileSize.toString(),
       display_order: image.display_order,
       isActive: image.isActive,
+      visible_to_all: image.visibleToAll,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
       createdAt: image.createdAt,
@@ -495,7 +580,10 @@ export class GalleryService {
       isDeleted: image.isDeleted,
     };
   }
-  private publicResponse(image: GalleryImage): PublicGalleryImageResponseDto {
+  private publicResponse(
+    image: GalleryImage,
+    organizationId?: number,
+  ): PublicGalleryImageResponseDto {
     return {
       id: image.id,
       title_english: image.titleEnglish,
@@ -504,7 +592,9 @@ export class GalleryService {
       description_hindi: image.descriptionHindi,
       alt_text_english: image.altTextEnglish,
       alt_text_hindi: image.altTextHindi,
-      image_url: `/api/public/gallery/${image.id}/image`,
+      image_url: `/api/public/gallery/${image.id}/image${
+        organizationId ? `?organization_id=${organizationId}` : ''
+      }`,
       display_order: image.display_order,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
@@ -527,6 +617,7 @@ export class GalleryService {
       fileSize: image.fileSize.toString(),
       display_order: image.display_order,
       isActive: image.isActive,
+      visibleToAll: image.visibleToAll,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
       isDeleted: image.isDeleted,
