@@ -33,6 +33,18 @@ describe('VisitorAnalyticsController', () => {
         VisitorAnalyticsController.prototype.captureVisit,
       ),
     ).toContain(ThrottlerGuard);
+    expect(
+      Reflect.getMetadata(
+        'THROTTLER:LIMITdefault',
+        VisitorAnalyticsController.prototype.captureVisit,
+      ),
+    ).toBe(100);
+    expect(
+      Reflect.getMetadata(
+        'THROTTLER:TTLdefault',
+        VisitorAnalyticsController.prototype.captureVisit,
+      ),
+    ).toBe(60_000);
   });
 
   it('marks the aggregate visitor counter as public', () => {

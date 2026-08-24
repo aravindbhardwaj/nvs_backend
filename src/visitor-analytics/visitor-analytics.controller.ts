@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
@@ -21,6 +21,12 @@ export class VisitorAnalyticsController {
   @Post('visit')
   @Public()
   @UseGuards(ThrottlerGuard)
+  @Throttle({
+    default: {
+      ttl: Number(process.env.VISITOR_RATE_LIMIT_TTL_MS ?? 60_000),
+      limit: Number(process.env.VISITOR_RATE_LIMIT_MAX_REQUESTS ?? 100),
+    },
+  })
   async captureVisit(@Body() dto: CaptureVisitDto) {
     await this.visitorAnalyticsService.captureVisit(dto);
     return { message: 'Visitor activity captured successfully.', data: {} };
