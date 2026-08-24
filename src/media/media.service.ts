@@ -79,6 +79,7 @@ export class MediaService {
           ...(hindiFile ? await this.hindiFileData(hindiFile) : {}),
           display_order: dto.display_order ?? 0,
           isActive: dto.is_active ?? true,
+          isNew: dto.is_new ?? null,
           visibleToAll: visibility.visibleToAll,
           roIds: visibility.roIds,
           jnvIds: visibility.jnvIds,
@@ -221,6 +222,7 @@ export class MediaService {
             : { sharedMediaTypeIds }),
           display_order: dto.display_order,
           isActive: dto.is_active,
+          isNew: dto.is_new,
           ...(dto.visible_to_all === undefined
             ? {}
             : { visibleToAll: visibility.visibleToAll }),
@@ -1044,6 +1046,7 @@ export class MediaService {
         : null,
       display_order: media.display_order,
       is_active: media.isActive,
+      is_new: media.isNew,
       visible_to_all: media.visibleToAll,
       ro_ids: media.roIds,
       jnv_ids: media.jnvIds,
@@ -1085,6 +1088,7 @@ export class MediaService {
       hindiChecksum: media.hindiChecksum,
       display_order: media.display_order,
       isActive: media.isActive,
+      isNew: media.isNew,
       visibleToAll: media.visibleToAll,
       roIds: media.roIds,
       jnvIds: media.jnvIds,
@@ -1115,6 +1119,7 @@ export class MediaService {
       title_hindi: media.titleHindi,
       description_english: media.descriptionEnglish,
       description_hindi: media.descriptionHindi,
+      is_new: media.isNew,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
       download_url: `/api/public/media/${media.id}/download${

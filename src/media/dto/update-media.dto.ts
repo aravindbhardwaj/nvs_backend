@@ -69,6 +69,11 @@ export class UpdateMediaDto {
   @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
+  is_new?: boolean | null;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
   visible_to_all?: boolean | null;
 
   @IsOptional()

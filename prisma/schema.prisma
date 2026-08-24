@@ -372,6 +372,7 @@ model Media {
   hindiChecksum         String?   @map("hindi_checksum") @db.VarChar(255)
   display_order          Int       @default(0) @map("display_order")
   isActive              Boolean   @default(true) @map("is_active")
+  isNew                 Boolean?  @map("is_new")
   visibleToAll          Boolean?  @map("visible_to_all")
   roIds                 String?   @map("ro_ids") @db.Text
   jnvIds                String?   @map("jnv_ids") @db.Text

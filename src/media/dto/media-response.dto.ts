@@ -20,6 +20,7 @@ export class MediaResponseDto {
   hindiDownloadUrl: string | null;
   display_order: number;
   is_active: boolean;
+  is_new: boolean | null;
   visible_to_all: boolean | null;
   ro_ids: string | null;
   jnv_ids: string | null;
