@@ -46,7 +46,9 @@ export class MediaService {
   ): Promise<MediaResponseDto> {
     validateMediaFile(file);
     if (hindiFile) validateMediaFile(hindiFile);
-    this.assertDateRange(dto.start_date, dto.end_date);
+    const startDate =
+      dto.start_date?.trim() || new Date().toISOString().slice(0, 10);
+    this.assertDateRange(startDate, dto.end_date);
     const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
@@ -65,7 +67,7 @@ export class MediaService {
           titleHindi: dto.titleHindi,
           descriptionEnglish: dto.descriptionEnglish ?? null,
           descriptionHindi: dto.descriptionHindi ?? null,
-          startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
+          startDate: toCalendarDate(startDate),
           endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           originalFilename: this.sanitizeFilename(file.originalname),
           storedFilename: file.filename,

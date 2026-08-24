@@ -13,6 +13,12 @@ import {
 const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
+const emptyDateToUndefined = ({ value }: { value: unknown }): unknown => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
+};
+
 const toBoolean = ({ value }: { value: unknown }): unknown =>
   value === undefined || value === null
     ? value
@@ -104,6 +110,7 @@ export class UploadMediaDto {
   important_link_3?: boolean | null;
 
   @IsOptional()
+  @Transform(emptyDateToUndefined)
   @IsDateString({ strict: true })
   start_date?: string;
 

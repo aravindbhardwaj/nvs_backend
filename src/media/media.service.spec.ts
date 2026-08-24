@@ -143,6 +143,37 @@ describe('MediaService', () => {
     );
   });
 
+  it.each([undefined, ''])(
+    'defaults a missing or empty upload start date to today',
+    async (startDate) => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-24T18:30:00.000Z'));
+
+      try {
+        await service.upload(
+          {
+            titleEnglish: 'Official notice',
+            titleHindi: 'आधिकारिक सूचना',
+            mediaTypeId: 1,
+            start_date: startDate,
+          },
+          file,
+          undefined,
+          headquartersUser,
+        );
+
+        expect(transaction.media.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              startDate: new Date('2026-08-24T00:00:00.000Z'),
+            }),
+          }),
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    },
+  );
+
   it('stores independent important-link flags during upload', async () => {
     await service.upload(
       {
