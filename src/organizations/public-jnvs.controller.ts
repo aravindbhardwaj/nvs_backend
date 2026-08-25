@@ -9,6 +9,14 @@ import { OrganizationsService } from './organizations.service';
 export class PublicJnvsController {
   constructor(private readonly organizations: OrganizationsService) {}
 
+  @Get('state-map')
+  async stateMap() {
+    return {
+      message: 'JNV state map retrieved successfully.',
+      data: await this.organizations.findPublicJnvStateMap(),
+    };
+  }
+
   @Get()
   async findAll(@Query() query: GetPublicJnvsQueryDto) {
     return {

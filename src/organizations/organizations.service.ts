@@ -122,6 +122,40 @@ export class OrganizationsService {
     };
   }
 
+  async findMaster(query: GetOrganizationsQueryDto): Promise<
+    PaginatedResponseDto<{
+      id: number;
+      name: string;
+      organizationTypeId: number;
+    }>
+  > {
+    const { page, limit, sort, order } = query;
+    const where = this.buildWhere(query);
+    const [organizations, totalItems] = await this.prisma.$transaction([
+      this.prisma.organization.findMany({
+        where,
+        select: {
+          id: true,
+          organizationName: true,
+          organizationTypeId: true,
+        },
+        orderBy: { [sort]: order },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.organization.count({ where }),
+    ]);
+
+    return {
+      items: organizations.map((organization) => ({
+        id: organization.id,
+        name: organization.organizationName,
+        organizationTypeId: organization.organizationTypeId,
+      })),
+      meta: PaginationUtil.buildMeta(page, limit, totalItems),
+    };
+  }
+
   async findOne(id: number): Promise<OrganizationResponseDto> {
     const organization = await this.prisma.organization.findFirst({
       where: { id, isDeleted: false },
@@ -168,6 +202,45 @@ export class OrganizationsService {
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
+  }
+
+  async findPublicJnvStateMap(): Promise<
+    Record<string, [string, number, string]>
+  > {
+    const organizations = await this.prisma.organization.findMany({
+      where: {
+        organizationTypeId: JNV_ORGANIZATION_TYPE_ID,
+        isDeleted: false,
+        isFunctional: true,
+        state: { isActive: true, isDeleted: false },
+        region: { isDeleted: false },
+      },
+      select: {
+        state: { select: { isoCode: true } },
+        region: { select: { regionName: true } },
+      },
+      orderBy: [{ state: { isoCode: 'asc' } }, { id: 'asc' }],
+    });
+
+    return organizations.reduce<Record<string, [string, number, string]>>(
+      (stateMap, organization) => {
+        if (!organization.state || !organization.region) return stateMap;
+        const stateCode = organization.state.isoCode
+          .replace(/^IN-/i, '')
+          .toUpperCase();
+        const stateKey = stateCode.toLowerCase();
+        const regionName = organization.region.regionName.replace(
+          /\s+Region$/i,
+          '',
+        );
+        const current = stateMap[stateKey];
+        stateMap[stateKey] = current
+          ? [current[0], current[1] + 1, current[2]]
+          : [regionName, 1, stateCode];
+        return stateMap;
+      },
+      {},
+    );
   }
 
   async update(

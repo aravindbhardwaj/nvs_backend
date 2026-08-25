@@ -144,4 +144,26 @@ describe('OrganizationsService public JNV queries', () => {
       ro_name: null,
     });
   });
+
+  it('returns the public JNV state map grouped by state code', async () => {
+    prisma.organization.findMany.mockResolvedValue([
+      {
+        state: { isoCode: 'IN-AN' },
+        region: { regionName: 'Hyderabad' },
+      },
+      {
+        state: { isoCode: 'IN-AN' },
+        region: { regionName: 'Hyderabad' },
+      },
+      {
+        state: { isoCode: 'IN-AP' },
+        region: { regionName: 'Hyderabad Region' },
+      },
+    ]);
+
+    await expect(service.findPublicJnvStateMap()).resolves.toEqual({
+      an: ['Hyderabad', 2, 'AN'],
+      ap: ['Hyderabad', 1, 'AP'],
+    });
+  });
 });

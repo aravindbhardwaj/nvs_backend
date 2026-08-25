@@ -52,6 +52,15 @@ export class OrganizationsController {
     };
   }
 
+  @Get('master')
+  @RequirePermission('ORGANIZATION_VIEW')
+  async findMaster(@Query() query: GetOrganizationsQueryDto) {
+    return {
+      message: 'Organization master retrieved successfully.',
+      data: await this.organizationsService.findMaster(query),
+    };
+  }
+
   @Get(':id')
   @RequirePermission('ORGANIZATION_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {

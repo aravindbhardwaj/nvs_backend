@@ -190,6 +190,10 @@ export const PERMISSIONS = [
   ['GALLERY_VIEW', 'GALLERY', 'VIEW', 'View gallery images.'],
   ['GALLERY_UPDATE', 'GALLERY', 'UPDATE', 'Update gallery images.'],
   ['GALLERY_DELETE', 'GALLERY', 'DELETE', 'Delete gallery images.'],
+  ['LEADERSHIP_CREATE', 'LEADERSHIP', 'CREATE', 'Create leaders.'],
+  ['LEADERSHIP_VIEW', 'LEADERSHIP', 'VIEW', 'View leaders.'],
+  ['LEADERSHIP_UPDATE', 'LEADERSHIP', 'UPDATE', 'Update leaders.'],
+  ['LEADERSHIP_DELETE', 'LEADERSHIP', 'DELETE', 'Delete leaders.'],
   ['AUDIT_LOG_VIEW', 'AUDIT_LOG', 'VIEW', 'View audit logs.'],
   [
     'VISITOR_ANALYTICS_VIEW',
@@ -216,6 +220,10 @@ const BUSINESS_PERMISSION_KEYS = [
   'GALLERY_VIEW',
   'GALLERY_UPDATE',
   'GALLERY_DELETE',
+  'LEADERSHIP_CREATE',
+  'LEADERSHIP_VIEW',
+  'LEADERSHIP_UPDATE',
+  'LEADERSHIP_DELETE',
 ] as const;
 
 export const ROLE_PERMISSIONS: Record<Role, readonly string[]> = {
