@@ -168,6 +168,7 @@ model Organization {
 model User {
   id                    Int        @id @default(autoincrement())
   name                  String     @db.VarChar(150)
+  username              String?    @db.VarChar(150)
   email                 String     @unique @db.VarChar(255)
   passwordHash          String     @map("password") @db.VarChar(255)
   mobile                String?    @db.VarChar(20)
@@ -227,6 +228,9 @@ model User {
   createdLeaders         Leader[]         @relation("LeaderCreatedBy")
   updatedLeaders         Leader[]         @relation("LeaderUpdatedBy")
   deletedLeaders         Leader[]         @relation("LeaderDeletedBy")
+  createdModals          Modal[]          @relation("ModalCreatedBy")
+  updatedModals          Modal[]          @relation("ModalUpdatedBy")
+  deletedModals          Modal[]          @relation("ModalDeletedBy")
   createdUserPermissions UserPermission[] @relation("UserPermissionCreatedBy")
   refreshTokens          RefreshToken[]
   userPermissions        UserPermission[] @relation("UserPermissionUser")
@@ -450,6 +454,34 @@ model Banner {
   @@index([organizationId, isActive, display_order])
   @@index([isDeleted])
   @@map("nvs_banners")
+}
+
+model Modal {
+  id            Int       @id @default(autoincrement())
+  textEnglish   String    @map("text_english") @db.Text
+  textHindi     String    @map("text_hindi") @db.Text
+  link          String    @db.VarChar(2048)
+  display_order Int       @default(0) @map("display_order")
+  isActive      Boolean   @default(true) @map("is_active")
+  startDate     DateTime? @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdById   Int?      @map("created_by")
+  updatedById   Int?      @map("updated_by")
+  isDeleted     Boolean   @default(false) @map("is_deleted")
+  deletedAt     DateTime? @map("deleted_at")
+  deletedById   Int?      @map("deleted_by")
+
+  createdBy User? @relation("ModalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("ModalUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy User? @relation("ModalDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([isActive])
+  @@index([display_order])
+  @@index([isActive, display_order])
+  @@index([isDeleted])
+  @@map("nvs_modals")
 }
 
 model GalleryImage {

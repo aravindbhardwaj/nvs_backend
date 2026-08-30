@@ -24,6 +24,7 @@ import { GetMediaQueryDto } from './dto/get-media-query.dto';
 import { GetPublicMediaQueryDto } from './dto/get-public-media-query.dto';
 import { MediaResponseDto } from './dto/media-response.dto';
 import { PublicMediaResponseDto } from './dto/public-media-response.dto';
+import { SharedMediaPlacementDto } from './dto/shared-media-placement.dto';
 import { UpdateMediaDto } from './dto/update-media.dto';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { UPLOADS_ROOT, validateMediaFile } from './media.storage';
@@ -94,7 +95,7 @@ export class MediaService {
       await this.createAuditLog(transaction, actor.id, 'UPLOAD', createdMedia);
       return createdMedia;
     });
-    return this.toResponse(media);
+    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
   }
 
   async findAll(
@@ -114,8 +115,9 @@ export class MediaService {
       }),
       this.prisma.media.count({ where }),
     ]);
+    const placementNames = await this.sharedMediaPlacementNames(media);
     return {
-      items: media.map((item) => this.toResponse(item)),
+      items: media.map((item) => this.toResponse(item, placementNames)),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
   }
@@ -125,7 +127,7 @@ export class MediaService {
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
     const media = await this.findViewableMedia(id, actor);
-    return this.toResponse(media);
+    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
   }
 
   async download(
@@ -259,7 +261,7 @@ export class MediaService {
       );
       return updatedMedia;
     });
-    return this.toResponse(media);
+    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
   }
 
   async replaceFile(
@@ -322,7 +324,7 @@ export class MediaService {
         'Unable to replace the existing document file.',
       );
     }
-    return this.toResponse(media);
+    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
   }
 
   async remove(
@@ -356,7 +358,7 @@ export class MediaService {
       );
       return deletedMedia;
     });
-    return this.toResponse(media);
+    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
   }
 
   async restore(
@@ -388,7 +390,7 @@ export class MediaService {
       );
       return restoredMedia;
     });
-    return this.toResponse(media);
+    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
   }
 
   async cleanupUploadedFiles(
@@ -418,9 +420,10 @@ export class MediaService {
       }),
       this.prisma.media.count({ where }),
     ]);
+    const placementNames = await this.sharedMediaPlacementNames(media);
     return {
       items: media.map((item) =>
-        this.toPublicResponse(item, query.organization_id),
+        this.toPublicResponse(item, query.organization_id, placementNames),
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
@@ -440,9 +443,10 @@ export class MediaService {
       }),
       this.prisma.media.count({ where }),
     ]);
+    const placementNames = await this.sharedMediaPlacementNames(media);
     return {
       items: media.map((item) =>
-        this.toPublicResponse(item, query.organization_id),
+        this.toPublicResponse(item, query.organization_id, placementNames),
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
@@ -604,6 +608,36 @@ export class MediaService {
         'Every sharedMediaTypeIds value must identify an active media type.',
       );
     return ids.sort((left, right) => left - right).join(',');
+  }
+
+  private async sharedMediaPlacementNames(
+    media: Media[],
+  ): Promise<Map<number, string>> {
+    const ids = [
+      ...new Set(
+        media.flatMap((item) =>
+          item.sharedMediaTypeIds?.split(',').filter(Boolean).map(Number) ?? [],
+        ),
+      ),
+    ];
+    if (ids.length === 0) return new Map();
+    const mediaTypes = await this.prisma.mediaType.findMany({
+      where: { id: { in: ids }, isDeleted: false },
+      select: { id: true, nameEnglish: true },
+    });
+    return new Map(mediaTypes.map((type) => [type.id, type.nameEnglish]));
+  }
+
+  private sharedMediaPlacements(
+    sharedMediaTypeIds: string | null,
+    placementNames: Map<number, string>,
+  ): SharedMediaPlacementDto[] {
+    return (sharedMediaTypeIds?.split(',').filter(Boolean).map(Number) ?? [])
+      .filter((id) => placementNames.has(id))
+      .map((id) => ({
+        media_type_id: id,
+        placement_name: placementNames.get(id)!,
+      }));
   }
 
   private async ensureActiveOrganization(id: number): Promise<void> {
@@ -1021,12 +1055,19 @@ export class MediaService {
     });
   }
 
-  private toResponse(media: Media): MediaResponseDto {
+  private toResponse(
+    media: Media,
+    placementNames: Map<number, string>,
+  ): MediaResponseDto {
     return {
       id: media.id,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
       sharedMediaTypeIds: media.sharedMediaTypeIds,
+      shared_media_placements: this.sharedMediaPlacements(
+        media.sharedMediaTypeIds,
+        placementNames,
+      ),
       titleEnglish: media.titleEnglish,
       titleHindi: media.titleHindi,
       descriptionEnglish: media.descriptionEnglish,
@@ -1111,10 +1152,15 @@ export class MediaService {
   private toPublicResponse(
     media: Media,
     organizationId?: number,
+    placementNames: Map<number, string> = new Map(),
   ): PublicMediaResponseDto {
     return {
       id: media.id,
       media_type_id: media.mediaTypeId,
+      shared_media_placements: this.sharedMediaPlacements(
+        media.sharedMediaTypeIds,
+        placementNames,
+      ),
       title_english: media.titleEnglish,
       title_hindi: media.titleHindi,
       description_english: media.descriptionEnglish,

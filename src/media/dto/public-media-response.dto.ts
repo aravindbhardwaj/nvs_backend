@@ -1,6 +1,9 @@
+import { SharedMediaPlacementDto } from './shared-media-placement.dto';
+
 export class PublicMediaResponseDto {
   id: number;
   media_type_id: number;
+  shared_media_placements: SharedMediaPlacementDto[];
   title_english: string;
   title_hindi: string | null;
   description_english: string | null;

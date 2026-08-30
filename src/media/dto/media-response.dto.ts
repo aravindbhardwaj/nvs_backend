@@ -1,8 +1,11 @@
+import { SharedMediaPlacementDto } from './shared-media-placement.dto';
+
 export class MediaResponseDto {
   id: number;
   organizationId: number;
   mediaTypeId: number;
   sharedMediaTypeIds: string | null;
+  shared_media_placements: SharedMediaPlacementDto[];
   titleEnglish: string;
   titleHindi: string | null;
   descriptionEnglish: string | null;

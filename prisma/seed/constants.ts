@@ -194,6 +194,10 @@ export const PERMISSIONS = [
   ['LEADERSHIP_VIEW', 'LEADERSHIP', 'VIEW', 'View leaders.'],
   ['LEADERSHIP_UPDATE', 'LEADERSHIP', 'UPDATE', 'Update leaders.'],
   ['LEADERSHIP_DELETE', 'LEADERSHIP', 'DELETE', 'Delete leaders.'],
+  ['MODAL_CREATE', 'MODAL', 'CREATE', 'Create modals.'],
+  ['MODAL_VIEW', 'MODAL', 'VIEW', 'View modals.'],
+  ['MODAL_UPDATE', 'MODAL', 'UPDATE', 'Update modals.'],
+  ['MODAL_DELETE', 'MODAL', 'DELETE', 'Delete modals.'],
   ['AUDIT_LOG_VIEW', 'AUDIT_LOG', 'VIEW', 'View audit logs.'],
   [
     'VISITOR_ANALYTICS_VIEW',
@@ -224,6 +228,10 @@ const BUSINESS_PERMISSION_KEYS = [
   'LEADERSHIP_VIEW',
   'LEADERSHIP_UPDATE',
   'LEADERSHIP_DELETE',
+  'MODAL_CREATE',
+  'MODAL_VIEW',
+  'MODAL_UPDATE',
+  'MODAL_DELETE',
 ] as const;
 
 export const ROLE_PERMISSIONS: Record<Role, readonly string[]> = {

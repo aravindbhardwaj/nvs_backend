@@ -47,8 +47,15 @@ describe('MediaService', () => {
       Promise.resolve(where.id.in.map((id: number) => ({ id }))),
     );
     prisma.mediaType.findFirst.mockResolvedValue({ id: 1 });
-    prisma.mediaType.findMany.mockImplementation(({ where }) =>
-      Promise.resolve(where.id.in.map((id: number) => ({ id }))),
+    prisma.mediaType.findMany.mockImplementation(({ where, select }) =>
+      Promise.resolve(
+        where.id.in.map((id: number) => ({
+          id,
+          ...(select?.nameEnglish
+            ? { nameEnglish: id === 2 ? 'Notice Board' : 'Important Documents' }
+            : {}),
+        })),
+      ),
     );
     jest.spyOn(service as never, 'checksum').mockResolvedValue('checksum');
     prisma.$transaction.mockImplementation((callback) => callback(transaction));
@@ -218,6 +225,32 @@ describe('MediaService', () => {
         data: expect.objectContaining({ sharedMediaTypeIds: '2,5' }),
       }),
     );
+  });
+
+  it('derives shared media placement names for the response', async () => {
+    const result = await service.upload(
+      {
+        titleEnglish: 'Circular shared as a notice',
+        titleHindi: 'सूचना के रूप में साझा परिपत्र',
+        mediaTypeId: 1,
+        sharedMediaTypeIds: '2,5',
+      },
+      file,
+      undefined,
+      headquartersUser,
+    );
+
+    expect(transaction.media.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sharedMediaTypeIds: '2,5',
+        }),
+      }),
+    );
+    expect(result.shared_media_placements).toEqual([
+      { media_type_id: 2, placement_name: 'Notice Board' },
+      { media_type_id: 5, placement_name: 'Important Documents' },
+    ]);
   });
 
   it('matches the requested media type against primary and shared media types', async () => {

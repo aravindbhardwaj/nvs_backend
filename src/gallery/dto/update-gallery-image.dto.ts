@@ -1,4 +1,4 @@
-import { Transform, Type } from 'class-transformer';
+import { Transform, TransformFnParams, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
@@ -11,8 +11,12 @@ import {
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
-const boolean = ({ value }: { value: unknown }) =>
-  value === undefined ? undefined : value === true || value === 'true';
+const boolean = ({ value, obj, key }: TransformFnParams) => {
+  const rawValue = (obj as Record<string, unknown>)?.[key] ?? value;
+  if (rawValue === true || rawValue === 'true') return true;
+  if (rawValue === false || rawValue === 'false') return false;
+  return rawValue;
+};
 
 export class UpdateGalleryImageDto {
   @IsOptional()
