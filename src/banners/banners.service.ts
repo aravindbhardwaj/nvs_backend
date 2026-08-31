@@ -87,9 +87,16 @@ export class BannersService {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
-    const orderBy: Prisma.BannerOrderByWithRelationInput = {
-      [query.sort]: query.order,
-    };
+    const orderBy:
+      | Prisma.BannerOrderByWithRelationInput
+      | Prisma.BannerOrderByWithRelationInput[] =
+      query.sort === 'display_order'
+        ? [
+            { display_order: query.order },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ]
+        : { [query.sort]: query.order };
     const [banners, totalItems] = await this.prisma.$transaction([
       this.prisma.banner.findMany({
         where,
@@ -328,7 +335,11 @@ export class BannersService {
     const [banners, totalItems] = await this.prisma.$transaction([
       this.prisma.banner.findMany({
         where,
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),

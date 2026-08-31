@@ -78,9 +78,16 @@ export class PagesService {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
-    const orderBy: Prisma.PageOrderByWithRelationInput = {
-      [query.sort]: query.order,
-    };
+    const orderBy:
+      | Prisma.PageOrderByWithRelationInput
+      | Prisma.PageOrderByWithRelationInput[] =
+      query.sort === 'display_order'
+        ? [
+            { display_order: query.order },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ]
+        : { [query.sort]: query.order };
     const [pages, totalItems] = await this.prisma.$transaction([
       this.prisma.page.findMany({
         where,
@@ -124,7 +131,11 @@ export class PagesService {
     const [pages, totalItems] = await this.prisma.$transaction([
       this.prisma.page.findMany({
         where,
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),

@@ -49,9 +49,12 @@ export class ContentTypesService {
   ): Promise<PaginatedResponseDto<ContentTypeResponseDto>> {
     const { page, limit, search, sort, order, isDeleted } = query;
     const where = this.buildWhere(search, isDeleted);
-    const orderBy: Prisma.ContentTypeOrderByWithRelationInput = {
-      [sort]: order,
-    };
+    const orderBy:
+      | Prisma.ContentTypeOrderByWithRelationInput
+      | Prisma.ContentTypeOrderByWithRelationInput[] =
+      sort === 'display_order'
+        ? [{ display_order: order }, { createdAt: 'desc' }, { id: 'desc' }]
+        : { [sort]: order };
     const [contentTypes, totalItems] = await this.prisma.$transaction([
       this.prisma.contentType.findMany({
         where,

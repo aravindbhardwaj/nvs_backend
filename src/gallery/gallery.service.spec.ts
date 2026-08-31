@@ -30,7 +30,11 @@ describe('GalleryService', () => {
     );
     expect(prisma.galleryImage.findMany.mock.calls[0][0]).toMatchObject({
       where: { isDeleted: false, AND: [{ organizationId: 5 }] },
-      orderBy: { display_order: 'asc' },
+      orderBy: [
+        { display_order: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
   });
 
@@ -71,7 +75,11 @@ describe('GalleryService', () => {
         isActive: true,
         AND: expect.arrayContaining([{ visibleToAll: true }]),
       }),
-      orderBy: [{ display_order: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [
+        { display_order: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
   });
 

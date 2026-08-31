@@ -57,7 +57,11 @@ export class MenusService {
     const [items, totalItems] = await this.prisma.$transaction([
       this.prisma.menu.findMany({
         where,
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -186,7 +190,11 @@ export class MenusService {
         isActive: true,
         isDeleted: false,
       },
-      orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+      orderBy: [
+        { display_order: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
     return this.toTree(menus);
   }

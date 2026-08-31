@@ -88,7 +88,14 @@ export class LeadershipService {
         where,
         skip: (query.page - 1) * query.limit,
         take: query.limit,
-        orderBy: { [query.sort]: query.order },
+        orderBy:
+          query.sort === 'display_order'
+            ? [
+                { display_order: query.order },
+                { createdAt: 'desc' },
+                { id: 'desc' },
+              ]
+            : { [query.sort]: query.order },
       }),
       this.prisma.leader.count({ where }),
     ]);
@@ -184,7 +191,11 @@ export class LeadershipService {
   async findPublic() {
     const leaders = await this.prisma.leader.findMany({
       where: { isActive: true, isDeleted: false },
-      orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+      orderBy: [
+        { display_order: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
     return leaders.map((leader) => this.toPublicResponse(leader));
   }

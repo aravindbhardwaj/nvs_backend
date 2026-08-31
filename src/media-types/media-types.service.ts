@@ -49,7 +49,12 @@ export class MediaTypesService {
   ): Promise<PaginatedResponseDto<MediaTypeResponseDto>> {
     const { page, limit, search, sort, order, isDeleted } = query;
     const where = this.buildWhere(search, isDeleted);
-    const orderBy: Prisma.MediaTypeOrderByWithRelationInput = { [sort]: order };
+    const orderBy:
+      | Prisma.MediaTypeOrderByWithRelationInput
+      | Prisma.MediaTypeOrderByWithRelationInput[] =
+      sort === 'display_order'
+        ? [{ display_order: order }, { createdAt: 'desc' }, { id: 'desc' }]
+        : { [sort]: order };
     const [mediaTypes, totalItems] = await this.prisma.$transaction([
       this.prisma.mediaType.findMany({
         where,

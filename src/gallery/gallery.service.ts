@@ -131,7 +131,14 @@ export class GalleryService {
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
         where,
-        orderBy: { [query.sort]: query.order },
+        orderBy:
+          query.sort === 'display_order'
+            ? [
+                { display_order: query.order },
+                { createdAt: 'desc' },
+                { id: 'desc' },
+              ]
+            : { [query.sort]: query.order },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -330,7 +337,11 @@ export class GalleryService {
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
         where,
-        orderBy: [{ display_order: 'asc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),

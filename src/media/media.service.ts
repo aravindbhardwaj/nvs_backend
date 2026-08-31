@@ -414,7 +414,11 @@ export class MediaService {
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
         where,
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -437,7 +441,11 @@ export class MediaService {
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
         where,
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -1028,7 +1036,11 @@ export class MediaService {
     | Prisma.MediaOrderByWithRelationInput
     | Prisma.MediaOrderByWithRelationInput[] {
     if (query.sort === 'display_order')
-      return [{ display_order: query.order }, { id: 'asc' }];
+      return [
+        { display_order: query.order },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ];
     if (query.sort === 'is_active') return { isActive: query.order };
     return { [query.sort]: query.order };
   }

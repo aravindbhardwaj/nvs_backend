@@ -217,7 +217,11 @@ describe('BannersService', () => {
         isDeleted: false,
         AND: [{ organizationId: 5 }],
       },
-      orderBy: { display_order: 'asc' },
+      orderBy: [
+        { display_order: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
   });
 
@@ -258,7 +262,11 @@ describe('BannersService', () => {
 
     expect(prisma.banner.findMany.mock.calls[0][0]).toMatchObject({
       where: { isDeleted: false, isActive: true },
-      orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+      orderBy: [
+        { display_order: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
   });
 });

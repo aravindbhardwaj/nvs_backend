@@ -464,7 +464,11 @@ describe('MediaService', () => {
             },
           ],
         },
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
       }),
     );
   });
@@ -531,7 +535,11 @@ describe('MediaService', () => {
             }),
           ]),
         }),
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
       }),
     );
   });
@@ -556,7 +564,11 @@ describe('MediaService', () => {
           isActive: true,
           AND: expect.arrayContaining([{ importantLink2: true }]),
         }),
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
       }),
     );
   });

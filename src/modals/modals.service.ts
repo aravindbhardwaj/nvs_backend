@@ -86,7 +86,14 @@ export class ModalsService {
     const [modals, totalItems] = await this.prisma.$transaction([
       this.prisma.modal.findMany({
         where,
-        orderBy: { [this.sortField(query.sort)]: query.order },
+        orderBy:
+          query.sort === 'display_order'
+            ? [
+                { display_order: query.order },
+                { createdAt: 'desc' },
+                { id: 'desc' },
+              ]
+            : { [this.sortField(query.sort)]: query.order },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -271,7 +278,11 @@ export class ModalsService {
     const [modals, totalItems] = await this.prisma.$transaction([
       this.prisma.modal.findMany({
         where,
-        orderBy: [{ display_order: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
