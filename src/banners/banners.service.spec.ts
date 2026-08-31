@@ -121,9 +121,87 @@ describe('BannersService', () => {
     );
 
     expect(prisma.banner.count).toHaveBeenCalledWith({
-      where: { organizationId: 6, isDeleted: false },
+      where: { organizationId: 6, isDeleted: false, isActive: true },
     });
     expect(prisma.banner.create).toHaveBeenCalled();
+  });
+
+  it('does not count inactive banners toward the upload limit', async () => {
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback({ banner: prisma.banner, auditLog: prisma.auditLog }),
+    );
+    prisma.organization.findFirst.mockResolvedValue({ id: 5 });
+    prisma.banner.create.mockResolvedValue({
+      id: 1,
+      organizationId: 5,
+      titleEnglish: 'Inactive banner',
+      titleHindi: 'निष्क्रिय बैनर',
+      descriptionEnglish: null,
+      descriptionHindi: null,
+      altTextEnglish: null,
+      altTextHindi: null,
+      storedFilename: 'banner.png',
+      imagePath: 'resources/banner_uploads/banner.png',
+      mimeType: 'image/png',
+      extension: 'png',
+      fileSize: BigInt(8),
+      display_order: 0,
+      isActive: false,
+      visibleToAll: null,
+      startDate: null,
+      endDate: null,
+      createdById: actor.id,
+      updatedById: actor.id,
+      isDeleted: false,
+      deletedAt: null,
+      deletedById: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await service.create(
+      {
+        titleEnglish: 'Inactive banner',
+        titleHindi: 'निष्क्रिय बैनर',
+        isActive: false,
+      },
+      {
+        filename: 'banner.png',
+        path: 'resources/banner_uploads/banner.png',
+        mimetype: 'image/png',
+        originalname: 'banner.png',
+        size: 8,
+      } as Express.Multer.File,
+      actor,
+    );
+
+    expect(prisma.banner.count).not.toHaveBeenCalled();
+    expect(prisma.banner.create).toHaveBeenCalled();
+  });
+
+  it('returns the actionable message when the active banner limit is reached', async () => {
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback({ banner: prisma.banner, auditLog: prisma.auditLog }),
+    );
+    prisma.organization.findFirst.mockResolvedValue({ id: 5 });
+    prisma.banner.count.mockResolvedValue(5);
+
+    await expect(
+      service.create(
+        { titleEnglish: 'Banner', titleHindi: 'बैनर' },
+        {
+          filename: 'banner.png',
+          path: 'resources/banner_uploads/banner.png',
+          mimetype: 'image/png',
+          originalname: 'banner.png',
+          size: 8,
+        } as Express.Multer.File,
+        actor,
+      ),
+    ).rejects.toThrow(
+      'Banner limit reached. Please deactivate, delete, or replace an existing banner to continue.',
+    );
+    expect(prisma.banner.create).not.toHaveBeenCalled();
   });
 
   it('includes only the actor organization for a Headquarters management list', async () => {
