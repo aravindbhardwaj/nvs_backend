@@ -4,6 +4,7 @@ export class MediaResponseDto {
   id: number;
   organizationId: number;
   mediaTypeId: number;
+  mediaTypeName: string | null;
   sharedMediaTypeIds: string | null;
   shared_media_placements: SharedMediaPlacementDto[];
   titleEnglish: string;

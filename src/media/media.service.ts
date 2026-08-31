@@ -623,9 +623,13 @@ export class MediaService {
   ): Promise<Map<number, string>> {
     const ids = [
       ...new Set(
-        media.flatMap((item) =>
-          item.sharedMediaTypeIds?.split(',').filter(Boolean).map(Number) ?? [],
-        ),
+        media.flatMap((item) => [
+          item.mediaTypeId,
+          ...(item.sharedMediaTypeIds
+            ?.split(',')
+            .filter(Boolean)
+            .map(Number) ?? []),
+        ]),
       ),
     ];
     if (ids.length === 0) return new Map();
@@ -1075,6 +1079,7 @@ export class MediaService {
       id: media.id,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
+      mediaTypeName: placementNames.get(media.mediaTypeId) ?? null,
       sharedMediaTypeIds: media.sharedMediaTypeIds,
       shared_media_placements: this.sharedMediaPlacements(
         media.sharedMediaTypeIds,
@@ -1169,6 +1174,7 @@ export class MediaService {
     return {
       id: media.id,
       media_type_id: media.mediaTypeId,
+      media_type_name: placementNames.get(media.mediaTypeId) ?? null,
       shared_media_placements: this.sharedMediaPlacements(
         media.sharedMediaTypeIds,
         placementNames,

@@ -52,7 +52,14 @@ describe('MediaService', () => {
         where.id.in.map((id: number) => ({
           id,
           ...(select?.nameEnglish
-            ? { nameEnglish: id === 2 ? 'Notice Board' : 'Important Documents' }
+            ? {
+                nameEnglish:
+                  id === 1
+                    ? 'Circulars'
+                    : id === 2
+                      ? 'Notice Board'
+                      : 'Important Documents',
+              }
             : {}),
         })),
       ),
@@ -227,7 +234,7 @@ describe('MediaService', () => {
     );
   });
 
-  it('derives shared media placement names for the response', async () => {
+  it('derives primary and shared media type names for the response', async () => {
     const result = await service.upload(
       {
         titleEnglish: 'Circular shared as a notice',
@@ -247,6 +254,7 @@ describe('MediaService', () => {
         }),
       }),
     );
+    expect(result.mediaTypeName).toBe('Circulars');
     expect(result.shared_media_placements).toEqual([
       { media_type_id: 2, placement_name: 'Notice Board' },
       { media_type_id: 5, placement_name: 'Important Documents' },
