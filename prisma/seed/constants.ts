@@ -348,30 +348,35 @@ export const FOOTER_MENU_SEEDS = [
 export const SAMPLE_USERS = [
   {
     name: 'Super Administrator',
+    username: 'super.admin',
     email: 'super.admin@nvs.gov.in',
     role: Role.SUPER_ADMIN,
     organizationCode: 'NVS-HQ',
   },
   {
     name: 'Headquarters User',
+    username: 'headquarters.user',
     email: 'headquarters.user@nvs.gov.in',
     role: Role.HEADQUARTER,
     organizationCode: 'NVS-HQ',
   },
   {
     name: 'NLI User',
+    username: 'nli.user',
     email: 'nli.user@nvs.gov.in',
     role: Role.NLI,
     organizationCode: 'NLI-01',
   },
   {
     name: 'Regional User',
+    username: 'regional.user',
     email: 'regional.user@nvs.gov.in',
     role: Role.REGIONAL,
     organizationCode: 'RO-BHOPAL',
   },
   {
     name: 'JNV User',
+    username: 'jnv.user',
     email: 'jnv.user@nvs.gov.in',
     role: Role.JNV,
     organizationCode: 'JNV-BHOPAL',

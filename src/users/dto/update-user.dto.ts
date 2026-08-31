@@ -30,6 +30,13 @@ export class UpdateUserDto {
   email?: string;
 
   @IsOptional()
+  @Transform(normalizeEmail)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  username?: string;
+
+  @IsOptional()
   @Transform(trimValue)
   @IsString()
   @MaxLength(20)

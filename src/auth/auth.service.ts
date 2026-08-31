@@ -47,6 +47,24 @@ export class AuthService {
     });
   }
 
+  private async findUserByIdentifier(
+    identifier: string,
+  ): Promise<UserWithOrganizationType | null> {
+    const userByEmail = await this.findUserByEmail(identifier);
+
+    if (userByEmail) return userByEmail;
+
+    return this.prisma.user.findFirst({
+      where: {
+        username: {
+          equals: identifier,
+          mode: 'insensitive',
+        },
+      },
+      include: userWithOrganizationType,
+    });
+  }
+
   private async ensureUserCanLogin(
     user: UserWithOrganizationType,
   ): Promise<void> {
@@ -182,7 +200,8 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
-    const user = await this.findUserByEmail(dto.email);
+    const identifier = dto.email ?? dto.username!;
+    const user = await this.findUserByIdentifier(identifier);
 
     if (!user) {
       throw new UnauthorizedException('Invalid email or password.');

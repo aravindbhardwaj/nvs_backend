@@ -369,6 +369,7 @@ async function seedUsers(
       where: { email: user.email },
       update: {
         name: user.name,
+        username: user.username,
         organizationId,
         organizationTypeId,
         status: 'ACTIVE',
@@ -380,6 +381,7 @@ async function seedUsers(
       },
       create: {
         name: user.name,
+        username: user.username,
         email: user.email,
         passwordHash,
         organizationId,

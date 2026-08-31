@@ -39,6 +39,7 @@ export class UsersService {
     actor: AuthenticatedUser,
   ): Promise<UserResponseDto> {
     await this.ensureEmailIsUnique(dto.email);
+    if (dto.username) await this.ensureUsernameIsUnique(dto.username);
     await this.ensureOrganizationTypeCompatibility(
       dto.organizationId,
       dto.organization_type_id,
@@ -49,6 +50,7 @@ export class UsersService {
       const createdUser = await transaction.user.create({
         data: {
           name: dto.name,
+          username: dto.username ?? null,
           email: dto.email,
           passwordHash,
           mobile: dto.mobile ?? null,
@@ -116,6 +118,7 @@ export class UsersService {
   ): Promise<UserResponseDto> {
     const existingUser = await this.findActiveUser(id);
     if (dto.email) await this.ensureEmailIsUnique(dto.email, id);
+    if (dto.username) await this.ensureUsernameIsUnique(dto.username, id);
     const organizationId = dto.organizationId ?? existingUser.organizationId;
     const organizationTypeId =
       dto.organization_type_id ?? existingUser.organizationTypeId;
@@ -130,6 +133,7 @@ export class UsersService {
         where: { id },
         data: {
           name: dto.name,
+          username: dto.username,
           email: dto.email,
           mobile: dto.mobile,
           address: dto.address,
@@ -393,6 +397,21 @@ export class UsersService {
       throw new ConflictException('A user with this email already exists.');
   }
 
+  private async ensureUsernameIsUnique(
+    username: string,
+    excludedId?: number,
+  ): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        username: { equals: username, mode: 'insensitive' },
+        ...(excludedId ? { id: { not: excludedId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (user)
+      throw new ConflictException('A user with this username already exists.');
+  }
+
   private async ensureActiveOrganization(id: number): Promise<void> {
     const organization = await this.prisma.organization.findFirst({
       where: { id, isDeleted: false },
@@ -448,6 +467,7 @@ export class UsersService {
     if (query.search?.trim()) {
       where.OR = [
         { name: { contains: query.search.trim(), mode: 'insensitive' } },
+        { username: { contains: query.search.trim(), mode: 'insensitive' } },
         { email: { contains: query.search.trim(), mode: 'insensitive' } },
         { mobile: { contains: query.search.trim(), mode: 'insensitive' } },
       ];
@@ -459,6 +479,7 @@ export class UsersService {
     return {
       id: user.id,
       name: user.name,
+      username: user.username,
       email: user.email,
       mobile: user.mobile,
       address: user.address,
@@ -486,6 +507,7 @@ export class UsersService {
     return {
       id: user.id,
       name: user.name,
+      username: user.username,
       email: user.email,
       mobile: user.mobile,
       address: user.address,

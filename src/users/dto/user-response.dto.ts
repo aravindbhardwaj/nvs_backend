@@ -15,6 +15,7 @@ export class UserOrganizationTypeReferenceDto {
 export class UserResponseDto {
   id: number;
   name: string;
+  username: string | null;
   email: string;
   mobile: string | null;
   address: string | null;

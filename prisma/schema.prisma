@@ -168,7 +168,7 @@ model Organization {
 model User {
   id                    Int        @id @default(autoincrement())
   name                  String     @db.VarChar(150)
-  username              String?    @db.VarChar(150)
+  username              String?    @unique @db.VarChar(150)
   email                 String     @unique @db.VarChar(255)
   passwordHash          String     @map("password") @db.VarChar(255)
   mobile                String?    @db.VarChar(20)
