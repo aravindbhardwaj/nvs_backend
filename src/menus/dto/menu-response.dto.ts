@@ -11,6 +11,7 @@ export class MenuResponseDto {
   link_target: number;
   display_order: number;
   is_active: boolean;
+  show_on_all_organizations: boolean;
   created_at: Date;
   updated_at: Date;
   is_deleted: boolean;

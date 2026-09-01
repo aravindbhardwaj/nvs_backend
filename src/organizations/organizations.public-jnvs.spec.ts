@@ -33,8 +33,17 @@ describe('OrganizationsService public JNV queries', () => {
           address: 'LEPAKSHI, SRI SATHYA SAI (ANANTAPUR) - 515331',
           estdYear: 1987,
           studentsCount: 0,
-          region: { regionCode: 'BHOPAL', regionName: 'Bhopal Region' },
-          state: { stateName: 'Andhra Pradesh', isoCode: 'IN-AP' },
+          region: {
+            dcRoName: 'BHOPAL',
+            dcRoNameHi: 'भोपाल',
+            regionName: 'Bhopal Region',
+            regionNameHi: 'भोपाल क्षेत्र',
+          },
+          state: {
+            stateName: 'Andhra Pradesh',
+            nameHi: 'आंध्र प्रदेश',
+            isoCode: 'IN-AP',
+          },
           district: {
             districtName: 'SRI SATHYA SAI (ANANTAPUR)',
             nameHi: 'श्री सत्य साईं (अनंतपुर)',
@@ -50,18 +59,22 @@ describe('OrganizationsService public JNV queries', () => {
       items: [
         {
           id: 112,
-          name: 'JNV SRI SATHYA SAI (ANANTAPUR)',
+          name: 'JNV SRI SATHYA SAI (ANANTAPUR), Andhra Pradesh',
           stateCode: 'AP',
           address: 'LEPAKSHI, SRI SATHYA SAI (ANANTAPUR) - 515331',
           state: 'Andhra Pradesh',
+          stateHi: 'आंध्र प्रदेश',
           district: 'SRI SATHYA SAI (ANANTAPUR)',
           schoolUrl: '/nvs-school/ap/sssa',
           estd: 1987,
           students: 0,
           districtHi: 'श्री सत्य साईं (अनंतपुर)',
-          nameHi: 'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी',
+          nameHi:
+            'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी, श्री सत्य साईं',
           dc_ro_name: 'BHOPAL',
+          dc_ro_name_hi: 'भोपाल',
           ro_name: 'Bhopal Region',
+          ro_name_hi: 'भोपाल क्षेत्र',
         },
       ],
       meta: {
@@ -134,6 +147,7 @@ describe('OrganizationsService public JNV queries', () => {
       stateCode: null,
       address: null,
       state: null,
+      stateHi: null,
       district: null,
       schoolUrl: null,
       estd: null,
@@ -141,7 +155,9 @@ describe('OrganizationsService public JNV queries', () => {
       districtHi: null,
       nameHi: null,
       dc_ro_name: null,
+      dc_ro_name_hi: null,
       ro_name: null,
+      ro_name_hi: null,
     });
   });
 

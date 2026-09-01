@@ -74,4 +74,8 @@ export class UpdateMenuDto {
   @Transform(toBoolean)
   @IsBoolean()
   is_active?: boolean;
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  show_on_all_organizations?: boolean;
 }

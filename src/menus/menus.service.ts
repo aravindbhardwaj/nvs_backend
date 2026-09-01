@@ -40,6 +40,7 @@ export class MenusService {
           linkTarget: dto.link_target ?? LINK_TARGET.SAME_PAGE,
           display_order: dto.display_order ?? 0,
           isActive: dto.is_active ?? true,
+          showOnAllOrganizations: dto.show_on_all_organizations ?? false,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -141,6 +142,9 @@ export class MenusService {
             ? {}
             : { display_order: dto.display_order }),
           ...(dto.is_active === undefined ? {} : { isActive: dto.is_active }),
+          ...(dto.show_on_all_organizations === undefined
+            ? {}
+            : { showOnAllOrganizations: dto.show_on_all_organizations }),
           updatedById: actor.id,
         },
       });
@@ -183,12 +187,31 @@ export class MenusService {
       throw new NotFoundException(
         'Organization type not found or is inactive.',
       );
+    const sharedOrganizationTypeCodes =
+      organizationType.code === 'JNV'
+        ? ['HEADQUARTER', 'REGIONAL_OFFICE']
+        : organizationType.code === 'REGIONAL_OFFICE' ||
+            organizationType.code === 'NLI'
+          ? ['HEADQUARTER']
+          : [];
     const menus = await this.prisma.menu.findMany({
       where: {
-        organizationTypeId: query.organization_type_id,
         menuLocation: query.menu_location,
         isActive: true,
         isDeleted: false,
+        ...(sharedOrganizationTypeCodes.length === 0
+          ? { organizationTypeId: query.organization_type_id }
+          : {
+              OR: [
+                { organizationTypeId: query.organization_type_id },
+                {
+                  organizationType: {
+                    code: { in: sharedOrganizationTypeCodes },
+                  },
+                  showOnAllOrganizations: true,
+                },
+              ],
+            }),
       },
       orderBy: [
         { display_order: 'asc' },
@@ -373,6 +396,7 @@ export class MenusService {
       link_target: menu.linkTarget,
       display_order: menu.display_order,
       is_active: menu.isActive,
+      show_on_all_organizations: menu.showOnAllOrganizations,
       created_at: menu.createdAt,
       updated_at: menu.updatedAt,
       is_deleted: menu.isDeleted,
@@ -427,6 +451,7 @@ export class MenusService {
       link_target: menu.linkTarget,
       display_order: menu.display_order,
       is_active: menu.isActive,
+      show_on_all_organizations: menu.showOnAllOrganizations,
       is_deleted: menu.isDeleted,
     };
   }
