@@ -26,6 +26,7 @@ import { MenusModule } from './menus/menus.module';
 import { VisitorAnalyticsModule } from './visitor-analytics/visitor-analytics.module';
 import { LeadershipModule } from './leadership/leadership.module';
 import { ModalsModule } from './modals/modals.module';
+import { JnvPrincipalsModule } from './jnv-principals/jnv-principals.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import configuration from './config';
 
@@ -60,6 +61,7 @@ import configuration from './config';
     VisitorAnalyticsModule,
     LeadershipModule,
     ModalsModule,
+    JnvPrincipalsModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, AppService],

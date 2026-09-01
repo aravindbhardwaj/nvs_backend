@@ -59,6 +59,17 @@ const publicJnvSelect = {
   },
   state: { select: { stateName: true, nameHi: true, isoCode: true } },
   district: { select: { districtName: true, nameHi: true } },
+  jnvPrincipals: {
+    where: { isActive: true, isDeleted: false, relievedAt: null },
+    select: {
+      principalNameEnglish: true,
+      principalNameHindi: true,
+      email: true,
+      mobile: true,
+    },
+    orderBy: [{ joinedAt: 'desc' as const }, { id: 'desc' as const }],
+    take: 1,
+  },
 } satisfies Prisma.OrganizationSelect;
 
 type PublicJnvOrganization = Prisma.OrganizationGetPayload<{
@@ -815,6 +826,7 @@ export class OrganizationsService {
     const stateCode = organization.state
       ? this.publicStateCode(organization.state.isoCode)
       : null;
+    const principal = organization.jnvPrincipals[0];
 
     return {
       id: organization.id,
@@ -837,6 +849,10 @@ export class OrganizationsService {
       dc_ro_name_hi: organization.region?.dcRoNameHi ?? null,
       ro_name: organization.region?.regionName ?? null,
       ro_name_hi: organization.region?.regionNameHi ?? null,
+      principal_name_english: principal?.principalNameEnglish ?? null,
+      principal_name_hindi: principal?.principalNameHindi ?? null,
+      principal_email: principal?.email ?? null,
+      principal_mobile: principal?.mobile ?? null,
     };
   }
 

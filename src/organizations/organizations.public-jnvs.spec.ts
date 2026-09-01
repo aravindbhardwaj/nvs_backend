@@ -48,6 +48,14 @@ describe('OrganizationsService public JNV queries', () => {
             districtName: 'SRI SATHYA SAI (ANANTAPUR)',
             nameHi: 'श्री सत्य साईं (अनंतपुर)',
           },
+          jnvPrincipals: [
+            {
+              principalNameEnglish: 'Sample Principal',
+              principalNameHindi: 'नमूना प्राचार्य',
+              email: 'principal@example.com',
+              mobile: '9876543210',
+            },
+          ],
         },
       ],
       1,
@@ -69,12 +77,15 @@ describe('OrganizationsService public JNV queries', () => {
           estd: 1987,
           students: 0,
           districtHi: 'श्री सत्य साईं (अनंतपुर)',
-          nameHi:
-            'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी, श्री सत्य साईं',
+          nameHi: 'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी, श्री सत्य साईं',
           dc_ro_name: 'BHOPAL',
           dc_ro_name_hi: 'भोपाल',
           ro_name: 'Bhopal Region',
           ro_name_hi: 'भोपाल क्षेत्र',
+          principal_name_english: 'Sample Principal',
+          principal_name_hindi: 'नमूना प्राचार्य',
+          principal_email: 'principal@example.com',
+          principal_mobile: '9876543210',
         },
       ],
       meta: {
@@ -89,6 +100,19 @@ describe('OrganizationsService public JNV queries', () => {
 
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        select: expect.objectContaining({
+          jnvPrincipals: {
+            where: { isActive: true, isDeleted: false, relievedAt: null },
+            select: {
+              principalNameEnglish: true,
+              principalNameHindi: true,
+              email: true,
+              mobile: true,
+            },
+            orderBy: [{ joinedAt: 'desc' }, { id: 'desc' }],
+            take: 1,
+          },
+        }),
         where: expect.objectContaining({
           organizationTypeId: 4,
           isDeleted: false,
@@ -134,6 +158,7 @@ describe('OrganizationsService public JNV queries', () => {
           region: null,
           state: null,
           district: null,
+          jnvPrincipals: [],
         },
       ],
       1,
@@ -158,6 +183,10 @@ describe('OrganizationsService public JNV queries', () => {
       dc_ro_name_hi: null,
       ro_name: null,
       ro_name_hi: null,
+      principal_name_english: null,
+      principal_name_hindi: null,
+      principal_email: null,
+      principal_mobile: null,
     });
   });
 

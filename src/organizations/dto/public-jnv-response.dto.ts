@@ -15,4 +15,8 @@ export class PublicJnvResponseDto {
   dc_ro_name_hi: string | null;
   ro_name: string | null;
   ro_name_hi: string | null;
+  principal_name_english: string | null;
+  principal_name_hindi: string | null;
+  principal_email: string | null;
+  principal_mobile: string | null;
 }
