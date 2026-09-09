@@ -2,6 +2,8 @@ import { SharedMediaPlacementDto } from './shared-media-placement.dto';
 
 export class MediaResponseDto {
   id: number;
+  sourceType: 'FILE' | 'EXTERNAL';
+  externalUrl: string | null;
   organizationId: number;
   mediaTypeId: number;
   mediaTypeName: string | null;
@@ -11,10 +13,10 @@ export class MediaResponseDto {
   titleHindi: string | null;
   descriptionEnglish: string | null;
   descriptionHindi: string | null;
-  originalFilename: string;
-  mimeType: string;
-  extension: string;
-  fileSize: string;
+  originalFilename: string | null;
+  mimeType: string | null;
+  extension: string | null;
+  fileSize: string | null;
   checksum: string | null;
   hindiOriginalFilename: string | null;
   hindiMimeType: string | null;

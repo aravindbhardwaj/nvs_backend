@@ -28,6 +28,8 @@ import { OrganizationOwnershipGuard } from '../auth/guards/organization-ownershi
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { UploadSizeErrorInterceptor } from '../common/interceptors/upload-size-error.interceptor';
+import { CreateExternalMediaDto } from './dto/create-external-media.dto';
 import { GetMediaQueryDto } from './dto/get-media-query.dto';
 import { UpdateMediaDto } from './dto/update-media.dto';
 import { UploadMediaDto } from './dto/upload-media.dto';
@@ -53,6 +55,7 @@ const uploadOptions = {
 };
 
 @Controller('api/media')
+@UseInterceptors(new UploadSizeErrorInterceptor(MAX_UPLOAD_SIZE))
 @UseGuards(
   JwtAuthGuard,
   RolesGuard,
@@ -63,6 +66,18 @@ const uploadOptions = {
 @OrganizationOwned('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
+
+  @Post('external')
+  @RequirePermission('MEDIA_UPLOAD')
+  async createExternal(
+    @Body() dto: CreateExternalMediaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'External media created successfully.',
+      data: await this.mediaService.createExternal(dto, user),
+    };
+  }
 
   @Post('upload')
   @RequirePermission('MEDIA_UPLOAD')

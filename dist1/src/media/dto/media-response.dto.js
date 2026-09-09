@@ -1,0 +1,45 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MediaResponseDto = void 0;
+class MediaResponseDto {
+    id;
+    sourceType;
+    externalUrl;
+    organizationId;
+    mediaTypeId;
+    mediaTypeName;
+    sharedMediaTypeIds;
+    shared_media_placements;
+    titleEnglish;
+    titleHindi;
+    descriptionEnglish;
+    descriptionHindi;
+    originalFilename;
+    mimeType;
+    extension;
+    fileSize;
+    checksum;
+    hindiOriginalFilename;
+    hindiMimeType;
+    hindiExtension;
+    hindiFileSize;
+    hindiChecksum;
+    hindiDownloadUrl;
+    display_order;
+    is_active;
+    is_new;
+    visible_to_all;
+    ro_ids;
+    jnv_ids;
+    important_link_1;
+    important_link_2;
+    important_link_3;
+    start_date;
+    end_date;
+    uploadedAt;
+    createdAt;
+    updatedAt;
+    isDeleted;
+}
+exports.MediaResponseDto = MediaResponseDto;
+//# sourceMappingURL=media-response.dto.js.map

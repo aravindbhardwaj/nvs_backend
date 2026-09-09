@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
 } from 'class-validator';
 
@@ -53,6 +54,12 @@ export class UpdateBannerDto {
   @IsString()
   @MaxLength(255)
   altTextHindi?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(2048)
+  link_url?: string | null;
 
   @IsOptional()
   @Type(() => Number)

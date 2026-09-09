@@ -1,0 +1,33 @@
+export declare class OrganizationReferenceDto {
+    id: number;
+    name: string;
+}
+export declare class OrganizationTypeReferenceDto {
+    id: number;
+    code: string;
+    name: string;
+}
+export declare class OrganizationResponseDto {
+    id: number;
+    organizationName: string;
+    organizationHindiName: string | null;
+    organizationCode: string;
+    organizationTypeId: number;
+    organizationType: OrganizationTypeReferenceDto;
+    parentOrganizationId: number | null;
+    regionId: number | null;
+    stateId: number | null;
+    districtId: number | null;
+    estdYear: number | null;
+    studentsCount: number | null;
+    address: string | null;
+    addressHindi: string | null;
+    isFunctional: boolean;
+    parentOrganization: OrganizationReferenceDto | null;
+    region: OrganizationReferenceDto | null;
+    state: OrganizationReferenceDto | null;
+    district: OrganizationReferenceDto | null;
+    isDeleted: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}

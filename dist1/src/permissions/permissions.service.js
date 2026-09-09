@@ -1,0 +1,79 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PermissionsService = void 0;
+const common_1 = require("@nestjs/common");
+const pagination_util_1 = require("../common/utils/pagination.util");
+const prisma_service_1 = require("../prisma/prisma.service");
+let PermissionsService = class PermissionsService {
+    prisma;
+    constructor(prisma) {
+        this.prisma = prisma;
+    }
+    async findAll(query) {
+        const { page, limit, search, sort, order } = query;
+        const where = this.buildWhere(search);
+        const orderBy = {
+            [sort]: order,
+        };
+        const [permissions, totalItems] = await this.prisma.$transaction([
+            this.prisma.permission.findMany({
+                where,
+                orderBy,
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
+            this.prisma.permission.count({ where }),
+        ]);
+        return {
+            items: permissions.map((permission) => this.toResponse(permission)),
+            meta: pagination_util_1.PaginationUtil.buildMeta(page, limit, totalItems),
+        };
+    }
+    async findOne(id) {
+        const permission = await this.prisma.permission.findUnique({
+            where: { id },
+        });
+        if (!permission) {
+            throw new common_1.NotFoundException('Permission not found.');
+        }
+        return this.toResponse(permission);
+    }
+    buildWhere(search) {
+        if (!search) {
+            return {};
+        }
+        return {
+            OR: [
+                { permissionKey: { contains: search, mode: 'insensitive' } },
+                { module: { contains: search, mode: 'insensitive' } },
+                { action: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+            ],
+        };
+    }
+    toResponse(permission) {
+        return {
+            id: permission.id,
+            permissionKey: permission.permissionKey,
+            module: permission.module,
+            action: permission.action,
+            description: permission.description,
+            createdAt: permission.createdAt,
+        };
+    }
+};
+exports.PermissionsService = PermissionsService;
+exports.PermissionsService = PermissionsService = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+], PermissionsService);
+//# sourceMappingURL=permissions.service.js.map

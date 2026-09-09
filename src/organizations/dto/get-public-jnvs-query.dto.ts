@@ -21,4 +21,10 @@ export class GetPublicJnvsQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   district_id?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  regional_office_id?: number;
 }

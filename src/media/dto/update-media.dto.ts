@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -19,6 +20,14 @@ const toBoolean = ({ value }: { value: unknown }): unknown =>
     : value === true || value === 'true';
 
 export class UpdateMediaDto {
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(2048)
+  externalUrl?: string;
+
   @IsOptional()
   @Transform(trimValue)
   @IsString()

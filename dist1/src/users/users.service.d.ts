@@ -1,0 +1,32 @@
+import { PasswordService } from '../auth/services/password.service';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { GetUsersQueryDto } from './dto/get-users-query.dto';
+import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
+export declare class UsersService {
+    private readonly prisma;
+    private readonly passwordService;
+    constructor(prisma: PrismaService, passwordService: PasswordService);
+    create(dto: CreateUserDto, actor: AuthenticatedUser): Promise<UserResponseDto>;
+    findAll(query: GetUsersQueryDto): Promise<PaginatedResponseDto<UserResponseDto>>;
+    findOne(id: number): Promise<UserResponseDto>;
+    update(id: number, dto: UpdateUserDto, actor: AuthenticatedUser): Promise<UserResponseDto>;
+    activate(id: number, actor: AuthenticatedUser): Promise<UserResponseDto>;
+    deactivate(id: number, actor: AuthenticatedUser): Promise<UserResponseDto>;
+    resetPassword(id: number, dto: ResetUserPasswordDto, actor: AuthenticatedUser): Promise<UserResponseDto>;
+    remove(id: number, actor: AuthenticatedUser): Promise<UserResponseDto>;
+    restore(id: number, actor: AuthenticatedUser): Promise<UserResponseDto>;
+    private updateStatus;
+    private findActiveUser;
+    private ensureEmailIsUnique;
+    private ensureUsernameIsUnique;
+    private ensureActiveOrganization;
+    private ensureOrganizationTypeCompatibility;
+    private buildWhere;
+    private toResponse;
+    private toAuditValues;
+}

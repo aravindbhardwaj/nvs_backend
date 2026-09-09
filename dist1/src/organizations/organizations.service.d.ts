@@ -1,0 +1,43 @@
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { GetOrganizationsQueryDto } from './dto/get-organizations-query.dto';
+import { GetPublicJnvsQueryDto } from './dto/get-public-jnvs-query.dto';
+import { OrganizationResponseDto } from './dto/organization-response.dto';
+import { PublicJnvResponseDto } from './dto/public-jnv-response.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
+export declare class OrganizationsService {
+    private readonly prisma;
+    constructor(prisma: PrismaService);
+    create(dto: CreateOrganizationDto, actor: AuthenticatedUser): Promise<OrganizationResponseDto>;
+    findAll(query: GetOrganizationsQueryDto): Promise<PaginatedResponseDto<OrganizationResponseDto>>;
+    findMaster(query: GetOrganizationsQueryDto): Promise<PaginatedResponseDto<{
+        id: number;
+        name: string;
+        organizationTypeId: number;
+    }>>;
+    findOne(id: number): Promise<OrganizationResponseDto>;
+    findPublicJnvs(query: GetPublicJnvsQueryDto): Promise<PaginatedResponseDto<PublicJnvResponseDto>>;
+    findPublicJnvStateMap(): Promise<Record<string, [string, number, string]>>;
+    update(id: number, dto: UpdateOrganizationDto, actor: AuthenticatedUser): Promise<OrganizationResponseDto>;
+    remove(id: number, actor: AuthenticatedUser): Promise<OrganizationResponseDto>;
+    restore(id: number, actor: AuthenticatedUser): Promise<OrganizationResponseDto>;
+    private validateHierarchy;
+    private withSupplementalFields;
+    private mergeWithExistingOrganization;
+    private validateRestoration;
+    private ensureTypeChangeDoesNotInvalidateChildren;
+    private ensureActiveRegion;
+    private ensureActiveState;
+    private ensureActiveDistrict;
+    private ensureActiveOrganizationType;
+    private findActiveOrganization;
+    private ensureValuesAreUnique;
+    private buildWhere;
+    private toResponse;
+    private toPublicJnvResponse;
+    private publicStateCode;
+    private publicSchoolCode;
+    private toAuditValues;
+}

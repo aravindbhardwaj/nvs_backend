@@ -3,6 +3,7 @@ export class PublicJnvResponseDto {
   name: string;
   stateCode: string | null;
   address: string | null;
+  address_hindi: string | null;
   state: string | null;
   stateHi: string | null;
   district: string | null;

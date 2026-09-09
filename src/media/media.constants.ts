@@ -18,5 +18,5 @@ const configuredUploadSize = Number(process.env.MAX_UPLOAD_SIZE);
 export const MAX_UPLOAD_SIZE =
   Number.isSafeInteger(configuredUploadSize) && configuredUploadSize > 0
     ? configuredUploadSize
-    : 20 * 1024 * 1024;
+    : 10 * 1024 * 1024;
 import 'dotenv/config';

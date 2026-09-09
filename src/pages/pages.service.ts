@@ -74,7 +74,9 @@ export class PagesService {
   async findAll(
     query: GetPagesQueryDto,
     actor: AuthenticatedUser,
-  ): Promise<PaginatedResponseDto<PageResponseDto>> {
+  ): Promise<
+    PaginatedResponseDto<PageResponseDto & { organization_name: string }>
+  > {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
@@ -90,6 +92,7 @@ export class PagesService {
         : { [query.sort]: query.order };
     const [pages, totalItems] = await this.prisma.$transaction([
       this.prisma.page.findMany({
+        include: { organization: { select: { organizationName: true } } },
         where,
         orderBy,
         skip: (query.page - 1) * query.limit,
@@ -98,7 +101,10 @@ export class PagesService {
       this.prisma.page.count({ where }),
     ]);
     return {
-      items: pages.map((page) => this.toResponse(page)),
+      items: pages.map((page) => ({
+        ...this.toResponse(page),
+        organization_name: page.organization.organizationName,
+      })),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
   }

@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { MediaSourceType, Role } from '@prisma/client';
 
 import { MediaService } from './media.service';
 
@@ -107,6 +107,29 @@ describe('MediaService', () => {
       );
     },
   );
+
+  it('creates external media without file metadata', async () => {
+    const result = await service.createExternal(
+      {
+        titleEnglish: 'External notice',
+        titleHindi: 'बाहरी सूचना',
+        mediaTypeId: 1,
+        externalUrl: 'https://example.gov.in/notice',
+      },
+      headquartersUser,
+    );
+
+    expect(transaction.media.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sourceType: MediaSourceType.EXTERNAL,
+          externalUrl: 'https://example.gov.in/notice',
+          organizationId: headquartersUser.organizationId,
+        }),
+      }),
+    );
+    expect(result.externalUrl).toBe('https://example.gov.in/notice');
+  });
 
   it('prevents a non-Super-Admin from uploading media for another organization', async () => {
     ownership.assertAccess.mockImplementation(() => {

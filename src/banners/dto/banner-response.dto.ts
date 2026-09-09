@@ -7,6 +7,7 @@ export class BannerResponseDto {
   descriptionHindi: string | null;
   altTextEnglish: string | null;
   altTextHindi: string | null;
+  link_url: string | null;
   imageUrl: string;
   mimeType: string;
   extension: string;
@@ -29,6 +30,7 @@ export class PublicBannerResponseDto {
   description_hindi: string | null;
   alt_text_english: string | null;
   alt_text_hindi: string | null;
+  link_url: string | null;
   image_url: string;
   display_order: number;
   start_date: string | null;

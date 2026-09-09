@@ -1,0 +1,42 @@
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreatePageDto } from './dto/create-page.dto';
+import { GetPagesQueryDto } from './dto/get-pages-query.dto';
+import { GetPublicPagesQueryDto } from './dto/get-public-pages-query.dto';
+import { PageResponseDto } from './dto/page-response.dto';
+import { PublicPageResponseDto } from './dto/public-page-response.dto';
+import { UpdatePageDto } from './dto/update-page.dto';
+export declare class PagesService {
+    private readonly prisma;
+    private readonly ownership;
+    constructor(prisma: PrismaService, ownership: OrganizationOwnershipService);
+    create(dto: CreatePageDto, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    findAll(query: GetPagesQueryDto, actor: AuthenticatedUser): Promise<PaginatedResponseDto<PageResponseDto & {
+        organization_name: string;
+    }>>;
+    findOne(id: number, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    findBySlug(slug: string, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    findPublic(query: GetPublicPagesQueryDto): Promise<PaginatedResponseDto<PublicPageResponseDto>>;
+    findPublicBySlug(slug: string): Promise<PublicPageResponseDto>;
+    update(id: number, dto: UpdatePageDto, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    publish(id: number, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    unpublish(id: number, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    remove(id: number, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    restore(id: number, actor: AuthenticatedUser): Promise<PageResponseDto>;
+    private updatePublication;
+    private findActivePage;
+    private ensureActiveOrganization;
+    private ensureActiveContentType;
+    private ensureOrganizationContentTypeIsAvailable;
+    private buildWhere;
+    private publicWhere;
+    private assertDateRange;
+    private generateUniqueSlug;
+    private slugify;
+    private createAuditLog;
+    private toResponse;
+    private toPublicResponse;
+    private toAuditValues;
+}

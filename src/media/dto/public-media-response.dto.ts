@@ -2,6 +2,8 @@ import { SharedMediaPlacementDto } from './shared-media-placement.dto';
 
 export class PublicMediaResponseDto {
   id: number;
+  source_type: 'FILE' | 'EXTERNAL';
+  external_url: string | null;
   media_type_id: number;
   media_type_name: string | null;
   shared_media_placements: SharedMediaPlacementDto[];
@@ -12,6 +14,6 @@ export class PublicMediaResponseDto {
   is_new: boolean | null;
   start_date: string | null;
   end_date: string | null;
-  download_url: string;
+  download_url: string | null;
   hindi_download_url: string | null;
 }

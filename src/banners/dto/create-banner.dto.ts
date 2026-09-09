@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -58,6 +59,12 @@ export class CreateBannerDto {
   @IsString()
   @MaxLength(255)
   altTextHindi?: string;
+
+  @IsOptional()
+  @Transform(trimValue)
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @MaxLength(2048)
+  link_url?: string;
 
   @IsOptional()
   @Type(() => Number)

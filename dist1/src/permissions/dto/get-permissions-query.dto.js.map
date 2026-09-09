@@ -1,0 +1,1 @@
+{"version":3,"file":"get-permissions-query.dto.js","sourceRoot":"","sources":["../../../../src/permissions/dto/get-permissions-query.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAmD;AAEnD,gFAA2E;AAE3E,MAAa,sBAAuB,SAAQ,yCAAkB;IAG5D,IAAI,GAAG,eAAe,CAAC;CACxB;AAJD,wDAIC;AADC;IAFC,IAAA,4BAAU,GAAE;IACZ,IAAA,sBAAI,EAAC,CAAC,eAAe,EAAE,QAAQ,EAAE,QAAQ,EAAE,WAAW,CAAC,CAAC;;oDAClC"}

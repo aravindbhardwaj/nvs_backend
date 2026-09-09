@@ -124,12 +124,15 @@ export class GalleryService {
   async findAll(
     query: GetGalleryImagesQueryDto,
     actor: AuthenticatedUser,
-  ): Promise<PaginatedResponseDto<GalleryImageResponseDto>> {
+  ): Promise<
+    PaginatedResponseDto<GalleryImageResponseDto & { organization_name: string }>
+  > {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.where(query, actor);
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
+        include: { organization: { select: { organizationName: true } } },
         where,
         orderBy:
           query.sort === 'display_order'
@@ -145,7 +148,10 @@ export class GalleryService {
       this.prisma.galleryImage.count({ where }),
     ]);
     return {
-      items: images.map((image) => this.response(image)),
+      items: images.map((image) => ({
+        ...this.response(image),
+        organization_name: image.organization.organizationName,
+      })),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
   }

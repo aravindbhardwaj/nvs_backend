@@ -60,6 +60,7 @@ export class BannersService {
           descriptionHindi: dto.descriptionHindi ?? null,
           altTextEnglish: dto.altTextEnglish ?? null,
           altTextHindi: dto.altTextHindi ?? null,
+          linkUrl: dto.link_url ?? null,
           storedFilename: file.filename,
           imagePath: this.toStoredPath(file.path),
           mimeType: file.mimetype,
@@ -83,7 +84,9 @@ export class BannersService {
   async findAll(
     query: GetBannersQueryDto,
     actor: AuthenticatedUser,
-  ): Promise<PaginatedResponseDto<BannerResponseDto>> {
+  ): Promise<
+    PaginatedResponseDto<BannerResponseDto & { organization_name: string }>
+  > {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
@@ -99,6 +102,7 @@ export class BannersService {
         : { [query.sort]: query.order };
     const [banners, totalItems] = await this.prisma.$transaction([
       this.prisma.banner.findMany({
+        include: { organization: { select: { organizationName: true } } },
         where,
         orderBy,
         skip: (query.page - 1) * query.limit,
@@ -107,7 +111,10 @@ export class BannersService {
       this.prisma.banner.count({ where }),
     ]);
     return {
-      items: banners.map((banner) => this.toResponse(banner)),
+      items: banners.map((banner) => ({
+        ...this.toResponse(banner),
+        organization_name: banner.organization.organizationName,
+      })),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
   }
@@ -145,6 +152,7 @@ export class BannersService {
           descriptionHindi: dto.descriptionHindi,
           altTextEnglish: dto.altTextEnglish,
           altTextHindi: dto.altTextHindi,
+          ...(dto.link_url === undefined ? {} : { linkUrl: dto.link_url }),
           display_order: dto.display_order,
           isActive: dto.isActive,
           ...(dto.visible_to_all === undefined
@@ -667,6 +675,7 @@ export class BannersService {
       descriptionHindi: banner.descriptionHindi,
       altTextEnglish: banner.altTextEnglish,
       altTextHindi: banner.altTextHindi,
+      link_url: banner.linkUrl,
       imageUrl: `/api/banners/${banner.id}/image`,
       mimeType: banner.mimeType,
       extension: banner.extension,
@@ -694,6 +703,7 @@ export class BannersService {
       description_hindi: banner.descriptionHindi,
       alt_text_english: banner.altTextEnglish,
       alt_text_hindi: banner.altTextHindi,
+      link_url: banner.linkUrl,
       image_url: `/api/public/banners/${banner.id}/image${
         organizationId ? `?organization_id=${organizationId}` : ''
       }`,
@@ -713,6 +723,7 @@ export class BannersService {
       descriptionHindi: banner.descriptionHindi,
       altTextEnglish: banner.altTextEnglish,
       altTextHindi: banner.altTextHindi,
+      linkUrl: banner.linkUrl,
       storedFilename: banner.storedFilename,
       imagePath: banner.imagePath,
       mimeType: banner.mimeType,

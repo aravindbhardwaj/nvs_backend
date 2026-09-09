@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Media, Prisma, Role } from '@prisma/client';
+import { Media, MediaSourceType, Prisma, Role } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { access, readFile, unlink } from 'node:fs/promises';
@@ -20,6 +20,7 @@ import {
 } from '../common/utils/calendar-date.util';
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateExternalMediaDto } from './dto/create-external-media.dto';
 import { GetMediaQueryDto } from './dto/get-media-query.dto';
 import { GetPublicMediaQueryDto } from './dto/get-public-media-query.dto';
 import { MediaResponseDto } from './dto/media-response.dto';
@@ -38,6 +39,58 @@ export class MediaService {
     private readonly prisma: PrismaService,
     private readonly ownership: OrganizationOwnershipService,
   ) {}
+
+  async createExternal(
+    dto: CreateExternalMediaDto,
+    actor: AuthenticatedUser,
+  ): Promise<MediaResponseDto> {
+    const startDate =
+      dto.start_date?.trim() || new Date().toISOString().slice(0, 10);
+    this.assertDateRange(startDate, dto.end_date);
+    const organizationId = dto.organizationId ?? actor.organizationId;
+    this.ownership.assertAccess(organizationId, actor);
+    await this.ensureActiveOrganization(organizationId);
+    await this.ensureActiveMediaType(dto.mediaTypeId);
+    const sharedMediaTypeIds = await this.resolveSharedMediaTypeIds(
+      dto.sharedMediaTypeIds,
+      dto.mediaTypeId,
+    );
+    const visibility = await this.resolveVisibility(dto, organizationId);
+    const media = await this.prisma.$transaction(async (transaction) => {
+      const createdMedia = await transaction.media.create({
+        data: {
+          organizationId,
+          mediaTypeId: dto.mediaTypeId,
+          sourceType: MediaSourceType.EXTERNAL,
+          externalUrl: dto.externalUrl,
+          titleEnglish: dto.titleEnglish,
+          titleHindi: dto.titleHindi,
+          descriptionEnglish: dto.descriptionEnglish ?? null,
+          descriptionHindi: dto.descriptionHindi ?? null,
+          startDate: toCalendarDate(startDate),
+          endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
+          display_order: dto.display_order ?? 0,
+          isActive: dto.is_active ?? true,
+          isNew: dto.is_new ?? null,
+          visibleToAll: visibility.visibleToAll,
+          roIds: visibility.roIds,
+          jnvIds: visibility.jnvIds,
+          sharedMediaTypeIds,
+          importantLink1: dto.important_link_1 ?? null,
+          importantLink2: dto.important_link_2 ?? null,
+          importantLink3: dto.important_link_3 ?? null,
+          createdById: actor.id,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(transaction, actor.id, 'CREATE', createdMedia);
+      return createdMedia;
+    });
+    return this.toResponse(
+      media,
+      await this.sharedMediaPlacementNames([media]),
+    );
+  }
 
   async upload(
     dto: UploadMediaDto,
@@ -64,6 +117,7 @@ export class MediaService {
         data: {
           organizationId,
           mediaTypeId: dto.mediaTypeId,
+          sourceType: MediaSourceType.FILE,
           titleEnglish: dto.titleEnglish,
           titleHindi: dto.titleHindi,
           descriptionEnglish: dto.descriptionEnglish ?? null,
@@ -95,19 +149,25 @@ export class MediaService {
       await this.createAuditLog(transaction, actor.id, 'UPLOAD', createdMedia);
       return createdMedia;
     });
-    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
+    return this.toResponse(
+      media,
+      await this.sharedMediaPlacementNames([media]),
+    );
   }
 
   async findAll(
     query: GetMediaQueryDto,
     actor: AuthenticatedUser,
-  ): Promise<PaginatedResponseDto<MediaResponseDto>> {
+  ): Promise<
+    PaginatedResponseDto<MediaResponseDto & { organization_name: string }>
+  > {
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = await this.buildWhere(query, actor);
     const orderBy = this.orderBy(query);
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
+        include: { organization: { select: { organizationName: true } } },
         where,
         orderBy,
         skip: (query.page - 1) * query.limit,
@@ -117,7 +177,10 @@ export class MediaService {
     ]);
     const placementNames = await this.sharedMediaPlacementNames(media);
     return {
-      items: media.map((item) => this.toResponse(item, placementNames)),
+      items: media.map((item) => ({
+        ...this.toResponse(item, placementNames),
+        organization_name: item.organization.organizationName,
+      })),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
   }
@@ -127,7 +190,10 @@ export class MediaService {
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
     const media = await this.findViewableMedia(id, actor);
-    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
+    return this.toResponse(
+      media,
+      await this.sharedMediaPlacementNames([media]),
+    );
   }
 
   async download(
@@ -139,6 +205,7 @@ export class MediaService {
     mimeType: string;
   }> {
     const media = await this.findViewableMedia(id, actor);
+    this.assertDownloadableFile(media);
     const filePath = this.absolutePath(media.filePath);
     try {
       await access(filePath);
@@ -189,6 +256,13 @@ export class MediaService {
   ): Promise<MediaResponseDto> {
     const existing = await this.findActiveMedia(id);
     this.ownership.assertAccess(existing.organizationId, actor);
+    if (
+      dto.externalUrl !== undefined &&
+      existing.sourceType !== MediaSourceType.EXTERNAL
+    )
+      throw new BadRequestException(
+        'An external URL can only be updated for external media.',
+      );
     if (dto.mediaTypeId !== undefined)
       await this.ensureActiveMediaType(dto.mediaTypeId);
     const mediaTypeId = dto.mediaTypeId ?? existing.mediaTypeId;
@@ -218,6 +292,7 @@ export class MediaService {
           titleHindi: dto.titleHindi,
           descriptionEnglish: dto.descriptionEnglish,
           descriptionHindi: dto.descriptionHindi,
+          externalUrl: dto.externalUrl,
           mediaTypeId: dto.mediaTypeId,
           ...(dto.sharedMediaTypeIds === undefined
             ? {}
@@ -261,7 +336,10 @@ export class MediaService {
       );
       return updatedMedia;
     });
-    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
+    return this.toResponse(
+      media,
+      await this.sharedMediaPlacementNames([media]),
+    );
   }
 
   async replaceFile(
@@ -273,6 +351,10 @@ export class MediaService {
     validateMediaFile(file);
     const existing = await this.findActiveMedia(id);
     this.ownership.assertAccess(existing.organizationId, actor);
+    if (existing.sourceType !== MediaSourceType.FILE)
+      throw new BadRequestException(
+        'A file can only be replaced for file-based media.',
+      );
     const replacementData = {
       ...(isHindiFile
         ? await this.hindiFileData(file)
@@ -324,7 +406,10 @@ export class MediaService {
         'Unable to replace the existing document file.',
       );
     }
-    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
+    return this.toResponse(
+      media,
+      await this.sharedMediaPlacementNames([media]),
+    );
   }
 
   async remove(
@@ -358,7 +443,10 @@ export class MediaService {
       );
       return deletedMedia;
     });
-    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
+    return this.toResponse(
+      media,
+      await this.sharedMediaPlacementNames([media]),
+    );
   }
 
   async restore(
@@ -390,7 +478,10 @@ export class MediaService {
       );
       return restoredMedia;
     });
-    return this.toResponse(media, await this.sharedMediaPlacementNames([media]));
+    return this.toResponse(
+      media,
+      await this.sharedMediaPlacementNames([media]),
+    );
   }
 
   async cleanupUploadedFiles(
@@ -482,6 +573,7 @@ export class MediaService {
       },
     });
     if (!media) throw new NotFoundException('Public media not found.');
+    this.assertDownloadableFile(media);
     const filePath = this.absolutePath(media.filePath);
     try {
       await access(filePath);
@@ -625,10 +717,8 @@ export class MediaService {
       ...new Set(
         media.flatMap((item) => [
           item.mediaTypeId,
-          ...(item.sharedMediaTypeIds
-            ?.split(',')
-            .filter(Boolean)
-            .map(Number) ?? []),
+          ...(item.sharedMediaTypeIds?.split(',').filter(Boolean).map(Number) ??
+            []),
         ]),
       ),
     ];
@@ -1077,6 +1167,8 @@ export class MediaService {
   ): MediaResponseDto {
     return {
       id: media.id,
+      sourceType: media.sourceType,
+      externalUrl: media.externalUrl,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
       mediaTypeName: placementNames.get(media.mediaTypeId) ?? null,
@@ -1092,7 +1184,7 @@ export class MediaService {
       originalFilename: media.originalFilename,
       mimeType: media.mimeType,
       extension: media.extension,
-      fileSize: media.fileSize.toString(),
+      fileSize: media.fileSize?.toString() ?? null,
       checksum: media.checksum,
       hindiOriginalFilename: media.hindiOriginalFilename,
       hindiMimeType: media.hindiMimeType,
@@ -1123,6 +1215,8 @@ export class MediaService {
   private toAuditValues(media: Media): Prisma.InputJsonValue {
     return {
       id: media.id,
+      sourceType: media.sourceType,
+      externalUrl: media.externalUrl,
       organizationId: media.organizationId,
       mediaTypeId: media.mediaTypeId,
       sharedMediaTypeIds: media.sharedMediaTypeIds,
@@ -1135,7 +1229,7 @@ export class MediaService {
       filePath: media.filePath,
       mimeType: media.mimeType,
       extension: media.extension,
-      fileSize: media.fileSize.toString(),
+      fileSize: media.fileSize?.toString() ?? null,
       checksum: media.checksum,
       hindiOriginalFilename: media.hindiOriginalFilename,
       hindiStoredFilename: media.hindiStoredFilename,
@@ -1173,6 +1267,8 @@ export class MediaService {
   ): PublicMediaResponseDto {
     return {
       id: media.id,
+      source_type: media.sourceType,
+      external_url: media.externalUrl,
       media_type_id: media.mediaTypeId,
       media_type_name: placementNames.get(media.mediaTypeId) ?? null,
       shared_media_placements: this.sharedMediaPlacements(
@@ -1186,9 +1282,14 @@ export class MediaService {
       is_new: media.isNew,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),
-      download_url: `/api/public/media/${media.id}/download${
-        organizationId === undefined ? '' : `?organization_id=${organizationId}`
-      }`,
+      download_url:
+        media.sourceType === MediaSourceType.FILE
+          ? `/api/public/media/${media.id}/download${
+              organizationId === undefined
+                ? ''
+                : `?organization_id=${organizationId}`
+            }`
+          : null,
       hindi_download_url: media.hindiFilePath
         ? `/api/public/media/${media.id}/download/hindi${
             organizationId === undefined
@@ -1229,6 +1330,22 @@ export class MediaService {
     return createHash('sha256')
       .update(await readFile(filePath))
       .digest('hex');
+  }
+
+  private assertDownloadableFile(media: Media): asserts media is Media & {
+    filePath: string;
+    originalFilename: string;
+    mimeType: string;
+  } {
+    if (
+      media.sourceType !== MediaSourceType.FILE ||
+      !media.filePath ||
+      !media.originalFilename ||
+      !media.mimeType
+    )
+      throw new BadRequestException(
+        'This media record contains an external link and has no downloadable file.',
+      );
   }
 
   private async hindiFileData(file: Express.Multer.File) {

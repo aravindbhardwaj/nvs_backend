@@ -27,20 +27,20 @@ enum UserStatus {
 }
 
 model Region {
-  id          Int       @id @default(autoincrement())
-  regionName  String    @unique @map("region_name") @db.VarChar(150)
-  regionNameHi String?  @map("region_name_hi") @db.Text
-  regionCode  String    @unique @map("region_code") @db.VarChar(20)
-  dcRoName    String?   @map("dc_ro_name") @db.VarChar(150)
-  dcRoNameHi  String?   @map("dc_ro_name_hi") @db.Text
-  stateIds    String?   @map("state_ids") @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  createdById Int?      @map("created_by")
-  updatedById Int?      @map("updated_by")
-  isDeleted   Boolean   @default(false) @map("is_deleted")
-  deletedAt   DateTime? @map("deleted_at")
-  deletedById Int?      @map("deleted_by")
+  id           Int       @id @default(autoincrement())
+  regionName   String    @unique @map("region_name") @db.VarChar(150)
+  regionNameHi String?   @map("region_name_hi") @db.Text
+  regionCode   String    @unique @map("region_code") @db.VarChar(20)
+  dcRoName     String?   @map("dc_ro_name") @db.VarChar(150)
+  dcRoNameHi   String?   @map("dc_ro_name_hi") @db.Text
+  stateIds     String?   @map("state_ids") @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdById  Int?      @map("created_by")
+  updatedById  Int?      @map("updated_by")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedById  Int?      @map("deleted_by")
 
   createdBy     User?          @relation("RegionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy     User?          @relation("RegionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -123,6 +123,8 @@ model Organization {
   id                    Int       @id @default(autoincrement())
   organizationName      String    @map("organization_name") @db.VarChar(255)
   organizationHindiName String?   @map("organization_hindi_name") @db.VarChar(255)
+  organizationNameEn    String?   @map("organization_name_en") @db.VarChar(255)
+  organizationNameHi    String?   @map("organization_name_hi") @db.VarChar(255)
   organizationCode      String    @map("organization_code") @db.VarChar(30)
   organizationTypeId    Int       @map("organization_type_id")
   parentOrganizationId  Int?      @map("parent_organization_id")
@@ -133,6 +135,7 @@ model Organization {
   studentsCount         Int?      @map("students_count")
   schoolUrl             String?   @unique @map("school_url") @db.VarChar(255)
   address               String?   @db.Text
+  addressHindi          String?   @map("address_hindi") @db.Text
   isFunctional          Boolean   @default(true) @map("is_functional")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
@@ -275,7 +278,7 @@ model ContentType {
   nameHindi          String?   @map("name_hindi") @db.VarChar(150)
   descriptionEnglish String?   @map("description_english") @db.Text
   descriptionHindi   String?   @map("description_hindi") @db.Text
-  display_order       Int       @default(0) @map("display_order")
+  display_order      Int       @default(0) @map("display_order")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
   createdById        Int?      @map("created_by")
@@ -302,7 +305,7 @@ model MediaType {
   nameHindi          String?   @map("name_hindi") @db.VarChar(150)
   descriptionEnglish String?   @map("description_english") @db.Text
   descriptionHindi   String?   @map("description_hindi") @db.Text
-  display_order       Int       @default(0) @map("display_order")
+  display_order      Int       @default(0) @map("display_order")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
   createdById        Int?      @map("created_by")
@@ -334,7 +337,7 @@ model Page {
   contentEnglish          String     @map("content_english") @db.Text
   contentHindi            String?    @map("content_hindi") @db.Text
   status                  PageStatus @default(DRAFT)
-  display_order            Int        @default(0) @map("display_order")
+  display_order           Int        @default(0) @map("display_order")
   publishedAt             DateTime?  @map("published_at")
   startDate               DateTime?  @map("start_date") @db.Date
   endDate                 DateTime?  @map("end_date") @db.Date
@@ -362,48 +365,55 @@ model Page {
   @@map("nvs_pages")
 }
 
+enum MediaSourceType {
+  FILE
+  EXTERNAL
+}
+
 model Media {
-  id                    Int       @id @default(autoincrement())
-  organizationId        Int       @map("organization_id")
-  mediaTypeId           Int       @map("media_type_id")
-  titleEnglish          String    @map("title_english") @db.VarChar(255)
-  titleHindi            String?   @map("title_hindi") @db.VarChar(255)
-  descriptionEnglish    String?   @map("description_english") @db.Text
-  descriptionHindi      String?   @map("description_hindi") @db.Text
-  originalFilename      String    @map("original_filename") @db.VarChar(255)
-  storedFilename        String    @unique @map("stored_filename") @db.VarChar(255)
-  filePath              String    @map("file_path") @db.VarChar(500)
-  mimeType              String    @map("mime_type") @db.VarChar(100)
-  extension             String    @db.VarChar(20)
-  fileSize              BigInt    @map("file_size")
-  checksum              String?   @db.VarChar(255)
-  hindiOriginalFilename String?   @map("hindi_original_filename") @db.VarChar(255)
-  hindiStoredFilename   String?   @unique @map("hindi_stored_filename") @db.VarChar(255)
-  hindiFilePath         String?   @map("hindi_file_path") @db.VarChar(500)
-  hindiMimeType         String?   @map("hindi_mime_type") @db.VarChar(100)
-  hindiExtension        String?   @map("hindi_extension") @db.VarChar(20)
-  hindiFileSize         BigInt?   @map("hindi_file_size")
-  hindiChecksum         String?   @map("hindi_checksum") @db.VarChar(255)
-  display_order          Int       @default(0) @map("display_order")
-  isActive              Boolean   @default(true) @map("is_active")
-  isNew                 Boolean?  @map("is_new")
-  visibleToAll          Boolean?  @map("visible_to_all")
-  roIds                 String?   @map("ro_ids") @db.Text
-  jnvIds                String?   @map("jnv_ids") @db.Text
-  sharedMediaTypeIds    String?   @map("shared_media_type_ids") @db.Text
-  importantLink1        Boolean?  @map("important_link_1")
-  importantLink2        Boolean?  @map("important_link_2")
-  importantLink3        Boolean?  @map("important_link_3")
-  startDate             DateTime? @map("start_date") @db.Date
-  endDate               DateTime? @map("end_date") @db.Date
-  uploadedAt            DateTime  @default(now()) @map("uploaded_at")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
-  createdById           Int?      @map("created_by")
-  updatedById           Int?      @map("updated_by")
-  isDeleted             Boolean   @default(false) @map("is_deleted")
-  deletedAt             DateTime? @map("deleted_at")
-  deletedById           Int?      @map("deleted_by")
+  id                    Int             @id @default(autoincrement())
+  organizationId        Int             @map("organization_id")
+  mediaTypeId           Int             @map("media_type_id")
+  titleEnglish          String          @map("title_english") @db.VarChar(255)
+  titleHindi            String?         @map("title_hindi") @db.VarChar(255)
+  descriptionEnglish    String?         @map("description_english") @db.Text
+  descriptionHindi      String?         @map("description_hindi") @db.Text
+  sourceType            MediaSourceType @default(FILE) @map("source_type")
+  externalUrl           String?         @map("external_url") @db.VarChar(2048)
+  originalFilename      String?         @map("original_filename") @db.VarChar(255)
+  storedFilename        String?         @unique @map("stored_filename") @db.VarChar(255)
+  filePath              String?         @map("file_path") @db.VarChar(500)
+  mimeType              String?         @map("mime_type") @db.VarChar(100)
+  extension             String?         @db.VarChar(20)
+  fileSize              BigInt?         @map("file_size")
+  checksum              String?         @db.VarChar(255)
+  hindiOriginalFilename String?         @map("hindi_original_filename") @db.VarChar(255)
+  hindiStoredFilename   String?         @unique @map("hindi_stored_filename") @db.VarChar(255)
+  hindiFilePath         String?         @map("hindi_file_path") @db.VarChar(500)
+  hindiMimeType         String?         @map("hindi_mime_type") @db.VarChar(100)
+  hindiExtension        String?         @map("hindi_extension") @db.VarChar(20)
+  hindiFileSize         BigInt?         @map("hindi_file_size")
+  hindiChecksum         String?         @map("hindi_checksum") @db.VarChar(255)
+  display_order         Int             @default(0) @map("display_order")
+  isActive              Boolean         @default(true) @map("is_active")
+  isNew                 Boolean?        @map("is_new")
+  visibleToAll          Boolean?        @map("visible_to_all")
+  roIds                 String?         @map("ro_ids") @db.Text
+  jnvIds                String?         @map("jnv_ids") @db.Text
+  sharedMediaTypeIds    String?         @map("shared_media_type_ids") @db.Text
+  importantLink1        Boolean?        @map("important_link_1")
+  importantLink2        Boolean?        @map("important_link_2")
+  importantLink3        Boolean?        @map("important_link_3")
+  startDate             DateTime?       @map("start_date") @db.Date
+  endDate               DateTime?       @map("end_date") @db.Date
+  uploadedAt            DateTime        @default(now()) @map("uploaded_at")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  createdById           Int?            @map("created_by")
+  updatedById           Int?            @map("updated_by")
+  isDeleted             Boolean         @default(false) @map("is_deleted")
+  deletedAt             DateTime?       @map("deleted_at")
+  deletedById           Int?            @map("deleted_by")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   mediaType    MediaType    @relation(fields: [mediaTypeId], references: [id], onDelete: Restrict)
@@ -432,12 +442,13 @@ model Banner {
   descriptionHindi   String?   @map("description_hindi") @db.Text
   altTextEnglish     String?   @map("alt_text_english") @db.VarChar(255)
   altTextHindi       String?   @map("alt_text_hindi") @db.VarChar(255)
+  linkUrl            String?   @map("link_url") @db.VarChar(2048)
   storedFilename     String    @unique @map("stored_filename") @db.VarChar(255)
   imagePath          String    @map("image_path") @db.VarChar(500)
   mimeType           String    @map("mime_type") @db.VarChar(100)
   extension          String    @db.VarChar(20)
   fileSize           BigInt    @map("file_size")
-  display_order       Int       @default(0) @map("display_order")
+  display_order      Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
   visibleToAll       Boolean?  @map("visible_to_all")
   startDate          DateTime? @map("start_date") @db.Date
@@ -505,7 +516,7 @@ model GalleryImage {
   mimeType           String    @map("mime_type") @db.VarChar(100)
   extension          String    @map("extension") @db.VarChar(20)
   fileSize           BigInt    @map("file_size")
-  display_order       Int       @default(0) @map("display_order")
+  display_order      Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
   visibleToAll       Boolean?  @map("visible_to_all")
   startDate          DateTime? @map("start_date") @db.Date

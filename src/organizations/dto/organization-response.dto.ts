@@ -13,6 +13,8 @@ export class OrganizationResponseDto {
   id: number;
   organizationName: string;
   organizationHindiName: string | null;
+  organization_name_en: string | null;
+  organization_name_hi: string | null;
   organizationCode: string;
   organizationTypeId: number;
   organizationType: OrganizationTypeReferenceDto;
@@ -23,6 +25,7 @@ export class OrganizationResponseDto {
   estdYear: number | null;
   studentsCount: number | null;
   address: string | null;
+  addressHindi: string | null;
   isFunctional: boolean;
   parentOrganization: OrganizationReferenceDto | null;
   region: OrganizationReferenceDto | null;

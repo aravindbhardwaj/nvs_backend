@@ -82,6 +82,12 @@ export class UpdateOrganizationDto {
   @MaxLength(5000)
   address?: string | null;
 
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @Transform(trimValue)
+  @IsString()
+  @MaxLength(5000)
+  addressHindi?: string | null;
+
   @IsOptional()
   @IsBoolean()
   isFunctional?: boolean;

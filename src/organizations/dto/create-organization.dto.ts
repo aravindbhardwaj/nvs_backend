@@ -82,6 +82,12 @@ export class CreateOrganizationDto {
   @MaxLength(5000)
   address?: string;
 
+  @ValidateIf((_, value) => value !== undefined)
+  @Transform(trimValue)
+  @IsString()
+  @MaxLength(5000)
+  addressHindi?: string;
+
   @IsOptional()
   @IsBoolean()
   isFunctional?: boolean;

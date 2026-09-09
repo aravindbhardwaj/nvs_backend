@@ -47,6 +47,7 @@ const publicJnvSelect = {
   organizationCode: true,
   schoolUrl: true,
   address: true,
+  addressHindi: true,
   estdYear: true,
   studentsCount: true,
   region: {
@@ -145,6 +146,8 @@ export class OrganizationsService {
       id: number;
       name: string;
       organizationTypeId: number;
+      organization_name_en: string | null;
+      organization_name_hi: string | null;
     }>
   > {
     const { page, limit, sort, order } = query;
@@ -156,6 +159,8 @@ export class OrganizationsService {
           id: true,
           organizationName: true,
           organizationTypeId: true,
+          organizationNameEn: true,
+          organizationNameHi: true,
         },
         orderBy: { [sort]: order },
         skip: (page - 1) * limit,
@@ -169,6 +174,8 @@ export class OrganizationsService {
         id: organization.id,
         name: organization.organizationName,
         organizationTypeId: organization.organizationTypeId,
+        organization_name_en: organization.organizationNameEn,
+        organization_name_hi: organization.organizationNameHi,
       })),
       meta: PaginationUtil.buildMeta(page, limit, totalItems),
     };
@@ -192,6 +199,9 @@ export class OrganizationsService {
       isDeleted: false,
       isFunctional: true,
       ...(query.district_id ? { districtId: query.district_id } : {}),
+      ...(query.regional_office_id
+        ? { parentOrganizationId: query.regional_office_id }
+        : {}),
       ...(stateCode
         ? {
             state: {
@@ -440,6 +450,7 @@ export class OrganizationsService {
           organizationCode: dto.organizationCode,
           organizationTypeId,
           address: dto.address ?? null,
+          addressHindi: dto.addressHindi ?? null,
           isFunctional: dto.isFunctional ?? true,
           parentOrganizationId: null,
           regionId: null,
@@ -483,6 +494,7 @@ export class OrganizationsService {
           organizationCode: dto.organizationCode,
           organizationTypeId,
           address: dto.address ?? null,
+          addressHindi: dto.addressHindi ?? null,
           isFunctional: dto.isFunctional ?? true,
           parentOrganizationId,
           regionId,
@@ -513,6 +525,7 @@ export class OrganizationsService {
         organizationCode: dto.organizationCode,
         organizationTypeId,
         address: dto.address ?? null,
+        addressHindi: dto.addressHindi ?? null,
         isFunctional: dto.isFunctional ?? true,
         parentOrganizationId,
         regionId: parent.regionId,
@@ -586,6 +599,10 @@ export class OrganizationsService {
         dto.address === undefined
           ? (existing.address ?? undefined)
           : (dto.address ?? undefined),
+      addressHindi:
+        dto.addressHindi === undefined
+          ? (existing.addressHindi ?? undefined)
+          : (dto.addressHindi ?? undefined),
       isFunctional: dto.isFunctional ?? existing.isFunctional,
     };
   }
@@ -785,6 +802,8 @@ export class OrganizationsService {
       id: organization.id,
       organizationName: organization.organizationName,
       organizationHindiName: organization.organizationHindiName,
+      organization_name_en: organization.organizationNameEn,
+      organization_name_hi: organization.organizationNameHi,
       organizationCode: organization.organizationCode,
       organizationTypeId: organization.organizationTypeId,
       organizationType: organization.organizationType,
@@ -795,6 +814,7 @@ export class OrganizationsService {
       estdYear: organization.estdYear,
       studentsCount: organization.studentsCount,
       address: organization.address,
+      addressHindi: organization.addressHindi,
       isFunctional: organization.isFunctional,
       parentOrganization: organization.parentOrganization
         ? {
@@ -833,6 +853,7 @@ export class OrganizationsService {
       name: organization.organizationName,
       stateCode,
       address: organization.address,
+      address_hindi: organization.addressHindi,
       state: organization.state?.stateName ?? null,
       stateHi: organization.state?.nameHi ?? null,
       district: organization.district?.districtName ?? null,
@@ -878,6 +899,7 @@ export class OrganizationsService {
       estdYear: organization.estdYear,
       studentsCount: organization.studentsCount,
       address: organization.address,
+      addressHindi: organization.addressHindi,
       isFunctional: organization.isFunctional,
       createdAt: organization.createdAt.toISOString(),
       updatedAt: organization.updatedAt.toISOString(),

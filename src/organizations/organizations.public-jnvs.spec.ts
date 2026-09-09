@@ -21,6 +21,21 @@ describe('OrganizationsService public JNV queries', () => {
     ).resolves.toHaveLength(1);
   });
 
+  it('accepts only a positive integer Regional Office filter', async () => {
+    const valid = plainToInstance(GetPublicJnvsQueryDto, {
+      regional_office_id: '10',
+    });
+    expect(valid.regional_office_id).toBe(10);
+    await expect(validate(valid)).resolves.toHaveLength(0);
+    await expect(
+      validate(
+        plainToInstance(GetPublicJnvsQueryDto, {
+          regional_office_id: '0',
+        }),
+      ),
+    ).resolves.toHaveLength(1);
+  });
+
   it('returns only active, non-deleted JNVs in the public website shape', async () => {
     prisma.$transaction.mockResolvedValue([
       [
@@ -31,6 +46,7 @@ describe('OrganizationsService public JNV queries', () => {
             'पीएम-श्री जवाहर नवोदय विद्यालय लेपाक्षी, श्री सत्य साईं',
           organizationCode: 'JNV-SSSA',
           address: 'LEPAKSHI, SRI SATHYA SAI (ANANTAPUR) - 515331',
+          addressHindi: 'लेपाक्षी, श्री सत्य साईं (अनंतपुर) - 515331',
           estdYear: 1987,
           studentsCount: 0,
           region: {
@@ -70,6 +86,7 @@ describe('OrganizationsService public JNV queries', () => {
           name: 'JNV SRI SATHYA SAI (ANANTAPUR), Andhra Pradesh',
           stateCode: 'AP',
           address: 'LEPAKSHI, SRI SATHYA SAI (ANANTAPUR) - 515331',
+          address_hindi: 'लेपाक्षी, श्री सत्य साईं (अनंतपुर) - 515331',
           state: 'Andhra Pradesh',
           stateHi: 'आंध्र प्रदेश',
           district: 'SRI SATHYA SAI (ANANTAPUR)',
@@ -144,6 +161,27 @@ describe('OrganizationsService public JNV queries', () => {
     );
   });
 
+  it('filters JNVs by their parent Regional Office when supplied', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+
+    await service.findPublicJnvs({
+      page: 1,
+      limit: 20,
+      regional_office_id: 10,
+    });
+
+    expect(prisma.organization.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ parentOrganizationId: 10 }),
+      }),
+    );
+    expect(prisma.organization.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ parentOrganizationId: 10 }),
+      }),
+    );
+  });
+
   it('preserves null values when optional source data is unavailable', async () => {
     prisma.$transaction.mockResolvedValue([
       [
@@ -153,6 +191,7 @@ describe('OrganizationsService public JNV queries', () => {
           organizationHindiName: null,
           organizationCode: '12345',
           address: null,
+          addressHindi: null,
           estdYear: null,
           studentsCount: null,
           region: null,
@@ -171,6 +210,7 @@ describe('OrganizationsService public JNV queries', () => {
       name: 'JNV Example',
       stateCode: null,
       address: null,
+      address_hindi: null,
       state: null,
       stateHi: null,
       district: null,
