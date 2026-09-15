@@ -1,6 +1,8 @@
 export class PublicJnvResponseDto {
   id: number;
   name: string;
+  organization_name_en: string | null;
+  organization_name_hi: string | null;
   stateCode: string | null;
   address: string | null;
   address_hindi: string | null;
