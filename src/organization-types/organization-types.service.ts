@@ -9,7 +9,7 @@ export class OrganizationTypesService {
   async findAll() {
     return this.prisma.organizationType.findMany({
       where: { isActive: true },
-      select: { id: true, code: true, name: true },
+      select: { id: true, uuid: true, code: true, name: true },
       orderBy: { id: 'asc' },
     });
   }

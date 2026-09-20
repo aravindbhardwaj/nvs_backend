@@ -1,8 +1,10 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetAuditLogsQueryDto } from './dto/get-audit-logs-query.dto';
 
@@ -15,6 +17,7 @@ export interface CreateAuditLogInput {
   previousValues?: Prisma.InputJsonValue;
   newValues?: Prisma.InputJsonValue;
   ipAddress?: string;
+  location?: string;
   userAgent?: string;
 }
 
@@ -22,13 +25,32 @@ export interface CreateAuditLogInput {
 export class AuditLogsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.auditLog.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(input: CreateAuditLogInput): Promise<void> {
-    await this.prisma.auditLog.create({ data: input });
+    await this.prisma.auditLog.create({
+      data: { ...getAuditRequestContext(), ...input },
+    });
   }
 
   async findAll(
     query: GetAuditLogsQueryDto,
   ): Promise<PaginatedResponseDto<unknown>> {
+    query.userId = await resolveRelatedId(
+      query.userId,
+      query.userUuid,
+      'User',
+      (uuid) =>
+        this.prisma.user.findUnique({ where: { uuid }, select: { id: true } }),
+    );
     const where: Prisma.AuditLogWhereInput = {
       ...(query.module
         ? { module: { equals: query.module, mode: 'insensitive' } }
@@ -69,7 +91,9 @@ export class AuditLogsService {
     const [items, totalItems] = await this.prisma.$transaction([
       this.prisma.auditLog.findMany({
         where,
-        include: { user: { select: { id: true, name: true, email: true } } },
+        include: {
+          user: { select: { id: true, uuid: true, name: true, email: true } },
+        },
         orderBy: { createdAt: query.order },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -85,7 +109,9 @@ export class AuditLogsService {
   async findOne(id: number) {
     const auditLog = await this.prisma.auditLog.findUnique({
       where: { id },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: {
+        user: { select: { id: true, uuid: true, name: true, email: true } },
+      },
     });
     if (!auditLog) throw new NotFoundException('Audit log not found.');
     return auditLog;

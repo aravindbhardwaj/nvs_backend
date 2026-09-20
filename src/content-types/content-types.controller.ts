@@ -1,13 +1,12 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -30,6 +29,47 @@ import { UpdateContentTypeDto } from './dto/update-content-type.dto';
 @Roles(Role.SUPER_ADMIN)
 export class ContentTypesController {
   constructor(private readonly contentTypesService: ContentTypesService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('CONTENT_TYPE_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.contentTypesService.resolveUuid(uuid);
+    return this.findOne(id);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('CONTENT_TYPE_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateContentTypeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.contentTypesService.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('CONTENT_TYPE_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.contentTypesService.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
+
+  @Post('uuid/:uuid/restore')
+  @HttpCode(200)
+  @RequirePermission('CONTENT_TYPE_UPDATE')
+  async restoreByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.contentTypesService.resolveUuid(uuid);
+    return this.restore(id, user);
+  }
 
   @Post()
   @RequirePermission('CONTENT_TYPE_CREATE')
@@ -62,7 +102,8 @@ export class ContentTypesController {
     };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('CONTENT_TYPE_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -75,7 +116,8 @@ export class ContentTypesController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   @RequirePermission('CONTENT_TYPE_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -87,7 +129,8 @@ export class ContentTypesController {
     };
   }
 
-  @Patch(':id/restore')
+  @Post(':id/restore')
+  @HttpCode(200)
   @RequirePermission('CONTENT_TYPE_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,

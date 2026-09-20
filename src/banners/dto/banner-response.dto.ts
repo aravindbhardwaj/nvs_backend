@@ -1,5 +1,6 @@
 export class BannerResponseDto {
   id: number;
+  uuid: string;
   organizationId: number;
   titleEnglish: string;
   titleHindi: string | null;
@@ -24,6 +25,7 @@ export class BannerResponseDto {
 
 export class PublicBannerResponseDto {
   id: number;
+  uuid: string;
   title_english: string;
   title_hindi: string | null;
   description_english: string | null;

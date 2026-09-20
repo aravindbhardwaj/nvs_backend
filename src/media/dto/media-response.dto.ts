@@ -2,6 +2,7 @@ import { SharedMediaPlacementDto } from './shared-media-placement.dto';
 
 export class MediaResponseDto {
   id: number;
+  uuid: string;
   sourceType: 'FILE' | 'EXTERNAL';
   externalUrl: string | null;
   organizationId: number;

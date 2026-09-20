@@ -5,6 +5,7 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsUUID,
   Min,
 } from 'class-validator';
 import { UserStatus } from '@prisma/client';
@@ -18,12 +19,14 @@ export class GetUsersQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   organizationId?: number;
+  @IsOptional() @IsUUID() organizationUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   organization_type_id?: number;
+  @IsOptional() @IsUUID() organization_type_uuid?: string;
 
   @IsOptional()
   @IsEnum(UserStatus)

@@ -26,6 +26,33 @@ describe('MenusService', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('allows page_url with a destination', async () => {
+    await expect(
+      (service as any).validateConfiguration({
+        content_type_id: 1,
+        page_url: '/about-us',
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('treats enabled tabular_type as a destination', async () => {
+    await expect(
+      (service as any).validateConfiguration({
+        external_url: 'https://example.com',
+        tabular_type: true,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('preserves null so an existing relation destination can be cleared', async () => {
+    await expect(
+      (service as any).resolveContentTypeId(null, undefined),
+    ).resolves.toBeNull();
+    await expect(
+      (service as any).resolveMediaTypeId(undefined, null),
+    ).resolves.toBeNull();
+  });
+
   it('builds an ordered multi-level navigation tree', () => {
     const menus = [
       {
@@ -58,6 +85,8 @@ describe('MenusService', () => {
         contentTypeId: null,
         mediaTypeId: null,
         externalUrl: 'https://example.com',
+        tabularType: true,
+        tabularData: 'Example table data',
         linkTarget: 2,
         display_order: 1,
       },
@@ -67,6 +96,10 @@ describe('MenusService', () => {
       'https://example.com',
     );
     expect(tree[0].children[0].children[0].link_target).toBe(2);
+    expect(tree[0].children[0].children[0].tabular_type).toBe(true);
+    expect(tree[0].children[0].children[0].tabular_data).toBe(
+      'Example table data',
+    );
   });
 
   it('includes shared Headquarters and Regional Office menus in JNV navigation', async () => {
@@ -105,35 +138,38 @@ describe('MenusService', () => {
   it.each([
     { id: 2, code: 'NLI' },
     { id: 3, code: 'REGIONAL_OFFICE' },
-  ])('includes only shared Headquarters menus in $code navigation', async (type) => {
-    prisma.organizationType.findFirst.mockResolvedValue({
-      ...type,
-      isActive: true,
-    });
-    prisma.menu.findMany.mockResolvedValue([]);
+  ])(
+    'includes only shared Headquarters menus in $code navigation',
+    async (type) => {
+      prisma.organizationType.findFirst.mockResolvedValue({
+        ...type,
+        isActive: true,
+      });
+      prisma.menu.findMany.mockResolvedValue([]);
 
-    await service.navigation({
-      organization_type_id: type.id,
-      menu_location: 1,
-    });
+      await service.navigation({
+        organization_type_id: type.id,
+        menu_location: 1,
+      });
 
-    expect(prisma.menu.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          menuLocation: 1,
-          isActive: true,
-          isDeleted: false,
-          OR: [
-            { organizationTypeId: type.id },
-            {
-              organizationType: { code: { in: ['HEADQUARTER'] } },
-              showOnAllOrganizations: true,
-            },
-          ],
-        },
-      }),
-    );
-  });
+      expect(prisma.menu.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            menuLocation: 1,
+            isActive: true,
+            isDeleted: false,
+            OR: [
+              { organizationTypeId: type.id },
+              {
+                organizationType: { code: { in: ['HEADQUARTER'] } },
+                showOnAllOrganizations: true,
+              },
+            ],
+          },
+        }),
+      );
+    },
+  );
 
   it('keeps Headquarters navigation limited to Headquarters menus', async () => {
     prisma.organizationType.findFirst.mockResolvedValue({

@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   ConflictException,
@@ -9,29 +10,49 @@ import { Prisma, Region } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { parseUuidList } from '../common/utils/resolve-related-id.util';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRegionDto } from './dto/create-region.dto';
 import { GetRegionsQueryDto } from './dto/get-regions-query.dto';
 import { RegionResponseDto } from './dto/region-response.dto';
 import { UpdateRegionDto } from './dto/update-region.dto';
+import { PublicRegionResponseDto } from './dto/public-region-response.dto';
 
 @Injectable()
 export class RegionsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.region.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
 
   async create(
     dto: CreateRegionDto,
     actor: AuthenticatedUser,
   ): Promise<RegionResponseDto> {
     await this.ensureValuesAreUnique(dto.regionName, dto.regionCode);
-    const stateIds = await this.normalizeAndValidateStateIds(dto.state_ids);
+    const stateIds = await this.resolveStateIds(dto.state_ids, dto.state_uuids);
 
     const region = await this.prisma.$transaction(async (transaction) => {
       const createdRegion = await transaction.region.create({
         data: {
           regionName: dto.regionName,
+          regionNameHi: dto.regionNameHi,
           regionCode: dto.regionCode,
+          dcRoName: dto.dcRoName,
+          dcRoNameHi: dto.dcRoNameHi,
           stateIds,
+          address: dto.address,
+          addressHindi: dto.addressHindi,
+          phone: dto.phone,
+          email: dto.email,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -39,6 +60,7 @@ export class RegionsService {
 
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'REGION',
           entity: 'REGION',
@@ -89,6 +111,55 @@ export class RegionsService {
     return this.toResponse(region);
   }
 
+  async findPublic(
+    query: PaginationQueryDto,
+  ): Promise<PaginatedResponseDto<PublicRegionResponseDto>> {
+    const search = query.search?.trim();
+    const where: Prisma.RegionWhereInput = {
+      isDeleted: false,
+      ...(search
+        ? {
+            OR: [
+              { regionName: { contains: search, mode: 'insensitive' } },
+              { regionNameHi: { contains: search, mode: 'insensitive' } },
+              { regionCode: { contains: search, mode: 'insensitive' } },
+              { dcRoName: { contains: search, mode: 'insensitive' } },
+              { dcRoNameHi: { contains: search, mode: 'insensitive' } },
+              { address: { contains: search, mode: 'insensitive' } },
+              { addressHindi: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+    const [regions, totalItems] = await this.prisma.$transaction([
+      this.prisma.region.findMany({
+        where,
+        orderBy: [{ regionName: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.region.count({ where }),
+    ]);
+
+    return {
+      items: regions.map((region) => this.toPublicResponse(region)),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  async findPublicOne(
+    identifier: { id: number } | { uuid: string },
+  ): Promise<PublicRegionResponseDto> {
+    const region = await this.prisma.region.findFirst({
+      where: { ...identifier, isDeleted: false },
+    });
+    if (!region) throw new NotFoundException('Region not found.');
+
+    return this.toPublicResponse(region);
+  }
+
   async update(
     id: number,
     dto: UpdateRegionDto,
@@ -97,8 +168,8 @@ export class RegionsService {
     const existingRegion = await this.findActiveRegion(id);
     await this.ensureValuesAreUnique(dto.regionName, dto.regionCode, id);
     const stateIds =
-      dto.state_ids !== undefined
-        ? await this.normalizeAndValidateStateIds(dto.state_ids)
+      dto.state_ids !== undefined || dto.state_uuids !== undefined
+        ? await this.resolveStateIds(dto.state_ids, dto.state_uuids)
         : undefined;
 
     const region = await this.prisma.$transaction(async (transaction) => {
@@ -106,14 +177,22 @@ export class RegionsService {
         where: { id },
         data: {
           regionName: dto.regionName,
+          regionNameHi: dto.regionNameHi,
           regionCode: dto.regionCode,
+          dcRoName: dto.dcRoName,
+          dcRoNameHi: dto.dcRoNameHi,
           ...(stateIds !== undefined ? { stateIds } : {}),
+          address: dto.address,
+          addressHindi: dto.addressHindi,
+          phone: dto.phone,
+          email: dto.email,
           updatedById: actor.id,
         },
       });
 
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'REGION',
           entity: 'REGION',
@@ -167,6 +246,7 @@ export class RegionsService {
 
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'REGION',
           entity: 'REGION',
@@ -208,6 +288,7 @@ export class RegionsService {
 
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'REGION',
           entity: 'REGION',
@@ -267,7 +348,14 @@ export class RegionsService {
     if (search?.trim()) {
       where.OR = [
         { regionName: { contains: search.trim(), mode: 'insensitive' } },
+        { regionNameHi: { contains: search.trim(), mode: 'insensitive' } },
         { regionCode: { contains: search.trim(), mode: 'insensitive' } },
+        { dcRoName: { contains: search.trim(), mode: 'insensitive' } },
+        { dcRoNameHi: { contains: search.trim(), mode: 'insensitive' } },
+        { address: { contains: search.trim(), mode: 'insensitive' } },
+        { addressHindi: { contains: search.trim(), mode: 'insensitive' } },
+        { phone: { contains: search.trim(), mode: 'insensitive' } },
+        { email: { contains: search.trim(), mode: 'insensitive' } },
       ];
     }
 
@@ -298,14 +386,53 @@ export class RegionsService {
     return ids.join(',');
   }
 
+  private async resolveStateIds(ids?: string, uuids?: string): Promise<string> {
+    if (!uuids) return this.normalizeAndValidateStateIds(ids!);
+    const values = parseUuidList(uuids, 'state_uuids');
+    const states = await this.prisma.state.findMany({
+      where: { uuid: { in: values } },
+      select: { id: true, uuid: true },
+    });
+    if (states.length !== values.length)
+      throw new BadRequestException('One or more state UUIDs are invalid.');
+    const byUuid = new Map(states.map((state) => [state.uuid, state.id]));
+    const resolved = values.map((uuid) => byUuid.get(uuid)!).join(',');
+    if (ids) await this.normalizeAndValidateStateIds(ids);
+    return this.normalizeAndValidateStateIds(resolved);
+  }
+
   private toResponse(region: Region): RegionResponseDto {
     return {
       id: region.id,
+      uuid: region.uuid,
       regionName: region.regionName,
+      regionNameHi: region.regionNameHi,
       regionCode: region.regionCode,
+      dcRoName: region.dcRoName,
+      dcRoNameHi: region.dcRoNameHi,
       state_ids: region.stateIds,
+      address: region.address,
+      addressHindi: region.addressHindi,
+      phone: region.phone,
+      email: region.email,
       createdAt: region.createdAt,
       updatedAt: region.updatedAt,
+    };
+  }
+
+  private toPublicResponse(region: Region): PublicRegionResponseDto {
+    return {
+      id: region.id,
+      uuid: region.uuid,
+      regionName: region.regionName,
+      regionNameHi: region.regionNameHi,
+      regionCode: region.regionCode,
+      dcRoName: region.dcRoName,
+      dcRoNameHi: region.dcRoNameHi,
+      address: region.address,
+      addressHindi: region.addressHindi,
+      phone: region.phone,
+      email: region.email,
     };
   }
 
@@ -313,8 +440,15 @@ export class RegionsService {
     return {
       id: region.id,
       regionName: region.regionName,
+      regionNameHi: region.regionNameHi,
       regionCode: region.regionCode,
+      dcRoName: region.dcRoName,
+      dcRoNameHi: region.dcRoNameHi,
       state_ids: region.stateIds,
+      address: region.address,
+      addressHindi: region.addressHindi,
+      phone: region.phone,
+      email: region.email,
       createdAt: region.createdAt.toISOString(),
       updatedAt: region.updatedAt.toISOString(),
       createdById: region.createdById,

@@ -1,13 +1,12 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -31,6 +30,81 @@ import { UsersService } from './users.service';
 @Roles(Role.SUPER_ADMIN)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('USER_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.usersService.resolveUuid(uuid);
+    return this.findOne(id);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('USER_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.usersService.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/activate')
+  @HttpCode(200)
+  @RequirePermission('USER_UPDATE')
+  async activateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.usersService.resolveUuid(uuid);
+    return this.activate(id, user);
+  }
+
+  @Post('uuid/:uuid/deactivate')
+  @HttpCode(200)
+  @RequirePermission('USER_UPDATE')
+  async deactivateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.usersService.resolveUuid(uuid);
+    return this.deactivate(id, user);
+  }
+
+  @Post('uuid/:uuid/reset-password')
+  @HttpCode(200)
+  @RequirePermission('USER_UPDATE')
+  async resetPasswordByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: ResetUserPasswordDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.usersService.resolveUuid(uuid);
+    return this.resetPassword(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('USER_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.usersService.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
+
+  @Post('uuid/:uuid/restore')
+  @HttpCode(200)
+  @RequirePermission('USER_RESTORE')
+  async restoreByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.usersService.resolveUuid(uuid);
+    return this.restore(id, user);
+  }
 
   @Post()
   @RequirePermission('USER_CREATE')
@@ -62,7 +136,8 @@ export class UsersController {
     };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('USER_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -75,7 +150,8 @@ export class UsersController {
     };
   }
 
-  @Patch(':id/activate')
+  @Post(':id/activate')
+  @HttpCode(200)
   @RequirePermission('USER_UPDATE')
   async activate(
     @Param('id', ParseIntPipe) id: number,
@@ -87,7 +163,8 @@ export class UsersController {
     };
   }
 
-  @Patch(':id/deactivate')
+  @Post(':id/deactivate')
+  @HttpCode(200)
   @RequirePermission('USER_UPDATE')
   async deactivate(
     @Param('id', ParseIntPipe) id: number,
@@ -99,7 +176,8 @@ export class UsersController {
     };
   }
 
-  @Patch(':id/reset-password')
+  @Post(':id/reset-password')
+  @HttpCode(200)
   @RequirePermission('USER_UPDATE')
   async resetPassword(
     @Param('id', ParseIntPipe) id: number,
@@ -112,7 +190,8 @@ export class UsersController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   @RequirePermission('USER_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -124,7 +203,8 @@ export class UsersController {
     };
   }
 
-  @Patch(':id/restore')
+  @Post(':id/restore')
+  @HttpCode(200)
   @RequirePermission('USER_RESTORE')
   async restore(
     @Param('id', ParseIntPipe) id: number,

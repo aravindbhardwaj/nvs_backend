@@ -3,6 +3,7 @@ import { Prisma, State } from '@prisma/client';
 
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetStatesQueryDto } from './dto/get-states-query.dto';
 import { StateResponseDto } from './dto/state-response.dto';
@@ -14,6 +15,8 @@ export class StatesService {
   async findAll(
     query: GetStatesQueryDto,
   ): Promise<PaginatedResponseDto<StateResponseDto>> {
+    query.ro_id = await resolveRelatedId(query.ro_id, query.ro_uuid, 'Region',
+      (uuid) => this.prisma.region.findUnique({ where: { uuid }, select: { id: true } }));
     const { page, limit, search, ro_id, sort, order } = query;
     const where: Prisma.StateWhereInput = {
       isActive: true,
@@ -54,6 +57,7 @@ export class StatesService {
   private toResponse(state: State): StateResponseDto {
     return {
       id: state.id,
+      uuid: state.uuid,
       stateName: state.stateName,
       nameHi: state.nameHi,
       stateCode: state.stateCode,

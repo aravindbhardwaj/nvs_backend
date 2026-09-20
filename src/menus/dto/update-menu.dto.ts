@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -26,6 +27,7 @@ export class UpdateMenuDto {
   @IsInt()
   @Min(1)
   organization_type_id?: number;
+  @IsOptional() @IsUUID() organization_type_uuid?: string;
   @IsOptional()
   @Type(() => Number)
   @IsIn(MENU_LOCATION_VALUES)
@@ -35,6 +37,7 @@ export class UpdateMenuDto {
   @IsInt()
   @Min(1)
   parent_menu_id?: number | null;
+  @IsOptional() @IsUUID() parent_menu_uuid?: string | null;
   @IsOptional()
   @Transform(trimValue)
   @IsString()
@@ -52,16 +55,32 @@ export class UpdateMenuDto {
   @IsInt()
   @Min(1)
   content_type_id?: number | null;
+  @IsOptional() @IsUUID() content_type_uuid?: string | null;
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   media_type_id?: number | null;
+  @IsOptional() @IsUUID() media_type_uuid?: string | null;
   @IsOptional()
   @Transform(trimValue)
   @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(2048)
   external_url?: string | null;
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2048)
+  page_url?: string | null;
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  tabular_type?: boolean | null;
+  @IsOptional()
+  @Transform(trimValue)
+  @IsString()
+  tabular_data?: string | null;
   @IsOptional()
   @Type(() => Number)
   @IsIn(LINK_TARGET_VALUES)

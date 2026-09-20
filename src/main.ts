@@ -8,9 +8,12 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaService } from './prisma/prisma.service';
 import { Logger } from '@nestjs/common';
+import { auditRequestContextMiddleware } from './common/request-context/audit-request-context';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(auditRequestContextMiddleware);
 
   const corsOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
@@ -19,7 +22,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: corsOrigins,
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'HEAD', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 

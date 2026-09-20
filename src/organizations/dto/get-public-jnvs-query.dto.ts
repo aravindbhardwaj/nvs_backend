@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
@@ -21,10 +21,12 @@ export class GetPublicJnvsQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   district_id?: number;
+  @IsOptional() @IsUUID() district_uuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   regional_office_id?: number;
+  @IsOptional() @IsUUID() regional_office_uuid?: string;
 }

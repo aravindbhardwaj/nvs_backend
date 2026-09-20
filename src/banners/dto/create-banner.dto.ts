@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -25,6 +26,10 @@ export class CreateBannerDto {
   @IsInt()
   @Min(1)
   organizationId?: number;
+
+  @IsOptional()
+  @IsUUID()
+  organizationUuid?: string;
 
   @Transform(trimValue)
   @IsString()

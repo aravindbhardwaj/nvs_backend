@@ -11,6 +11,16 @@ import { PermissionResponseDto } from './dto/permission-response.dto';
 export class PermissionsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.permission.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async findAll(
     query: GetPermissionsQueryDto,
   ): Promise<PaginatedResponseDto<PermissionResponseDto>> {
@@ -66,6 +76,7 @@ export class PermissionsService {
   private toResponse(permission: Permission): PermissionResponseDto {
     return {
       id: permission.id,
+      uuid: permission.uuid,
       permissionKey: permission.permissionKey,
       module: permission.module,
       action: permission.action,

@@ -5,6 +5,7 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsUUID,
   Min,
 } from 'class-validator';
 
@@ -17,12 +18,14 @@ export class GetDistrictsQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   stateId?: number;
+  @IsOptional() @IsUUID() stateUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   roId?: number;
+  @IsOptional() @IsUUID() roUuid?: string;
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>

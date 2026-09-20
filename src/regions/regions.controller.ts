@@ -1,13 +1,12 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -30,6 +29,47 @@ import { RegionsService } from './regions.service';
 @Roles(Role.SUPER_ADMIN)
 export class RegionsController {
   constructor(private readonly regionsService: RegionsService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('REGION_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.regionsService.resolveUuid(uuid);
+    return this.findOne(id);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('REGION_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateRegionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.regionsService.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('REGION_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.regionsService.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
+
+  @Post('uuid/:uuid/restore')
+  @HttpCode(200)
+  @RequirePermission('REGION_UPDATE')
+  async restoreByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.regionsService.resolveUuid(uuid);
+    return this.restore(id, user);
+  }
 
   @Post()
   @RequirePermission('REGION_CREATE')
@@ -61,7 +101,8 @@ export class RegionsController {
     };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('REGION_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -74,7 +115,8 @@ export class RegionsController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   @RequirePermission('REGION_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -86,7 +128,8 @@ export class RegionsController {
     };
   }
 
-  @Patch(':id/restore')
+  @Post(':id/restore')
+  @HttpCode(200)
   @RequirePermission('REGION_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,

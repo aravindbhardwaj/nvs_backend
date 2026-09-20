@@ -1,0 +1,15 @@
+ALTER TABLE "nvs_pages"
+ADD COLUMN "section1_label_en" VARCHAR(255),
+ADD COLUMN "section1_label_hi" VARCHAR(255),
+ADD COLUMN "section2_label_en" VARCHAR(255),
+ADD COLUMN "section2_label_hi" VARCHAR(255),
+ADD COLUMN "content2_english" TEXT,
+ADD COLUMN "content2_hindi" TEXT,
+ADD COLUMN "section3_label_en" VARCHAR(255),
+ADD COLUMN "section3_label_hi" VARCHAR(255),
+ADD COLUMN "content3_english" TEXT,
+ADD COLUMN "content3_hindi" TEXT,
+ADD COLUMN "section4_label_en" VARCHAR(255),
+ADD COLUMN "section4_label_hi" VARCHAR(255),
+ADD COLUMN "content4_english" TEXT,
+ADD COLUMN "content4_hindi" TEXT;

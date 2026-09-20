@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../../common/request-context/audit-request-context';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Prisma, RefreshToken, User, UserStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
@@ -85,6 +86,7 @@ export class RefreshTokenService {
 
       await tx.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: validatedToken.user.id,
           module: 'AUTHENTICATION',
           entity: 'REFRESH_TOKEN',
@@ -96,6 +98,7 @@ export class RefreshTokenService {
 
       await tx.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: validatedToken.user.id,
           module: 'AUTHENTICATION',
           entity: 'REFRESH_TOKEN',
@@ -135,6 +138,7 @@ export class RefreshTokenService {
 
       await tx.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId,
           module: 'AUTHENTICATION',
           entity: 'REFRESH_TOKEN',
@@ -149,6 +153,7 @@ export class RefreshTokenService {
 
       await tx.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId,
           module: 'AUTHENTICATION',
           entity: 'REFRESH_TOKEN',
@@ -215,6 +220,7 @@ export class RefreshTokenService {
   ): Promise<void> {
     await this.prisma.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'AUTHENTICATION',
         entity: 'REFRESH_TOKEN',

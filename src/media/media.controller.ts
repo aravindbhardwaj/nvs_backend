@@ -2,13 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   Res,
   UploadedFiles,
@@ -66,6 +65,115 @@ const uploadOptions = {
 @OrganizationOwned('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
+
+  @Get('uuid/:uuid/download')
+  @RequirePermission('MEDIA_VIEW')
+  async downloadByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.mediaService.resolveUuid(uuid);
+    return this.download(id, user, response);
+  }
+
+  @Get('uuid/:uuid/download/hindi')
+  @RequirePermission('MEDIA_VIEW')
+  async downloadHindiByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.mediaService.resolveUuid(uuid);
+    return this.downloadHindi(id, user, response);
+  }
+
+  @Get('uuid/:uuid')
+  @RequirePermission('MEDIA_VIEW')
+  async findOneByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.mediaService.resolveUuid(uuid);
+    return this.findOne(id, user);
+  }
+
+  @Post('uuid/:uuid/file')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_UPLOAD')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'hindiFile', maxCount: 1 },
+      ],
+      uploadOptions,
+    ),
+  )
+  async replaceFileByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @UploadedFiles()
+    files: { file?: Express.Multer.File[]; hindiFile?: Express.Multer.File[] },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const file = files?.file?.[0];
+    const hindiFile = files?.hindiFile?.[0];
+    if (!file && !hindiFile)
+      throw new BadRequestException('A document file is required.');
+    if (file && hindiFile)
+      throw new BadRequestException(
+        'Provide either file or hindiFile, not both.',
+      );
+    try {
+      const id = await this.mediaService.resolveUuid(uuid);
+      return {
+        message: 'Document replaced successfully.',
+        data: await this.mediaService.replaceFile(
+          id,
+          file ?? hindiFile!,
+          user,
+          Boolean(hindiFile),
+        ),
+      };
+    } catch (error) {
+      await this.mediaService.cleanupUploadedFiles([file, hindiFile]);
+      throw error;
+    }
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_UPLOAD')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateMediaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.mediaService.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.mediaService.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
+
+  @Post('uuid/:uuid/restore')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_UPLOAD')
+  async restoreByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.mediaService.resolveUuid(uuid);
+    return this.restore(id, user);
+  }
 
   @Post('external')
   @RequirePermission('MEDIA_UPLOAD')
@@ -168,7 +276,8 @@ export class MediaController {
     };
   }
 
-  @Put(':id/file')
+  @Post(':id/file')
+  @HttpCode(200)
   @RequirePermission('MEDIA_UPLOAD')
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -209,7 +318,8 @@ export class MediaController {
     }
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('MEDIA_UPLOAD')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -222,7 +332,8 @@ export class MediaController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   @RequirePermission('MEDIA_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -234,7 +345,8 @@ export class MediaController {
     };
   }
 
-  @Patch(':id/restore')
+  @Post(':id/restore')
+  @HttpCode(200)
   @RequirePermission('MEDIA_UPLOAD')
   async restore(
     @Param('id', ParseIntPipe) id: number,

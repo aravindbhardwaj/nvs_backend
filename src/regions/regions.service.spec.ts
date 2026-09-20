@@ -6,6 +6,9 @@ import { validate } from 'class-validator';
 import { CreateRegionDto } from './dto/create-region.dto';
 import { RegionsService } from './regions.service';
 
+const containing = (value: object): unknown =>
+  expect.objectContaining(value) as unknown;
+
 describe('RegionsService', () => {
   const actor = {
     id: 1,
@@ -20,7 +23,11 @@ describe('RegionsService', () => {
     auditLog: { create: jest.fn() },
   };
   const prisma = {
-    region: { findFirst: jest.fn() },
+    region: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
     state: { count: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -28,9 +35,17 @@ describe('RegionsService', () => {
 
   const region = {
     id: 1,
+    uuid: '550e8400-e29b-41d4-a716-446655440000',
     regionName: 'Bhopal Region',
+    regionNameHi: 'भोपाल क्षेत्र',
     regionCode: 'BHOPAL',
+    dcRoName: 'Deputy Commissioner, Bhopal',
+    dcRoNameHi: 'उपायुक्त, भोपाल',
     stateIds: '1,5,8',
+    address: 'Sector 12, Bhopal',
+    addressHindi: 'सेक्टर 12, भोपाल',
+    phone: '0755-1234567, 0755-1234568',
+    email: 'robhopal[at]nvs[dot]gov[dot]in',
     createdAt: now,
     updatedAt: now,
     createdById: 1,
@@ -42,7 +57,13 @@ describe('RegionsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.$transaction.mockImplementation((callback) => callback(transaction));
+    prisma.$transaction.mockImplementation((operation: unknown) =>
+      typeof operation === 'function'
+        ? (operation as (client: typeof transaction) => Promise<unknown>)(
+            transaction,
+          )
+        : Promise.all(operation as Promise<unknown>[]),
+    );
     prisma.region.findFirst.mockResolvedValue(null);
     prisma.state.count.mockResolvedValue(3);
     transaction.region.create.mockResolvedValue(region);
@@ -59,8 +80,48 @@ describe('RegionsService', () => {
     );
 
     expect(transaction.region.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ stateIds: '1' }),
+      containing({
+        data: containing({ stateIds: '1' }),
+      }),
+    );
+  });
+
+  it('creates and returns all optional regional office fields', async () => {
+    const dto = {
+      regionName: 'Bhopal Region',
+      regionCode: 'BHOPAL',
+      state_ids: '1,5,8',
+      regionNameHi: region.regionNameHi,
+      dcRoName: region.dcRoName,
+      dcRoNameHi: region.dcRoNameHi,
+      address: region.address,
+      addressHindi: region.addressHindi,
+      phone: region.phone,
+      email: region.email,
+    };
+
+    await expect(service.create(dto, actor)).resolves.toEqual(
+      containing({
+        regionNameHi: region.regionNameHi,
+        dcRoName: region.dcRoName,
+        dcRoNameHi: region.dcRoNameHi,
+        address: region.address,
+        addressHindi: region.addressHindi,
+        phone: region.phone,
+        email: region.email,
+      }),
+    );
+    expect(transaction.region.create).toHaveBeenCalledWith(
+      containing({
+        data: containing({
+          regionNameHi: region.regionNameHi,
+          dcRoName: region.dcRoName,
+          dcRoNameHi: region.dcRoNameHi,
+          address: region.address,
+          addressHindi: region.addressHindi,
+          phone: region.phone,
+          email: region.email,
+        }),
       }),
     );
   });
@@ -90,8 +151,8 @@ describe('RegionsService', () => {
       where: { id: { in: [1, 5, 8] }, isDeleted: false },
     });
     expect(transaction.region.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ stateIds: '1,5,8' }),
+      containing({
+        data: containing({ stateIds: '1,5,8' }),
       }),
     );
   });
@@ -145,11 +206,11 @@ describe('RegionsService', () => {
     );
 
     expect(transaction.region.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ stateIds: '2,6,9' }),
+      containing({
+        data: containing({ stateIds: '2,6,9' }),
       }),
     );
-    expect(response).toEqual(expect.objectContaining({ state_ids: '2,6,9' }));
+    expect(response).toEqual(containing({ state_ids: '2,6,9' }));
   });
 
   it('rejects an update with an invalid State ID', async () => {
@@ -176,7 +237,33 @@ describe('RegionsService', () => {
     prisma.region.findFirst.mockResolvedValue(region);
 
     await expect(service.findOne(1)).resolves.toEqual(
-      expect.objectContaining({ state_ids: '1,5,8' }),
+      containing({ state_ids: '1,5,8' }),
+    );
+  });
+
+  it('returns contact fields through the public region API service', async () => {
+    prisma.region.findMany.mockResolvedValue([region]);
+    prisma.region.count.mockResolvedValue(1);
+
+    const response = await service.findPublic({ page: 1, limit: 20 });
+
+    expect(response.items).toEqual([
+      {
+        id: region.id,
+        uuid: region.uuid,
+        regionName: region.regionName,
+        regionNameHi: region.regionNameHi,
+        regionCode: region.regionCode,
+        dcRoName: region.dcRoName,
+        dcRoNameHi: region.dcRoNameHi,
+        address: region.address,
+        addressHindi: region.addressHindi,
+        phone: region.phone,
+        email: region.email,
+      },
+    ]);
+    expect(prisma.region.findMany).toHaveBeenCalledWith(
+      containing({ where: { isDeleted: false } }),
     );
   });
 });

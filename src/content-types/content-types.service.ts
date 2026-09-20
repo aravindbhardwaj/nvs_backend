@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   ConflictException,
   Injectable,
@@ -18,6 +19,16 @@ import { UpdateContentTypeDto } from './dto/update-content-type.dto';
 export class ContentTypesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.contentType.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(
     dto: CreateContentTypeDto,
     actor: AuthenticatedUser,
@@ -30,6 +41,7 @@ export class ContentTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'CONTENT_TYPE',
           entity: 'CONTENT_TYPE',
@@ -90,6 +102,7 @@ export class ContentTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'CONTENT_TYPE',
           entity: 'CONTENT_TYPE',
@@ -138,6 +151,7 @@ export class ContentTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'CONTENT_TYPE',
           entity: 'CONTENT_TYPE',
@@ -174,6 +188,7 @@ export class ContentTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'CONTENT_TYPE',
           entity: 'CONTENT_TYPE',
@@ -240,6 +255,7 @@ export class ContentTypesService {
   private toResponse(contentType: ContentType): ContentTypeResponseDto {
     return {
       id: contentType.id,
+      uuid: contentType.uuid,
       nameEnglish: contentType.nameEnglish,
       nameHindi: contentType.nameHindi,
       descriptionEnglish: contentType.descriptionEnglish,

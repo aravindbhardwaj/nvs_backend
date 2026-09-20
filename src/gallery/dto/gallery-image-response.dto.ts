@@ -1,5 +1,6 @@
 export class GalleryImageResponseDto {
   id: number;
+  uuid: string;
   organizationId: number;
   titleEnglish: string;
   titleHindi: string | null;
@@ -23,6 +24,7 @@ export class GalleryImageResponseDto {
 
 export class PublicGalleryImageResponseDto {
   id: number;
+  uuid: string;
   title_english: string;
   title_hindi: string | null;
   description_english: string | null;

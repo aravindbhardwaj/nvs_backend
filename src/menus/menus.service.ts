@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   Injectable,
@@ -8,6 +9,7 @@ import { Menu, Prisma } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { GetMenuNavigationQueryDto } from './dto/get-menu-navigation-query.dto';
@@ -20,27 +22,42 @@ import { LINK_TARGET } from './menu.constants';
 export class MenusService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.menu.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(
     dto: CreateMenuDto,
     actor: AuthenticatedUser,
   ): Promise<MenuResponseDto> {
-    await this.validateConfiguration(dto);
+    const resolvedDto = await this.resolveCreateRelations(dto);
+    await this.validateConfiguration(resolvedDto);
     const menu = await this.prisma.$transaction(async (transaction) => {
-      await this.validateReferences(transaction, dto);
+      await this.validateReferences(transaction, resolvedDto);
       const created = await transaction.menu.create({
         data: {
-          organizationTypeId: dto.organization_type_id,
-          menuLocation: dto.menu_location,
-          parentMenuId: dto.parent_menu_id ?? null,
-          titleEnglish: dto.title_english,
-          titleHindi: dto.title_hindi ?? null,
-          contentTypeId: dto.content_type_id ?? null,
-          mediaTypeId: dto.media_type_id ?? null,
-          externalUrl: dto.external_url ?? null,
-          linkTarget: dto.link_target ?? LINK_TARGET.SAME_PAGE,
-          display_order: dto.display_order ?? 0,
-          isActive: dto.is_active ?? true,
-          showOnAllOrganizations: dto.show_on_all_organizations ?? false,
+          organizationTypeId: resolvedDto.organization_type_id,
+          menuLocation: resolvedDto.menu_location,
+          parentMenuId: resolvedDto.parent_menu_id ?? null,
+          titleEnglish: resolvedDto.title_english,
+          titleHindi: resolvedDto.title_hindi ?? null,
+          contentTypeId: resolvedDto.content_type_id ?? null,
+          mediaTypeId: resolvedDto.media_type_id ?? null,
+          externalUrl: resolvedDto.external_url ?? null,
+          pageUrl: resolvedDto.page_url ?? null,
+          tabularType: resolvedDto.tabular_type ?? null,
+          tabularData: resolvedDto.tabular_data ?? null,
+          linkTarget: resolvedDto.link_target ?? LINK_TARGET.SAME_PAGE,
+          display_order: resolvedDto.display_order ?? 0,
+          isActive: resolvedDto.is_active ?? true,
+          showOnAllOrganizations:
+            resolvedDto.show_on_all_organizations ?? false,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -54,6 +71,14 @@ export class MenusService {
   async findAll(
     query: GetMenusQueryDto,
   ): Promise<PaginatedResponseDto<MenuResponseDto>> {
+    query.organization_type_id = await this.resolveOrganizationTypeId(
+      query.organization_type_id,
+      query.organization_type_uuid,
+    );
+    query.parent_menu_id = await this.resolveMenuId(
+      query.parent_menu_id,
+      query.parent_menu_uuid,
+    );
     const where = this.buildWhere(query);
     const [items, totalItems] = await this.prisma.$transaction([
       this.prisma.menu.findMany({
@@ -84,6 +109,22 @@ export class MenusService {
     actor: AuthenticatedUser,
   ): Promise<MenuResponseDto> {
     const existing = await this.findMenu(id);
+    dto.organization_type_id = await this.resolveOrganizationTypeId(
+      dto.organization_type_id,
+      dto.organization_type_uuid,
+    );
+    dto.parent_menu_id = await this.resolveMenuId(
+      dto.parent_menu_id,
+      dto.parent_menu_uuid,
+    );
+    dto.content_type_id = await this.resolveContentTypeId(
+      dto.content_type_id,
+      dto.content_type_uuid,
+    );
+    dto.media_type_id = await this.resolveMediaTypeId(
+      dto.media_type_id,
+      dto.media_type_uuid,
+    );
     const candidate = {
       organization_type_id:
         dto.organization_type_id ?? existing.organizationTypeId,
@@ -104,6 +145,11 @@ export class MenusService {
         dto.external_url === undefined
           ? existing.externalUrl
           : dto.external_url,
+      page_url: dto.page_url === undefined ? existing.pageUrl : dto.page_url,
+      tabular_type:
+        dto.tabular_type === undefined
+          ? existing.tabularType
+          : dto.tabular_type,
     };
     await this.validateConfiguration(candidate);
     const menu = await this.prisma.$transaction(async (transaction) => {
@@ -135,6 +181,13 @@ export class MenusService {
           ...(dto.external_url === undefined
             ? {}
             : { externalUrl: dto.external_url }),
+          ...(dto.page_url === undefined ? {} : { pageUrl: dto.page_url }),
+          ...(dto.tabular_type === undefined
+            ? {}
+            : { tabularType: dto.tabular_type }),
+          ...(dto.tabular_data === undefined
+            ? {}
+            : { tabularData: dto.tabular_data }),
           ...(dto.link_target === undefined
             ? {}
             : { linkTarget: dto.link_target }),
@@ -180,6 +233,10 @@ export class MenusService {
   async navigation(
     query: GetMenuNavigationQueryDto,
   ): Promise<MenuNavigationDto[]> {
+    query.organization_type_id = await this.resolveOrganizationTypeId(
+      query.organization_type_id,
+      query.organization_type_uuid,
+    );
     const organizationType = await this.prisma.organizationType.findFirst({
       where: { id: query.organization_type_id, isActive: true },
     });
@@ -319,6 +376,7 @@ export class MenusService {
     content_type_id?: number | null;
     media_type_id?: number | null;
     external_url?: string | null;
+    tabular_type?: boolean | null;
   }): Promise<void> {
     const destinations = [
       dto.content_type_id,
@@ -327,9 +385,10 @@ export class MenusService {
     ].filter(
       (value) => value !== undefined && value !== null && value !== '',
     ).length;
-    if (destinations > 1)
+    const destinationCount = destinations + (dto.tabular_type === true ? 1 : 0);
+    if (destinationCount > 1)
       throw new BadRequestException(
-        'Only one of content_type_id, media_type_id, or external_url may be configured.',
+        'Only one of content_type_id, media_type_id, external_url, or tabular_type may be configured.',
       );
   }
 
@@ -370,6 +429,105 @@ export class MenusService {
     return menu;
   }
 
+  private resolveOrganizationTypeId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization type', (value) =>
+      this.prisma.organizationType.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+  private resolveMenuId(id?: number | null, uuid?: string | null) {
+    if (uuid === null) return Promise.resolve(undefined);
+    return resolveRelatedId(id, uuid, 'Menu', (value) =>
+      this.prisma.menu.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+  private resolveContentTypeId(id?: number | null, uuid?: string | null) {
+    if (
+      (id === null && (uuid === undefined || uuid === null)) ||
+      (id === undefined && uuid === null)
+    )
+      return Promise.resolve(null);
+    return resolveRelatedId(id, uuid, 'Content type', (value) =>
+      this.prisma.contentType.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+  private resolveMediaTypeId(id?: number | null, uuid?: string | null) {
+    if (
+      (id === null && (uuid === undefined || uuid === null)) ||
+      (id === undefined && uuid === null)
+    )
+      return Promise.resolve(null);
+    return resolveRelatedId(id, uuid, 'Media type', (value) =>
+      this.prisma.mediaType.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+
+  private async resolveCreateRelations(
+    dto: CreateMenuDto,
+  ): Promise<CreateMenuDto & { organization_type_id: number }> {
+    const resolveId = (
+      id: number | null | undefined,
+      uuid: string | null | undefined,
+      label: string,
+      findByUuid: (uuid: string) => Promise<{ id: number } | null>,
+    ) => resolveRelatedId(id, uuid, label, findByUuid);
+
+    return {
+      ...dto,
+      organization_type_id: (await resolveId(
+        dto.organization_type_id,
+        dto.organization_type_uuid,
+        'Organization type',
+        (uuid) =>
+          this.prisma.organizationType.findUnique({
+            where: { uuid },
+            select: { id: true },
+          }),
+      ))!,
+      parent_menu_id: await resolveId(
+        dto.parent_menu_id,
+        dto.parent_menu_uuid,
+        'Parent menu',
+        (uuid) =>
+          this.prisma.menu.findUnique({
+            where: { uuid },
+            select: { id: true },
+          }),
+      ),
+      content_type_id: await resolveId(
+        dto.content_type_id,
+        dto.content_type_uuid,
+        'Content type',
+        (uuid) =>
+          this.prisma.contentType.findUnique({
+            where: { uuid },
+            select: { id: true },
+          }),
+      ),
+      media_type_id: await resolveId(
+        dto.media_type_id,
+        dto.media_type_uuid,
+        'Media type',
+        (uuid) =>
+          this.prisma.mediaType.findUnique({
+            where: { uuid },
+            select: { id: true },
+          }),
+      ),
+    };
+  }
+
   private toTree(menus: Menu[]): MenuNavigationDto[] {
     const items = new Map<number, MenuNavigationDto>();
     const roots: MenuNavigationDto[] = [];
@@ -385,6 +543,7 @@ export class MenusService {
   private toResponse(menu: Menu): MenuResponseDto {
     return {
       id: menu.id,
+      uuid: menu.uuid,
       organization_type_id: menu.organizationTypeId,
       menu_location: menu.menuLocation,
       parent_menu_id: menu.parentMenuId,
@@ -393,6 +552,9 @@ export class MenusService {
       content_type_id: menu.contentTypeId,
       media_type_id: menu.mediaTypeId,
       external_url: menu.externalUrl,
+      page_url: menu.pageUrl,
+      tabular_type: menu.tabularType,
+      tabular_data: menu.tabularData,
       link_target: menu.linkTarget,
       display_order: menu.display_order,
       is_active: menu.isActive,
@@ -406,11 +568,15 @@ export class MenusService {
   private toNavigation(menu: Menu): MenuNavigationDto {
     return {
       id: menu.id,
+      uuid: menu.uuid,
       title_english: menu.titleEnglish,
       title_hindi: menu.titleHindi,
       content_type_id: menu.contentTypeId,
       media_type_id: menu.mediaTypeId,
       external_url: menu.externalUrl,
+      page_url: menu.pageUrl,
+      tabular_type: menu.tabularType,
+      tabular_data: menu.tabularData,
       link_target: menu.linkTarget,
       display_order: menu.display_order,
       children: [],
@@ -426,6 +592,7 @@ export class MenusService {
   ): Promise<void> {
     await transaction.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'MENU',
         entity: 'MENU',
@@ -448,6 +615,9 @@ export class MenusService {
       content_type_id: menu.contentTypeId,
       media_type_id: menu.mediaTypeId,
       external_url: menu.externalUrl,
+      page_url: menu.pageUrl,
+      tabular_type: menu.tabularType,
+      tabular_data: menu.tabularData,
       link_target: menu.linkTarget,
       display_order: menu.display_order,
       is_active: menu.isActive,

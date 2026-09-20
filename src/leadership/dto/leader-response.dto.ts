@@ -1,5 +1,6 @@
 export class LeaderResponseDto {
   id: number;
+  uuid: string;
   leaderNameEnglish: string;
   leaderNameHindi: string;
   leaderDesignationEnglish: string;
@@ -17,6 +18,7 @@ export class LeaderResponseDto {
 
 export class PublicLeaderResponseDto {
   id: number;
+  uuid: string;
   leader_name_english: string;
   leader_name_hindi: string;
   leader_designation_english: string;

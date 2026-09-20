@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   Injectable,
@@ -26,6 +27,16 @@ import { UpdateModalDto } from './dto/update-modal.dto';
 @Injectable()
 export class ModalsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.modal.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
 
   async create(
     dto: CreateModalDto,
@@ -311,6 +322,7 @@ export class ModalsService {
   ): Promise<void> {
     await transaction.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'MODAL',
         entity: 'MODAL',
@@ -327,6 +339,7 @@ export class ModalsService {
   private toResponse(modal: Modal): ModalResponseDto {
     return {
       id: modal.id,
+      uuid: modal.uuid,
       text_english: modal.textEnglish,
       text_hindi: modal.textHindi,
       link: modal.link,
@@ -343,6 +356,7 @@ export class ModalsService {
   private toPublicResponse(modal: Modal): PublicModalResponseDto {
     return {
       id: modal.id,
+      uuid: modal.uuid,
       text_english: modal.textEnglish,
       text_hindi: modal.textHindi,
       link: modal.link,

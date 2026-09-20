@@ -4,11 +4,16 @@ import { AuthModule } from '../auth/auth.module';
 
 import { OrganizationsController } from './organizations.controller';
 import { PublicJnvsController } from './public-jnvs.controller';
+import { PublicOrganizationsController } from './public-organizations.controller';
 import { OrganizationsService } from './organizations.service';
 
 @Module({
   imports: [AuthModule],
-  controllers: [OrganizationsController, PublicJnvsController],
+  controllers: [
+    OrganizationsController,
+    PublicJnvsController,
+    PublicOrganizationsController,
+  ],
   providers: [OrganizationsService],
 })
 export class OrganizationsModule {}

@@ -55,7 +55,10 @@ describe('AuthService', () => {
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
         where: { email: 'user@nvs.gov.in' },
-        include: { organizationType: { select: { code: true } } },
+        include: {
+          organizationType: { select: { code: true } },
+          organization: { select: { uuid: true } },
+        },
       });
       expect(prisma.user.findFirst).not.toHaveBeenCalled();
     });
@@ -73,7 +76,10 @@ describe('AuthService', () => {
         where: {
           username: { equals: 'nvs-user', mode: 'insensitive' },
         },
-        include: { organizationType: { select: { code: true } } },
+        include: {
+          organizationType: { select: { code: true } },
+          organization: { select: { uuid: true } },
+        },
       });
     });
   });

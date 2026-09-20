@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Query,
   Res,
 } from '@nestjs/common';
@@ -15,6 +16,16 @@ import { GalleryService } from './gallery.service';
 @Controller('api/public/gallery')
 export class PublicGalleryController {
   constructor(private readonly gallery: GalleryService) {}
+
+  @Get('uuid/:uuid/image') async imageByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Query('organization_id') organizationId: string | undefined,
+    @Query('organization_uuid') organizationUuid: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.gallery.resolveUuid(uuid);
+    return this.image(id, organizationUuid ?? organizationId, response);
+  }
   @Get() async findAll(@Query() query: GetPublicGalleryImagesQueryDto) {
     return {
       message: 'Public gallery images retrieved successfully.',
@@ -29,7 +40,7 @@ export class PublicGalleryController {
     const image = await this.gallery.imageStream(
       id,
       undefined,
-      organizationId === undefined ? undefined : Number(organizationId),
+      await this.gallery.resolveOrganizationReference(organizationId),
     );
     response.setHeader('Content-Type', image.mimeType);
     image.stream.on('error', () => response.destroy());

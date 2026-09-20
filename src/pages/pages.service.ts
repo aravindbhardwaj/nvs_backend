@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   ConflictException,
   Injectable,
@@ -9,6 +10,7 @@ import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.in
 import { OrganizationOwnershipService } from '../auth/services/organization-ownership.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import {
   formatCalendarDate,
   isInvalidDateRange,
@@ -29,25 +31,55 @@ export class PagesService {
     private readonly ownership: OrganizationOwnershipService,
   ) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.page.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(
     dto: CreatePageDto,
     actor: AuthenticatedUser,
   ): Promise<PageResponseDto> {
-    this.assertDateRange(dto.start_date, dto.end_date);
-    this.ownership.assertAccess(dto.organizationId, actor);
-    await this.ensureActiveOrganization(dto.organizationId);
-    await this.ensureActiveContentType(dto.contentTypeId);
-    await this.ensureOrganizationContentTypeIsAvailable(
+    const organizationId = (await resolveRelatedId(
       dto.organizationId,
+      dto.organizationUuid,
+      'Organization',
+      (uuid) =>
+        this.prisma.organization.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    ))!;
+    const contentTypeId = (await resolveRelatedId(
       dto.contentTypeId,
+      dto.contentTypeUuid,
+      'Content type',
+      (uuid) =>
+        this.prisma.contentType.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    ))!;
+    this.assertDateRange(dto.start_date, dto.end_date);
+    this.ownership.assertAccess(organizationId, actor);
+    await this.ensureActiveOrganization(organizationId);
+    await this.ensureActiveContentType(contentTypeId);
+    await this.ensureOrganizationContentTypeIsAvailable(
+      organizationId,
+      contentTypeId,
     );
 
     const page = await this.prisma.$transaction(async (transaction) => {
       const status = dto.status ?? PageStatus.DRAFT;
       const createdPage = await transaction.page.create({
         data: {
-          organizationId: dto.organizationId,
-          contentTypeId: dto.contentTypeId,
+          organizationId,
+          contentTypeId,
           titleEnglish: dto.titleEnglish,
           titleHindi: dto.titleHindi,
           slug: await this.generateUniqueSlug(dto.titleEnglish, transaction),
@@ -55,6 +87,20 @@ export class PagesService {
           shortDescriptionHindi: dto.shortDescriptionHindi ?? null,
           contentEnglish: dto.contentEnglish,
           contentHindi: dto.contentHindi,
+          section1LabelEn: dto.section1_label_en,
+          section1LabelHi: dto.section1_label_hi,
+          section2LabelEn: dto.section2_label_en,
+          section2LabelHi: dto.section2_label_hi,
+          content2English: dto.content2_english,
+          content2Hindi: dto.content2_hindi,
+          section3LabelEn: dto.section3_label_en,
+          section3LabelHi: dto.section3_label_hi,
+          content3English: dto.content3_english,
+          content3Hindi: dto.content3_hindi,
+          section4LabelEn: dto.section4_label_en,
+          section4LabelHi: dto.section4_label_hi,
+          content4English: dto.content4_english,
+          content4Hindi: dto.content4_hindi,
           status,
           display_order: dto.display_order ?? 0,
           publishedAt: status === PageStatus.PUBLISHED ? new Date() : null,
@@ -77,6 +123,14 @@ export class PagesService {
   ): Promise<
     PaginatedResponseDto<PageResponseDto & { organization_name: string }>
   > {
+    query.organizationId = await this.resolveOrganizationId(
+      query.organizationId,
+      query.organizationUuid,
+    );
+    query.contentTypeId = await this.resolveContentTypeId(
+      query.contentTypeId,
+      query.contentTypeUuid,
+    );
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
@@ -133,6 +187,14 @@ export class PagesService {
   async findPublic(
     query: GetPublicPagesQueryDto,
   ): Promise<PaginatedResponseDto<PublicPageResponseDto>> {
+    query.organization_id = await this.resolveOrganizationId(
+      query.organization_id,
+      query.organization_uuid,
+    );
+    query.content_type_id = await this.resolveContentTypeId(
+      query.content_type_id,
+      query.content_type_uuid,
+    );
     const where = this.publicWhere(query);
     const [pages, totalItems] = await this.prisma.$transaction([
       this.prisma.page.findMany({
@@ -168,8 +230,16 @@ export class PagesService {
   ): Promise<PageResponseDto> {
     const existingPage = await this.findActivePage(id);
     this.ownership.assertAccess(existingPage.organizationId, actor);
-    const organizationId = dto.organizationId ?? existingPage.organizationId;
-    const contentTypeId = dto.contentTypeId ?? existingPage.contentTypeId;
+    const organizationId =
+      (await this.resolveOrganizationId(
+        dto.organizationId,
+        dto.organizationUuid,
+      )) ?? existingPage.organizationId;
+    const contentTypeId =
+      (await this.resolveContentTypeId(
+        dto.contentTypeId,
+        dto.contentTypeUuid,
+      )) ?? existingPage.contentTypeId;
     this.assertDateRange(
       dto.start_date === undefined
         ? formatCalendarDate(existingPage.startDate)
@@ -222,6 +292,48 @@ export class PagesService {
             : {}),
           ...(dto.contentHindi !== undefined
             ? { contentHindi: dto.contentHindi }
+            : {}),
+          ...(dto.section1_label_en !== undefined
+            ? { section1LabelEn: dto.section1_label_en }
+            : {}),
+          ...(dto.section1_label_hi !== undefined
+            ? { section1LabelHi: dto.section1_label_hi }
+            : {}),
+          ...(dto.section2_label_en !== undefined
+            ? { section2LabelEn: dto.section2_label_en }
+            : {}),
+          ...(dto.section2_label_hi !== undefined
+            ? { section2LabelHi: dto.section2_label_hi }
+            : {}),
+          ...(dto.content2_english !== undefined
+            ? { content2English: dto.content2_english }
+            : {}),
+          ...(dto.content2_hindi !== undefined
+            ? { content2Hindi: dto.content2_hindi }
+            : {}),
+          ...(dto.section3_label_en !== undefined
+            ? { section3LabelEn: dto.section3_label_en }
+            : {}),
+          ...(dto.section3_label_hi !== undefined
+            ? { section3LabelHi: dto.section3_label_hi }
+            : {}),
+          ...(dto.content3_english !== undefined
+            ? { content3English: dto.content3_english }
+            : {}),
+          ...(dto.content3_hindi !== undefined
+            ? { content3Hindi: dto.content3_hindi }
+            : {}),
+          ...(dto.section4_label_en !== undefined
+            ? { section4LabelEn: dto.section4_label_en }
+            : {}),
+          ...(dto.section4_label_hi !== undefined
+            ? { section4LabelHi: dto.section4_label_hi }
+            : {}),
+          ...(dto.content4_english !== undefined
+            ? { content4English: dto.content4_english }
+            : {}),
+          ...(dto.content4_hindi !== undefined
+            ? { content4Hindi: dto.content4_hindi }
             : {}),
           ...(dto.display_order !== undefined
             ? { display_order: dto.display_order }
@@ -459,6 +571,24 @@ export class PagesService {
     return where;
   }
 
+  private resolveOrganizationId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization', (value) =>
+      this.prisma.organization.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+
+  private resolveContentTypeId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Content type', (value) =>
+      this.prisma.contentType.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+
   private publicWhere(
     query: Pick<GetPublicPagesQueryDto, 'organization_id' | 'content_type_id'>,
   ): Prisma.PageWhereInput {
@@ -528,6 +658,7 @@ export class PagesService {
   ): Promise<void> {
     await transaction.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'PAGE',
         entity: 'PAGE',
@@ -544,6 +675,7 @@ export class PagesService {
   private toResponse(page: Page): PageResponseDto {
     return {
       id: page.id,
+      uuid: page.uuid,
       organizationId: page.organizationId,
       contentTypeId: page.contentTypeId,
       titleEnglish: page.titleEnglish,
@@ -553,6 +685,20 @@ export class PagesService {
       shortDescriptionHindi: page.shortDescriptionHindi,
       contentEnglish: page.contentEnglish,
       contentHindi: page.contentHindi,
+      section1_label_en: page.section1LabelEn,
+      section1_label_hi: page.section1LabelHi,
+      section2_label_en: page.section2LabelEn,
+      section2_label_hi: page.section2LabelHi,
+      content2_english: page.content2English,
+      content2_hindi: page.content2Hindi,
+      section3_label_en: page.section3LabelEn,
+      section3_label_hi: page.section3LabelHi,
+      content3_english: page.content3English,
+      content3_hindi: page.content3Hindi,
+      section4_label_en: page.section4LabelEn,
+      section4_label_hi: page.section4LabelHi,
+      content4_english: page.content4English,
+      content4_hindi: page.content4Hindi,
       status: page.status,
       display_order: page.display_order,
       publishedAt: page.publishedAt,
@@ -566,6 +712,7 @@ export class PagesService {
   private toPublicResponse(page: Page): PublicPageResponseDto {
     return {
       id: page.id,
+      uuid: page.uuid,
       content_type_id: page.contentTypeId,
       title_english: page.titleEnglish,
       title_hindi: page.titleHindi,
@@ -574,6 +721,20 @@ export class PagesService {
       short_description_hindi: page.shortDescriptionHindi,
       content_english: page.contentEnglish,
       content_hindi: page.contentHindi,
+      section1_label_en: page.section1LabelEn,
+      section1_label_hi: page.section1LabelHi,
+      section2_label_en: page.section2LabelEn,
+      section2_label_hi: page.section2LabelHi,
+      content2_english: page.content2English,
+      content2_hindi: page.content2Hindi,
+      section3_label_en: page.section3LabelEn,
+      section3_label_hi: page.section3LabelHi,
+      content3_english: page.content3English,
+      content3_hindi: page.content3Hindi,
+      section4_label_en: page.section4LabelEn,
+      section4_label_hi: page.section4LabelHi,
+      content4_english: page.content4English,
+      content4_hindi: page.content4Hindi,
       display_order: page.display_order,
       start_date: formatCalendarDate(page.startDate),
       end_date: formatCalendarDate(page.endDate),
@@ -592,6 +753,20 @@ export class PagesService {
       shortDescriptionHindi: page.shortDescriptionHindi,
       contentEnglish: page.contentEnglish,
       contentHindi: page.contentHindi,
+      section1_label_en: page.section1LabelEn,
+      section1_label_hi: page.section1LabelHi,
+      section2_label_en: page.section2LabelEn,
+      section2_label_hi: page.section2LabelHi,
+      content2_english: page.content2English,
+      content2_hindi: page.content2Hindi,
+      section3_label_en: page.section3LabelEn,
+      section3_label_hi: page.section3LabelHi,
+      content3_english: page.content3English,
+      content3_hindi: page.content3Hindi,
+      section4_label_en: page.section4LabelEn,
+      section4_label_hi: page.section4LabelHi,
+      content4_english: page.content4English,
+      content4_hindi: page.content4Hindi,
       status: page.status,
       display_order: page.display_order,
       publishedAt: page.publishedAt?.toISOString() ?? null,

@@ -2,9 +2,10 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
+  Post,
   ParseEnumPipe,
-  Put,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
@@ -36,7 +37,8 @@ export class RolePermissionsController {
     };
   }
 
-  @Put(':role')
+  @Post(':role/update')
+  @HttpCode(200)
   @RequirePermission('ROLE_PERMISSION_UPDATE')
   async replace(
     @Param('role', new ParseEnumPipe(Role)) role: Role,

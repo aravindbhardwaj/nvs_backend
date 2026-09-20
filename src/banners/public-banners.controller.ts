@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Query,
   Res,
 } from '@nestjs/common';
@@ -16,6 +17,17 @@ import { GetPublicBannersQueryDto } from './dto/get-public-banners-query.dto';
 @Controller('api/public/banners')
 export class PublicBannersController {
   constructor(private readonly bannersService: BannersService) {}
+
+  @Get('uuid/:uuid/image')
+  async imageByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Query('organization_id') organizationId: string | undefined,
+    @Query('organization_uuid') organizationUuid: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.bannersService.resolveUuid(uuid);
+    return this.image(id, organizationUuid ?? organizationId, response);
+  }
 
   @Get()
   async findDisplayable(@Query() query: GetPublicBannersQueryDto) {
@@ -33,7 +45,7 @@ export class PublicBannersController {
   ): Promise<void> {
     const image = await this.bannersService.publicImageStream(
       id,
-      organizationId === undefined ? undefined : Number(organizationId),
+      await this.bannersService.resolveOrganizationReference(organizationId),
     );
     response.setHeader('Content-Type', image.mimeType);
     image.stream.on('error', () => response.destroy());

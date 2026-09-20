@@ -1,5 +1,12 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { MENU_LOCATION_VALUES } from '../menu.constants';
@@ -10,6 +17,7 @@ export class GetMenusQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   organization_type_id?: number;
+  @IsOptional() @IsUUID() organization_type_uuid?: string;
 
   @IsOptional()
   @Type(() => Number)
@@ -21,6 +29,7 @@ export class GetMenusQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   parent_menu_id?: number;
+  @IsOptional() @IsUUID() parent_menu_uuid?: string;
 
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')

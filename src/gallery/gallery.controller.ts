@@ -2,12 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   Res,
   UploadedFile,
@@ -70,6 +70,68 @@ const uploadOptions = {
 @OrganizationOwned('galleryImage')
 export class GalleryController {
   constructor(private readonly gallery: GalleryService) {}
+
+  @Get('uuid/:uuid/image') @RequirePermission('GALLERY_VIEW') async imageByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.gallery.resolveUuid(uuid);
+    return this.image(id, user, response);
+  }
+
+  @Get('uuid/:uuid') @RequirePermission('GALLERY_VIEW') async findOneByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.gallery.resolveUuid(uuid);
+    return this.findOne(id, user);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('GALLERY_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateGalleryImageDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.gallery.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/image')
+  @HttpCode(200)
+  @RequirePermission('GALLERY_UPDATE')
+  @UseInterceptors(FileInterceptor('image', uploadOptions))
+  async replaceByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!file) throw new BadRequestException('A gallery image is required.');
+    try {
+      const id = await this.gallery.resolveUuid(uuid);
+      return {
+        message: 'Gallery image replaced successfully.',
+        data: await this.gallery.replaceImage(id, file, user),
+      };
+    } catch (error) {
+      await this.gallery.cleanupUploadedFiles([file]);
+      throw error;
+    }
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('GALLERY_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.gallery.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
   @Post()
   @RequirePermission('GALLERY_CREATE')
   @UseInterceptors(FileInterceptor('image', uploadOptions))
@@ -139,14 +201,20 @@ export class GalleryController {
       data: await this.gallery.findOne(id, user),
     };
   }
-  @Put('reorder') @RequirePermission('GALLERY_UPDATE') async reorder(
+  @Post('reorder')
+  @HttpCode(200)
+  @RequirePermission('GALLERY_UPDATE')
+  async reorder(
     @Body() dto: ReorderGalleryImagesDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.gallery.reorder(dto, user);
     return { message: 'Gallery images reordered successfully.', data: null };
   }
-  @Put(':id') @RequirePermission('GALLERY_UPDATE') async update(
+  @Post(':id/update')
+  @HttpCode(200)
+  @RequirePermission('GALLERY_UPDATE')
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateGalleryImageDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -156,7 +224,8 @@ export class GalleryController {
       data: await this.gallery.update(id, dto, user),
     };
   }
-  @Put(':id/image')
+  @Post(':id/image')
+  @HttpCode(200)
   @RequirePermission('GALLERY_UPDATE')
   @UseInterceptors(FileInterceptor('image', uploadOptions))
   async replace(
@@ -175,16 +244,22 @@ export class GalleryController {
       throw error;
     }
   }
-  @Delete('bulk') @RequirePermission('GALLERY_DELETE') async bulkDelete(
+  @Post('bulk-delete')
+  @HttpCode(200)
+  @RequirePermission('GALLERY_DELETE')
+  async bulkDelete(
     @Body() dto: BulkDeleteGalleryImagesDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return {
       message: 'Gallery images deleted successfully.',
-      data: await this.gallery.bulkRemove(dto.ids, user),
+      data: await this.gallery.bulkRemove(dto.ids, user, dto.uuids),
     };
   }
-  @Delete(':id') @RequirePermission('GALLERY_DELETE') async remove(
+  @Post(':id/delete')
+  @HttpCode(200)
+  @RequirePermission('GALLERY_DELETE')
+  async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {

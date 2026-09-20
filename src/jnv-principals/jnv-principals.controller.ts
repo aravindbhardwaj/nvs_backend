@@ -2,13 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Res,
   UploadedFile,
   UseGuards,
@@ -25,6 +24,7 @@ import { CreateJnvPrincipalDto } from './dto/create-jnv-principal.dto';
 import { UpdateJnvPrincipalDto } from './dto/update-jnv-principal.dto';
 import { MAX_JNV_PRINCIPAL_IMAGE_SIZE } from './jnv-principals.constants';
 import { JnvPrincipalsService } from './jnv-principals.service';
+import { OrganizationIdentifierPipe } from './organization-identifier.pipe';
 import {
   jnvPrincipalStorage,
   validateJnvPrincipalFile,
@@ -53,10 +53,80 @@ const uploadOptions = {
 export class JnvPrincipalsController {
   constructor(private readonly principals: JnvPrincipalsService) {}
 
+  @Get('uuid/:uuid/image')
+  async imageByUuid(
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.principals.resolveUuid(uuid);
+    return this.image(organizationId, id, response);
+  }
+
+  @Get('uuid/:uuid')
+  async findOneByUuid(
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+  ) {
+    const id = await this.principals.resolveUuid(uuid);
+    return this.findOne(organizationId, id);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  async updateByUuid(
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateJnvPrincipalDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.principals.resolveUuid(uuid);
+    return this.update(organizationId, id, dto, user);
+  }
+
+  @Post('uuid/:uuid/image')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('picture', uploadOptions))
+  async replaceImageByUuid(
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!file)
+      throw new BadRequestException('A principal picture is required.');
+    try {
+      const id = await this.principals.resolveUuid(uuid);
+      return {
+        message: 'Principal picture updated successfully.',
+        data: await this.principals.replaceImage(
+          organizationId,
+          id,
+          file,
+          user,
+        ),
+      };
+    } catch (error) {
+      await this.principals.cleanupUploadedFile(file);
+      throw error;
+    }
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  async removeByUuid(
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.principals.resolveUuid(uuid);
+    return this.remove(organizationId, id, user);
+  }
+
   @Post()
   @UseInterceptors(FileInterceptor('picture', uploadOptions))
   async create(
-    @Param('organizationId', ParseIntPipe) organizationId: number,
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
     @Body() dto: CreateJnvPrincipalDto,
     @UploadedFile() file: Express.Multer.File | undefined,
     @CurrentUser() user: AuthenticatedUser,
@@ -73,7 +143,9 @@ export class JnvPrincipalsController {
   }
 
   @Get()
-  async findAll(@Param('organizationId', ParseIntPipe) organizationId: number) {
+  async findAll(
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
+  ) {
     return {
       message: 'JNV principals retrieved successfully.',
       data: await this.principals.findAll(organizationId),
@@ -82,7 +154,7 @@ export class JnvPrincipalsController {
 
   @Get(':id/image')
   async image(
-    @Param('organizationId', ParseIntPipe) organizationId: number,
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
     @Param('id', ParseIntPipe) id: number,
     @Res() response: Response,
   ): Promise<void> {
@@ -94,7 +166,7 @@ export class JnvPrincipalsController {
 
   @Get(':id')
   async findOne(
-    @Param('organizationId', ParseIntPipe) organizationId: number,
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
     @Param('id', ParseIntPipe) id: number,
   ) {
     return {
@@ -103,9 +175,10 @@ export class JnvPrincipalsController {
     };
   }
 
-  @Patch(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   async update(
-    @Param('organizationId', ParseIntPipe) organizationId: number,
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateJnvPrincipalDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -116,10 +189,11 @@ export class JnvPrincipalsController {
     };
   }
 
-  @Put(':id/image')
+  @Post(':id/image')
+  @HttpCode(200)
   @UseInterceptors(FileInterceptor('picture', uploadOptions))
   async replaceImage(
-    @Param('organizationId', ParseIntPipe) organizationId: number,
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File | undefined,
     @CurrentUser() user: AuthenticatedUser,
@@ -142,9 +216,10 @@ export class JnvPrincipalsController {
     }
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   async remove(
-    @Param('organizationId', ParseIntPipe) organizationId: number,
+    @Param('organizationId', OrganizationIdentifierPipe) organizationId: number,
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {

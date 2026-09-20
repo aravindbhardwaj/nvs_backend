@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 
@@ -31,6 +32,17 @@ export class RolePermissionsService {
     dto: ReplaceRolePermissionsDto,
     user: AuthenticatedUser,
   ): Promise<RolePermissionsResponseDto> {
+    if (dto.permissionUuids) {
+      const resolved = await this.prisma.permission.findMany({
+        where: { uuid: { in: dto.permissionUuids } },
+        select: { id: true },
+      });
+      if (resolved.length !== new Set(dto.permissionUuids).size)
+        throw new BadRequestException(
+          'One or more permission UUIDs are invalid.',
+        );
+      dto.permissionIds = resolved.map(({ id }) => id);
+    }
     const permissions = await this.prisma.permission.findMany({
       where: { id: { in: dto.permissionIds } },
       orderBy: { permissionKey: 'asc' },
@@ -67,6 +79,7 @@ export class RolePermissionsService {
 
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: user.id,
           module: 'ROLE_PERMISSION',
           entity: 'ROLE_PERMISSION',
@@ -93,6 +106,7 @@ export class RolePermissionsService {
   ): PermissionResponseDto {
     return {
       id: permission.id,
+      uuid: permission.uuid,
       permissionKey: permission.permissionKey,
       module: permission.module,
       action: permission.action,

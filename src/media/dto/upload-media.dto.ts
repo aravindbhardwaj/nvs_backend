@@ -1,13 +1,16 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDefined,
   IsInt,
   IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 const trimValue = ({ value }: { value: unknown }): unknown =>
@@ -31,6 +34,10 @@ export class UploadMediaDto {
   @Min(1)
   organizationId?: number;
 
+  @IsOptional()
+  @IsUUID()
+  organizationUuid?: string;
+
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()
@@ -53,10 +60,17 @@ export class UploadMediaDto {
   @IsString()
   descriptionHindi?: string;
 
+  @ValidateIf((dto: UploadMediaDto) => dto.mediaTypeUuid === undefined)
+  @IsDefined()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  mediaTypeId: number;
+  mediaTypeId?: number;
+
+  @ValidateIf((dto: UploadMediaDto) => dto.mediaTypeId === undefined)
+  @IsDefined()
+  @IsUUID()
+  mediaTypeUuid?: string;
 
   @IsOptional()
   @Transform(trimValue)
@@ -64,6 +78,8 @@ export class UploadMediaDto {
   @IsNotEmpty()
   @MaxLength(1000)
   sharedMediaTypeIds?: string | null;
+  @IsOptional() @Transform(trimValue) @IsString() sharedMediaTypeUuids?:
+    string | null;
 
   @IsOptional()
   @Type(() => Number)
@@ -91,13 +107,14 @@ export class UploadMediaDto {
   @IsNotEmpty()
   @MaxLength(1000)
   ro_ids?: string | null;
+  @IsOptional() @Transform(trimValue) @IsString() ro_uuids?: string | null;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()
-  @MaxLength(1000)
   jnv_ids?: string | null;
+  @IsOptional() @Transform(trimValue) @IsString() jnv_uuids?: string | null;
 
   @IsOptional()
   @Transform(toBoolean)

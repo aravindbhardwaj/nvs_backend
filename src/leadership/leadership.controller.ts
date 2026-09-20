@@ -2,13 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   Res,
   UploadedFile,
@@ -56,7 +55,97 @@ const uploadOptions = {
 export class LeadershipController {
   constructor(private readonly leadership: LeadershipService) {}
 
+  @Get('uuid/:uuid/image')
+  @RequirePermission('LEADERSHIP_VIEW')
+  async imageByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.image(id, response);
+  }
+
+  @Get('uuid/:uuid')
+  @RequirePermission('LEADERSHIP_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.findOne(id);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
+  @RequirePermission('LEADERSHIP_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateLeaderDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/image')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
+  @RequirePermission('LEADERSHIP_UPDATE')
+  @UseInterceptors(FileInterceptor('picture', uploadOptions))
+  async replaceImageByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!file) throw new BadRequestException('A leader picture is required.');
+    try {
+      const id = await this.leadership.resolveUuid(uuid);
+      return {
+        message: 'Leader picture replaced successfully.',
+        data: await this.leadership.replaceImage(id, file, user),
+      };
+    } catch (error) {
+      await this.leadership.cleanupUploadedFile(file);
+      throw error;
+    }
+  }
+
+  @Post('uuid/:uuid/activate')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
+  @RequirePermission('LEADERSHIP_UPDATE')
+  async activateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.activate(id, user);
+  }
+
+  @Post('uuid/:uuid/deactivate')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
+  @RequirePermission('LEADERSHIP_UPDATE')
+  async deactivateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.deactivate(id, user);
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
+  @RequirePermission('LEADERSHIP_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
+
   @Post()
+  @Roles(Role.SUPER_ADMIN)
   @RequirePermission('LEADERSHIP_CREATE')
   @UseInterceptors(FileInterceptor('picture', uploadOptions))
   async create(
@@ -106,7 +195,9 @@ export class LeadershipController {
     };
   }
 
-  @Put('reorder')
+  @Post('reorder')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
   @RequirePermission('LEADERSHIP_UPDATE')
   async reorder(
     @Body() dto: ReorderLeadersDto,
@@ -116,7 +207,9 @@ export class LeadershipController {
     return { message: 'Leaders reordered successfully.', data: null };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
   @RequirePermission('LEADERSHIP_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -129,7 +222,9 @@ export class LeadershipController {
     };
   }
 
-  @Put(':id/image')
+  @Post(':id/image')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
   @RequirePermission('LEADERSHIP_UPDATE')
   @UseInterceptors(FileInterceptor('picture', uploadOptions))
   async replaceImage(
@@ -149,7 +244,9 @@ export class LeadershipController {
     }
   }
 
-  @Patch(':id/activate')
+  @Post(':id/activate')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
   @RequirePermission('LEADERSHIP_UPDATE')
   async activate(
     @Param('id', ParseIntPipe) id: number,
@@ -161,7 +258,9 @@ export class LeadershipController {
     };
   }
 
-  @Patch(':id/deactivate')
+  @Post(':id/deactivate')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
   @RequirePermission('LEADERSHIP_UPDATE')
   async deactivate(
     @Param('id', ParseIntPipe) id: number,
@@ -173,7 +272,9 @@ export class LeadershipController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN)
   @RequirePermission('LEADERSHIP_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,

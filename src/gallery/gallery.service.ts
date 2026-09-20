@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   Injectable,
@@ -17,6 +18,7 @@ import {
   toCalendarDate,
 } from '../common/utils/calendar-date.util';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGalleryImageDto } from './dto/create-gallery-image.dto';
 import {
@@ -36,6 +38,25 @@ export class GalleryService {
     private readonly ownership: OrganizationOwnershipService,
   ) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.galleryImage.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
+  async resolveOrganizationReference(
+    value?: string,
+  ): Promise<number | undefined> {
+    if (value === undefined) return undefined;
+    return /^\d+$/.test(value)
+      ? Number(value)
+      : this.resolveOrganizationId(undefined, value);
+  }
+
   async create(
     dto: CreateGalleryImageDto,
     file: Express.Multer.File,
@@ -43,7 +64,8 @@ export class GalleryService {
   ): Promise<GalleryImageResponseDto> {
     await validateGalleryImage(file);
     this.assertDateRange(dto.start_date, dto.end_date);
-    const organizationId = dto.organizationId ?? actor.organizationId;
+    const organizationId =
+      (await this.resolveCreateOrganizationId(dto)) ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     const image = await this.prisma.$transaction(async (tx) => {
@@ -83,7 +105,8 @@ export class GalleryService {
   ): Promise<GalleryImageResponseDto[]> {
     await Promise.all(files.map(validateGalleryImage));
     this.assertDateRange(dto.start_date, dto.end_date);
-    const organizationId = dto.organizationId ?? actor.organizationId;
+    const organizationId =
+      (await this.resolveCreateOrganizationId(dto)) ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     const images = await this.prisma.$transaction(async (tx) =>
@@ -125,8 +148,14 @@ export class GalleryService {
     query: GetGalleryImagesQueryDto,
     actor: AuthenticatedUser,
   ): Promise<
-    PaginatedResponseDto<GalleryImageResponseDto & { organization_name: string }>
+    PaginatedResponseDto<
+      GalleryImageResponseDto & { organization_name: string }
+    >
   > {
+    query.organizationId = await this.resolveOrganizationId(
+      query.organizationId,
+      query.organizationUuid,
+    );
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.where(query, actor);
@@ -281,7 +310,19 @@ export class GalleryService {
   async bulkRemove(
     ids: number[],
     actor: AuthenticatedUser,
+    uuids?: string[],
   ): Promise<GalleryImageResponseDto[]> {
+    if (uuids) {
+      const resolved = await this.prisma.galleryImage.findMany({
+        where: { uuid: { in: uuids } },
+        select: { id: true },
+      });
+      if (resolved.length !== new Set(uuids).size)
+        throw new NotFoundException(
+          'One or more gallery images were not found.',
+        );
+      ids = resolved.map(({ id }) => id);
+    }
     const images = await this.prisma.galleryImage.findMany({
       where: { id: { in: ids }, isDeleted: false },
     });
@@ -314,8 +355,17 @@ export class GalleryService {
     dto: ReorderGalleryImagesDto,
     actor: AuthenticatedUser,
   ): Promise<void> {
+    for (const item of dto.images) {
+      if (!item.uuid) continue;
+      const image = await this.prisma.galleryImage.findUnique({
+        where: { uuid: item.uuid },
+        select: { id: true },
+      });
+      if (!image) throw new NotFoundException('Gallery image not found.');
+      item.id = image.id;
+    }
     const images = await this.prisma.galleryImage.findMany({
-      where: { id: { in: dto.images.map(({ id }) => id) }, isDeleted: false },
+      where: { id: { in: dto.images.map(({ id }) => id!) }, isDeleted: false },
     });
     if (images.length !== dto.images.length)
       throw new NotFoundException('One or more gallery images were not found.');
@@ -339,6 +389,11 @@ export class GalleryService {
   async findPublic(
     query: GetPublicGalleryImagesQueryDto,
   ): Promise<PaginatedResponseDto<PublicGalleryImageResponseDto>> {
+    const organizationReference = query.organization_uuid;
+    query.organization_id = await this.resolveOrganizationId(
+      query.organization_id,
+      query.organization_uuid,
+    );
     const where = await this.publicWhere(query.organization_id);
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
@@ -355,7 +410,11 @@ export class GalleryService {
     ]);
     return {
       items: images.map((image) =>
-        this.publicResponse(image, query.organization_id),
+        this.publicResponse(
+          image,
+          organizationReference ?? query.organization_id?.toString(),
+          organizationReference !== undefined,
+        ),
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
@@ -384,6 +443,30 @@ export class GalleryService {
   async cleanupUploadedFiles(files: Express.Multer.File[] = []): Promise<void> {
     await Promise.all(
       files.map((file) => unlink(file.path).catch(() => undefined)),
+    );
+  }
+
+  private resolveCreateOrganizationId(
+    dto: CreateGalleryImageDto,
+  ): Promise<number | undefined> {
+    return resolveRelatedId(
+      dto.organizationId,
+      dto.organizationUuid,
+      'Organization',
+      (uuid) =>
+        this.prisma.organization.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    );
+  }
+
+  private resolveOrganizationId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization', (value) =>
+      this.prisma.organization.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
     );
   }
   private async active(id: number): Promise<GalleryImage> {
@@ -563,6 +646,7 @@ export class GalleryService {
   ): Promise<void> {
     await tx.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'GALLERY',
         entity: 'GALLERY_IMAGE',
@@ -576,6 +660,7 @@ export class GalleryService {
   private response(image: GalleryImage): GalleryImageResponseDto {
     return {
       id: image.id,
+      uuid: image.uuid,
       organizationId: image.organizationId,
       titleEnglish: image.titleEnglish,
       titleHindi: image.titleHindi,
@@ -599,18 +684,22 @@ export class GalleryService {
   }
   private publicResponse(
     image: GalleryImage,
-    organizationId?: number,
+    organizationReference?: string,
+    useOrganizationUuid = false,
   ): PublicGalleryImageResponseDto {
     return {
       id: image.id,
+      uuid: image.uuid,
       title_english: image.titleEnglish,
       title_hindi: image.titleHindi,
       description_english: image.descriptionEnglish,
       description_hindi: image.descriptionHindi,
       alt_text_english: image.altTextEnglish,
       alt_text_hindi: image.altTextHindi,
-      image_url: `/api/public/gallery/${image.id}/image${
-        organizationId ? `?organization_id=${organizationId}` : ''
+      image_url: `/api/public/gallery/uuid/${image.uuid}/image${
+        organizationReference
+          ? `?${useOrganizationUuid ? 'organization_uuid' : 'organization_id'}=${organizationReference}`
+          : ''
       }`,
       display_order: image.display_order,
       start_date: formatCalendarDate(image.startDate),

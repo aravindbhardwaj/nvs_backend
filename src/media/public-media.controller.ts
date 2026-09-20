@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Query,
   Res,
 } from '@nestjs/common';
@@ -16,6 +17,28 @@ import { MediaService } from './media.service';
 @Controller('api/public/media')
 export class PublicMediaController {
   constructor(private readonly media: MediaService) {}
+
+  @Get('uuid/:uuid/download')
+  async downloadByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Query('organization_id') organizationId: string | undefined,
+    @Query('organization_uuid') organizationUuid: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.media.resolveUuid(uuid);
+    return this.download(id, organizationUuid ?? organizationId, response);
+  }
+
+  @Get('uuid/:uuid/download/hindi')
+  async downloadHindiByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Query('organization_id') organizationId: string | undefined,
+    @Query('organization_uuid') organizationUuid: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.media.resolveUuid(uuid);
+    return this.downloadHindi(id, organizationUuid ?? organizationId, response);
+  }
 
   @Get()
   async findAll(@Query() query: GetPublicMediaQueryDto) {
@@ -57,7 +80,7 @@ export class PublicMediaController {
   ): Promise<void> {
     const document = await this.media.publicDownload(
       id,
-      organizationId === undefined ? undefined : Number(organizationId),
+      await this.media.resolveOrganizationReference(organizationId),
     );
     response.setHeader('Content-Type', document.mimeType);
     response.setHeader(
@@ -76,7 +99,7 @@ export class PublicMediaController {
   ): Promise<void> {
     const document = await this.media.publicDownloadHindi(
       id,
-      organizationId === undefined ? undefined : Number(organizationId),
+      await this.media.resolveOrganizationReference(organizationId),
     );
     response.setHeader('Content-Type', document.mimeType);
     response.setHeader(

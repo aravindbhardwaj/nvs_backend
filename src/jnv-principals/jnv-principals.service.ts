@@ -20,6 +20,16 @@ import {
 export class JnvPrincipalsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.jnvPrincipal.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(
     organizationId: number,
     dto: CreateJnvPrincipalDto,
@@ -134,7 +144,7 @@ export class JnvPrincipalsService {
   }
 
   async findPublicCurrent(organizationId: number) {
-    await this.ensureJnv(organizationId);
+    const organization = await this.ensureJnv(organizationId);
     const principal = await this.prisma.jnvPrincipal.findFirst({
       where: {
         organizationId,
@@ -144,16 +154,18 @@ export class JnvPrincipalsService {
       },
     });
     if (!principal) throw new NotFoundException('Current principal not found.');
-    return this.toPublicResponse(principal);
+    return this.toPublicResponse(principal, organization.uuid);
   }
 
   async findPublicHistory(organizationId: number) {
-    await this.ensureJnv(organizationId);
+    const organization = await this.ensureJnv(organizationId);
     const principals = await this.prisma.jnvPrincipal.findMany({
       where: { organizationId, isActive: true, isDeleted: false },
       orderBy: [{ joinedAt: 'desc' }, { displayOrder: 'asc' }, { id: 'desc' }],
     });
-    return principals.map((principal) => this.toPublicResponse(principal));
+    return principals.map((principal) =>
+      this.toPublicResponse(principal, organization.uuid),
+    );
   }
 
   async imageStream(organizationId: number, id: number, publicOnly = false) {
@@ -185,12 +197,13 @@ export class JnvPrincipalsService {
         isFunctional: true,
         organizationType: { code: 'JNV', isActive: true },
       },
-      select: { id: true },
+      select: { id: true, uuid: true },
     });
     if (!organization)
       throw new BadRequestException(
         'organizationId must identify an active JNV organization.',
       );
+    return organization;
   }
 
   private async findExisting(organizationId: number, id: number) {
@@ -229,6 +242,7 @@ export class JnvPrincipalsService {
   private toResponse(principal: JnvPrincipal) {
     return {
       id: principal.id,
+      uuid: principal.uuid,
       organizationId: principal.organizationId,
       principalNameEnglish: principal.principalNameEnglish,
       principalNameHindi: principal.principalNameHindi,
@@ -253,9 +267,10 @@ export class JnvPrincipalsService {
     };
   }
 
-  private toPublicResponse(principal: JnvPrincipal) {
+  private toPublicResponse(principal: JnvPrincipal, organizationUuid: string) {
     return {
       id: principal.id,
+      uuid: principal.uuid,
       organization_id: principal.organizationId,
       principal_name_english: principal.principalNameEnglish,
       principal_name_hindi: principal.principalNameHindi,
@@ -266,7 +281,7 @@ export class JnvPrincipalsService {
       message_english: principal.messageEnglish,
       message_hindi: principal.messageHindi,
       picture_url: principal.imagePath
-        ? `/api/public/jnvs/${principal.organizationId}/principals/${principal.id}/image`
+        ? `/api/public/jnvs/${organizationUuid}/principals/uuid/${principal.uuid}/image`
         : null,
       joined_at: principal.joinedAt,
       relieved_at: principal.relievedAt,

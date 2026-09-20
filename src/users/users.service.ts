@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   ConflictException,
   Injectable,
@@ -9,6 +10,7 @@ import { PasswordService } from '../auth/services/password.service';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
@@ -18,9 +20,16 @@ import { UserResponseDto } from './dto/user-response.dto';
 
 const userInclude = {
   organization: {
-    select: { id: true, organizationName: true, organizationCode: true },
+    select: {
+      id: true,
+      uuid: true,
+      organizationName: true,
+      organizationCode: true,
+    },
   },
-  organizationType: { select: { id: true, code: true, name: true } },
+  organizationType: {
+    select: { id: true, uuid: true, code: true, name: true },
+  },
 } satisfies Prisma.UserInclude;
 
 type UserWithOrganization = Prisma.UserGetPayload<{
@@ -34,15 +43,45 @@ export class UsersService {
     private readonly passwordService: PasswordService,
   ) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.user.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(
     dto: CreateUserDto,
     actor: AuthenticatedUser,
   ): Promise<UserResponseDto> {
+    const organizationId = (await resolveRelatedId(
+      dto.organizationId,
+      dto.organizationUuid,
+      'Organization',
+      (uuid) =>
+        this.prisma.organization.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    ))!;
+    const organizationTypeId = (await resolveRelatedId(
+      dto.organization_type_id,
+      dto.organization_type_uuid,
+      'Organization type',
+      (uuid) =>
+        this.prisma.organizationType.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    ))!;
     await this.ensureEmailIsUnique(dto.email);
     if (dto.username) await this.ensureUsernameIsUnique(dto.username);
     await this.ensureOrganizationTypeCompatibility(
-      dto.organizationId,
-      dto.organization_type_id,
+      organizationId,
+      organizationTypeId,
     );
     const passwordHash = await this.passwordService.hash(dto.password);
 
@@ -55,8 +94,8 @@ export class UsersService {
           passwordHash,
           mobile: dto.mobile ?? null,
           address: dto.address ?? null,
-          organizationId: dto.organizationId,
-          organizationTypeId: dto.organization_type_id,
+          organizationId,
+          organizationTypeId,
           createdById: actor.id,
           updatedById: actor.id,
         },
@@ -64,6 +103,7 @@ export class UsersService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER',
           entity: 'USER',
@@ -81,6 +121,14 @@ export class UsersService {
   async findAll(
     query: GetUsersQueryDto,
   ): Promise<PaginatedResponseDto<UserResponseDto>> {
+    query.organizationId = await this.resolveOrganizationId(
+      query.organizationId,
+      query.organizationUuid,
+    );
+    query.organization_type_id = await this.resolveOrganizationTypeId(
+      query.organization_type_id,
+      query.organization_type_uuid,
+    );
     const where = this.buildWhere(query);
     const orderBy: Prisma.UserOrderByWithRelationInput = {
       [query.sort]: query.order,
@@ -119,10 +167,19 @@ export class UsersService {
     const existingUser = await this.findActiveUser(id);
     if (dto.email) await this.ensureEmailIsUnique(dto.email, id);
     if (dto.username) await this.ensureUsernameIsUnique(dto.username, id);
-    const organizationId = dto.organizationId ?? existingUser.organizationId;
+    const resolvedOrganizationId = await this.resolveOrganizationId(
+      dto.organizationId,
+      dto.organizationUuid,
+    );
+    const resolvedOrganizationTypeId = await this.resolveOrganizationTypeId(
+      dto.organization_type_id,
+      dto.organization_type_uuid,
+    );
+    const organizationId =
+      resolvedOrganizationId ?? existingUser.organizationId;
     const organizationTypeId =
-      dto.organization_type_id ?? existingUser.organizationTypeId;
-    if (dto.organizationId || dto.organization_type_id)
+      resolvedOrganizationTypeId ?? existingUser.organizationTypeId;
+    if (resolvedOrganizationId || resolvedOrganizationTypeId)
       await this.ensureOrganizationTypeCompatibility(
         organizationId,
         organizationTypeId,
@@ -137,14 +194,15 @@ export class UsersService {
           email: dto.email,
           mobile: dto.mobile,
           address: dto.address,
-          organizationId: dto.organizationId,
-          organizationTypeId: dto.organization_type_id,
+          organizationId: resolvedOrganizationId,
+          organizationTypeId: resolvedOrganizationTypeId,
           updatedById: actor.id,
         },
         include: userInclude,
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER',
           entity: 'USER',
@@ -160,6 +218,7 @@ export class UsersService {
       ) {
         await transaction.auditLog.create({
           data: {
+            ...getAuditRequestContext(),
             userId: actor.id,
             module: 'USER',
             entity: 'USER',
@@ -178,6 +237,7 @@ export class UsersService {
       ) {
         await transaction.auditLog.create({
           data: {
+            ...getAuditRequestContext(),
             userId: actor.id,
             module: 'USER',
             entity: 'USER',
@@ -234,6 +294,7 @@ export class UsersService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER',
           entity: 'USER',
@@ -279,6 +340,7 @@ export class UsersService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER',
           entity: 'USER',
@@ -327,6 +389,7 @@ export class UsersService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER',
           entity: 'USER',
@@ -361,6 +424,7 @@ export class UsersService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER',
           entity: 'USER',
@@ -478,6 +542,7 @@ export class UsersService {
   private toResponse(user: UserWithOrganization): UserResponseDto {
     return {
       id: user.id,
+      uuid: user.uuid,
       name: user.name,
       username: user.username,
       email: user.email,
@@ -487,11 +552,13 @@ export class UsersService {
       organization_type_id: user.organizationTypeId,
       organization: {
         id: user.organization.id,
+        uuid: user.organization.uuid,
         name: user.organization.organizationName,
         code: user.organization.organizationCode,
       },
       organization_type: {
         id: user.organizationType.id,
+        uuid: user.organizationType.uuid,
         code: user.organizationType.code,
         name: user.organizationType.name,
       },
@@ -501,6 +568,24 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
+  }
+
+  private resolveOrganizationId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization', (value) =>
+      this.prisma.organization.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+
+  private resolveOrganizationTypeId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization type', (value) =>
+      this.prisma.organizationType.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
   }
 
   private toAuditValues(user: UserWithOrganization): Prisma.InputJsonValue {

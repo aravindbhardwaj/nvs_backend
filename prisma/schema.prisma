@@ -28,12 +28,17 @@ enum UserStatus {
 
 model Region {
   id           Int       @id @default(autoincrement())
+  uuid         String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   regionName   String    @unique @map("region_name") @db.VarChar(150)
   regionNameHi String?   @map("region_name_hi") @db.Text
   regionCode   String    @unique @map("region_code") @db.VarChar(20)
   dcRoName     String?   @map("dc_ro_name") @db.VarChar(150)
   dcRoNameHi   String?   @map("dc_ro_name_hi") @db.Text
   stateIds     String?   @map("state_ids") @db.Text
+  address      String?   @db.Text
+  addressHindi String?   @map("address_hindi") @db.Text
+  phone        String?   @db.Text
+  email        String?   @db.Text
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   createdById  Int?      @map("created_by")
@@ -54,6 +59,7 @@ model Region {
 
 model State {
   id          Int       @id @default(autoincrement())
+  uuid        String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   stateName   String    @unique @map("state_name") @db.VarChar(150)
   nameHi      String?   @map("name_hi") @db.Text
   stateCode   String    @unique @map("state_code") @db.VarChar(20)
@@ -83,6 +89,7 @@ model State {
 
 model District {
   id              Int      @id
+  uuid            String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   districtName    String   @map("district_name") @db.VarChar(255)
   nameHi          String?  @map("name_hi") @db.Text
   districtCode    String   @map("district_code") @db.VarChar(20)
@@ -106,6 +113,7 @@ model District {
 
 model OrganizationType {
   id            Int            @id
+  uuid          String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code          String         @unique @db.VarChar(50)
   name          String         @db.VarChar(150)
   isActive      Boolean        @default(true) @map("is_active")
@@ -121,6 +129,7 @@ model OrganizationType {
 
 model Organization {
   id                    Int       @id @default(autoincrement())
+  uuid                  String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationName      String    @map("organization_name") @db.VarChar(255)
   organizationHindiName String?   @map("organization_hindi_name") @db.VarChar(255)
   organizationNameEn    String?   @map("organization_name_en") @db.VarChar(255)
@@ -136,6 +145,12 @@ model Organization {
   schoolUrl             String?   @unique @map("school_url") @db.VarChar(255)
   address               String?   @db.Text
   addressHindi          String?   @map("address_hindi") @db.Text
+  directorNameEn        String?   @map("director_name_en") @db.Text
+  directorNameHi        String?   @map("director_name_hi") @db.Text
+  phoneNumber           String?   @map("phone_number") @db.Text
+  emailAddress          String?   @map("email_address") @db.Text
+  shortDescription      String?   @map("short_description") @db.Text
+  imageUrl              String?   @map("image_url") @db.VarChar(2048)
   isFunctional          Boolean   @default(true) @map("is_functional")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
@@ -161,6 +176,7 @@ model Organization {
   galleryImages      GalleryImage[]
   visitorSessions    VisitorSession[]
   jnvPrincipals      JnvPrincipal[]
+  whoIsWhoOfficers   WhoIsWho[]
 
   @@index([organizationCode])
   @@index([organizationTypeId])
@@ -173,7 +189,11 @@ model Organization {
 }
 
 model User {
+  whoIsWhoCreated       WhoIsWho[] @relation("WhoIsWhoCreatedBy")
+  whoIsWhoUpdated       WhoIsWho[] @relation("WhoIsWhoUpdatedBy")
+  whoIsWhoDeleted       WhoIsWho[] @relation("WhoIsWhoDeletedBy")
   id                    Int        @id @default(autoincrement())
+  uuid                  String     @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                  String     @db.VarChar(150)
   username              String?    @unique @db.VarChar(150)
   email                 String     @unique @db.VarChar(255)
@@ -229,6 +249,9 @@ model User {
   createdBanners         Banner[]         @relation("BannerCreatedBy")
   updatedBanners         Banner[]         @relation("BannerUpdatedBy")
   deletedBanners         Banner[]         @relation("BannerDeletedBy")
+  createdHeaderLogos     HeaderLogo[]     @relation("HeaderLogoCreatedBy")
+  updatedHeaderLogos     HeaderLogo[]     @relation("HeaderLogoUpdatedBy")
+  deletedHeaderLogos     HeaderLogo[]     @relation("HeaderLogoDeletedBy")
   createdGalleryImages   GalleryImage[]   @relation("GalleryImageCreatedBy")
   updatedGalleryImages   GalleryImage[]   @relation("GalleryImageUpdatedBy")
   deletedGalleryImages   GalleryImage[]   @relation("GalleryImageDeletedBy")
@@ -258,6 +281,7 @@ model User {
 
 model RefreshToken {
   id        Int       @id @default(autoincrement())
+  uuid      String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    Int       @map("user_id")
   tokenHash String    @map("refresh_token") @db.VarChar(500)
   expiresAt DateTime  @map("expires_at")
@@ -273,6 +297,7 @@ model RefreshToken {
 
 model ContentType {
   id                 Int       @id @default(autoincrement())
+  uuid               String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nameEnglish        String    @unique @map("name_english") @db.VarChar(150)
   code               String?   @unique @db.VarChar(100)
   nameHindi          String?   @map("name_hindi") @db.VarChar(150)
@@ -300,6 +325,7 @@ model ContentType {
 
 model MediaType {
   id                 Int       @id @default(autoincrement())
+  uuid               String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nameEnglish        String    @unique @map("name_english") @db.VarChar(150)
   code               String?   @unique @db.VarChar(100)
   nameHindi          String?   @map("name_hindi") @db.VarChar(150)
@@ -327,6 +353,7 @@ model MediaType {
 
 model Page {
   id                      Int        @id @default(autoincrement())
+  uuid                    String     @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId          Int        @map("organization_id")
   contentTypeId           Int        @map("content_type_id")
   titleEnglish            String     @map("title_english") @db.VarChar(255)
@@ -336,6 +363,20 @@ model Page {
   shortDescriptionHindi   String?    @map("short_description_hindi") @db.Text
   contentEnglish          String     @map("content_english") @db.Text
   contentHindi            String?    @map("content_hindi") @db.Text
+  section1LabelEn         String?    @map("section1_label_en") @db.VarChar(255)
+  section1LabelHi         String?    @map("section1_label_hi") @db.VarChar(255)
+  section2LabelEn         String?    @map("section2_label_en") @db.VarChar(255)
+  section2LabelHi         String?    @map("section2_label_hi") @db.VarChar(255)
+  content2English         String?    @map("content2_english") @db.Text
+  content2Hindi           String?    @map("content2_hindi") @db.Text
+  section3LabelEn         String?    @map("section3_label_en") @db.VarChar(255)
+  section3LabelHi         String?    @map("section3_label_hi") @db.VarChar(255)
+  content3English         String?    @map("content3_english") @db.Text
+  content3Hindi           String?    @map("content3_hindi") @db.Text
+  section4LabelEn         String?    @map("section4_label_en") @db.VarChar(255)
+  section4LabelHi         String?    @map("section4_label_hi") @db.VarChar(255)
+  content4English         String?    @map("content4_english") @db.Text
+  content4Hindi           String?    @map("content4_hindi") @db.Text
   status                  PageStatus @default(DRAFT)
   display_order           Int        @default(0) @map("display_order")
   publishedAt             DateTime?  @map("published_at")
@@ -372,6 +413,7 @@ enum MediaSourceType {
 
 model Media {
   id                    Int             @id @default(autoincrement())
+  uuid                  String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId        Int             @map("organization_id")
   mediaTypeId           Int             @map("media_type_id")
   titleEnglish          String          @map("title_english") @db.VarChar(255)
@@ -435,6 +477,7 @@ model Media {
 
 model Banner {
   id                 Int       @id @default(autoincrement())
+  uuid               String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId     Int       @map("organization_id")
   titleEnglish       String    @map("title_english") @db.VarChar(255)
   titleHindi         String?   @map("title_hindi") @db.VarChar(255)
@@ -474,8 +517,37 @@ model Banner {
   @@map("nvs_banners")
 }
 
+model HeaderLogo {
+  id             Int       @id @default(autoincrement())
+  uuid           String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String?   @db.VarChar(255)
+  altText        String?   @map("alt_text") @db.VarChar(255)
+  storedFilename String    @unique @map("stored_filename") @db.VarChar(255)
+  imagePath      String    @map("image_path") @db.VarChar(500)
+  mimeType       String    @map("mime_type") @db.VarChar(100)
+  extension      String    @db.VarChar(20)
+  fileSize       BigInt    @map("file_size")
+  displayOnJnv   Boolean   @default(false) @map("display_on_jnv")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdById    Int?      @map("created_by")
+  updatedById    Int?      @map("updated_by")
+  isDeleted      Boolean   @default(false) @map("is_deleted")
+  deletedAt      DateTime? @map("deleted_at")
+  deletedById    Int?      @map("deleted_by")
+
+  createdBy User? @relation("HeaderLogoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("HeaderLogoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy User? @relation("HeaderLogoDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([isActive, isDeleted])
+  @@map("nvs_header_logos")
+}
+
 model Modal {
   id            Int       @id @default(autoincrement())
+  uuid          String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   textEnglish   String    @map("text_english") @db.Text
   textHindi     String    @map("text_hindi") @db.Text
   link          String    @db.VarChar(2048)
@@ -504,6 +576,7 @@ model Modal {
 
 model GalleryImage {
   id                 Int       @id @default(autoincrement())
+  uuid               String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId     Int       @map("organization_id")
   titleEnglish       String    @map("title_english") @db.VarChar(255)
   titleHindi         String?   @map("title_hindi") @db.VarChar(255)
@@ -545,6 +618,7 @@ model GalleryImage {
 
 model Leader {
   id                       Int       @id @default(autoincrement())
+  uuid                     String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   leaderNameEnglish        String    @map("leader_name_english") @db.VarChar(255)
   leaderNameHindi          String    @map("leader_name_hindi") @db.VarChar(255)
   leaderDesignationEnglish String    @map("leader_designation_english") @db.VarChar(255)
@@ -577,6 +651,7 @@ model Leader {
 
 model JnvPrincipal {
   id                          Int       @id @default(autoincrement())
+  uuid                        String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId              Int       @map("organization_id")
   principalNameEnglish        String    @map("principal_name_english") @db.VarChar(255)
   principalNameHindi          String?   @map("principal_name_hindi") @db.VarChar(255)
@@ -617,6 +692,7 @@ model JnvPrincipal {
 
 model Menu {
   id                     Int       @id @default(autoincrement())
+  uuid                   String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationTypeId     Int       @map("organization_type_id")
   menuLocation           Int       @map("menu_location")
   parentMenuId           Int?      @map("parent_menu_id")
@@ -625,6 +701,9 @@ model Menu {
   contentTypeId          Int?      @map("content_type_id")
   mediaTypeId            Int?      @map("media_type_id")
   externalUrl            String?   @map("external_url") @db.VarChar(2048)
+  pageUrl                String?   @map("page_url") @db.VarChar(2048)
+  tabularType            Boolean?  @map("tabular_type")
+  tabularData            String?   @map("tabular_data") @db.Text
   linkTarget             Int       @default(1) @map("link_target")
   display_order          Int       @default(0) @map("display_order")
   isActive               Boolean   @default(true) @map("is_active")
@@ -656,6 +735,7 @@ model Menu {
 
 model VisitorSession {
   id             Int      @id @default(autoincrement())
+  uuid           String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId Int?     @map("organization_id")
   visitorId      String   @map("visitor_id") @db.VarChar(36)
   sessionId      String   @map("session_id") @db.VarChar(36)
@@ -678,6 +758,7 @@ model VisitorSession {
 
 model Permission {
   id            Int      @id @default(autoincrement())
+  uuid          String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   permissionKey String   @unique @map("permission_key") @db.VarChar(150)
   module        String   @db.VarChar(100)
   action        String   @db.VarChar(100)
@@ -694,6 +775,7 @@ model Permission {
 
 model RolePermission {
   id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   role         Role
   permissionId Int      @map("permission_id")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -708,6 +790,7 @@ model RolePermission {
 
 model UserPermission {
   id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       Int      @map("user_id")
   permissionId Int      @map("permission_id")
   allowed      Boolean  @map("allowed")
@@ -726,6 +809,7 @@ model UserPermission {
 
 model AuditLog {
   id             Int      @id @default(autoincrement())
+  uuid           String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId         Int      @map("user_id")
   module         String   @db.VarChar(100)
   entity         String   @db.VarChar(100)
@@ -734,6 +818,7 @@ model AuditLog {
   previousValues Json?    @map("previous_values")
   newValues      Json?    @map("new_values")
   ipAddress      String?  @map("ip_address") @db.VarChar(100)
+  location       String?  @db.VarChar(255)
   userAgent      String?  @map("user_agent") @db.Text
   createdAt      DateTime @default(now()) @map("created_at")
 
@@ -746,4 +831,34 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("nvs_audit_logs")
+}
+
+model WhoIsWho {
+  id             Int          @id @default(autoincrement())
+  uuid           String       @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId Int          @map("organization_id")
+  officerName    String       @map("officer_name") @db.VarChar(255)
+  officerNameHi  String       @map("officer_name_hi") @db.VarChar(255)
+  designation    String       @db.Text
+  designationHi  String       @map("designation_hi") @db.Text
+  phone          String       @db.Text
+  email          String       @db.Text
+  retirementDate String?      @map("retirement_date") @db.VarChar(10)
+  displayOrder   Int          @default(0) @map("display_order")
+  isActive       Boolean      @default(true) @map("is_active")
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  createdById    Int?         @map("created_by")
+  updatedById    Int?         @map("updated_by")
+  deletedById    Int?         @map("deleted_by")
+  deletedAt      DateTime?    @map("deleted_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy      User?        @relation("WhoIsWhoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?        @relation("WhoIsWhoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy      User?        @relation("WhoIsWhoDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([isDeleted, isActive, retirementDate])
+  @@index([organizationId])
+  @@map("nvs_who_is_who")
 }

@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   Injectable,
@@ -19,6 +20,10 @@ import {
   toCalendarDate,
 } from '../common/utils/calendar-date.util';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import {
+  parseUuidList,
+  resolveRelatedId,
+} from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExternalMediaDto } from './dto/create-external-media.dto';
 import { GetMediaQueryDto } from './dto/get-media-query.dto';
@@ -40,27 +45,50 @@ export class MediaService {
     private readonly ownership: OrganizationOwnershipService,
   ) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.media.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
+  async resolveOrganizationReference(
+    value?: string,
+  ): Promise<number | undefined> {
+    if (value === undefined) return undefined;
+    return /^\d+$/.test(value)
+      ? Number(value)
+      : this.resolveOrganizationId(undefined, value);
+  }
+
   async createExternal(
     dto: CreateExternalMediaDto,
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
+    await this.resolveMediaUuidLists(dto);
+    const { organizationId, mediaTypeId } = await this.resolveCreateRelationIds(
+      dto,
+      actor,
+    );
     const startDate =
       dto.start_date?.trim() || new Date().toISOString().slice(0, 10);
     this.assertDateRange(startDate, dto.end_date);
-    const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
-    await this.ensureActiveMediaType(dto.mediaTypeId);
+    await this.ensureActiveMediaType(mediaTypeId);
     const sharedMediaTypeIds = await this.resolveSharedMediaTypeIds(
       dto.sharedMediaTypeIds,
-      dto.mediaTypeId,
+      mediaTypeId,
     );
     const visibility = await this.resolveVisibility(dto, organizationId);
     const media = await this.prisma.$transaction(async (transaction) => {
       const createdMedia = await transaction.media.create({
         data: {
           organizationId,
-          mediaTypeId: dto.mediaTypeId,
+          mediaTypeId,
           sourceType: MediaSourceType.EXTERNAL,
           externalUrl: dto.externalUrl,
           titleEnglish: dto.titleEnglish,
@@ -98,25 +126,29 @@ export class MediaService {
     hindiFile: Express.Multer.File | undefined,
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
+    await this.resolveMediaUuidLists(dto);
+    const { organizationId, mediaTypeId } = await this.resolveCreateRelationIds(
+      dto,
+      actor,
+    );
     validateMediaFile(file);
     if (hindiFile) validateMediaFile(hindiFile);
     const startDate =
       dto.start_date?.trim() || new Date().toISOString().slice(0, 10);
     this.assertDateRange(startDate, dto.end_date);
-    const organizationId = dto.organizationId ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
-    await this.ensureActiveMediaType(dto.mediaTypeId);
+    await this.ensureActiveMediaType(mediaTypeId);
     const sharedMediaTypeIds = await this.resolveSharedMediaTypeIds(
       dto.sharedMediaTypeIds,
-      dto.mediaTypeId,
+      mediaTypeId,
     );
     const visibility = await this.resolveVisibility(dto, organizationId);
     const media = await this.prisma.$transaction(async (transaction) => {
       const createdMedia = await transaction.media.create({
         data: {
           organizationId,
-          mediaTypeId: dto.mediaTypeId,
+          mediaTypeId,
           sourceType: MediaSourceType.FILE,
           titleEnglish: dto.titleEnglish,
           titleHindi: dto.titleHindi,
@@ -161,6 +193,14 @@ export class MediaService {
   ): Promise<
     PaginatedResponseDto<MediaResponseDto & { organization_name: string }>
   > {
+    query.organizationId = await this.resolveOrganizationId(
+      query.organizationId,
+      query.organizationUuid,
+    );
+    query.mediaTypeId = await this.resolveMediaTypeId(
+      query.mediaTypeId,
+      query.mediaTypeUuid,
+    );
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = await this.buildWhere(query, actor);
@@ -254,6 +294,11 @@ export class MediaService {
     dto: UpdateMediaDto,
     actor: AuthenticatedUser,
   ): Promise<MediaResponseDto> {
+    dto.mediaTypeId = await this.resolveMediaTypeId(
+      dto.mediaTypeId,
+      dto.mediaTypeUuid,
+    );
+    await this.resolveMediaUuidLists(dto);
     const existing = await this.findActiveMedia(id);
     this.ownership.assertAccess(existing.organizationId, actor);
     if (
@@ -494,6 +539,121 @@ export class MediaService {
     );
   }
 
+  private async resolveCreateRelationIds(
+    dto: UploadMediaDto,
+    actor: AuthenticatedUser,
+  ): Promise<{ organizationId: number; mediaTypeId: number }> {
+    const organizationId =
+      (await resolveRelatedId(
+        dto.organizationId,
+        dto.organizationUuid,
+        'Organization',
+        (uuid) =>
+          this.prisma.organization.findUnique({
+            where: { uuid },
+            select: { id: true },
+          }),
+      )) ?? actor.organizationId;
+    const mediaTypeId = (await resolveRelatedId(
+      dto.mediaTypeId,
+      dto.mediaTypeUuid,
+      'Media type',
+      (uuid) =>
+        this.prisma.mediaType.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    ))!;
+    return { organizationId, mediaTypeId };
+  }
+
+  private resolveOrganizationId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization', (value) =>
+      this.prisma.organization.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+
+  private resolveMediaTypeId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Media type', (value) =>
+      this.prisma.mediaType.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+
+  private async resolvePublicQueryRelations(
+    query: GetPublicMediaQueryDto,
+  ): Promise<void> {
+    query.organization_id = await this.resolveOrganizationId(
+      query.organization_id,
+      query.organization_uuid,
+    );
+    query.media_type_id = await this.resolveMediaTypeId(
+      query.media_type_id,
+      query.media_type_uuid,
+    );
+  }
+
+  private async resolveMediaUuidLists(
+    dto: UploadMediaDto | UpdateMediaDto,
+  ): Promise<void> {
+    if (dto.sharedMediaTypeUuids !== undefined) {
+      dto.sharedMediaTypeIds = await this.resolveUuidCsv(
+        dto.sharedMediaTypeUuids,
+        'sharedMediaTypeUuids',
+        'Media type',
+        (uuids) =>
+          this.prisma.mediaType.findMany({
+            where: { uuid: { in: uuids } },
+            select: { id: true, uuid: true },
+          }),
+      );
+    }
+    if (dto.ro_uuids !== undefined) {
+      dto.ro_ids = await this.resolveUuidCsv(
+        dto.ro_uuids,
+        'ro_uuids',
+        'Regional Office',
+        (uuids) =>
+          this.prisma.organization.findMany({
+            where: { uuid: { in: uuids } },
+            select: { id: true, uuid: true },
+          }),
+      );
+    }
+    if (dto.jnv_uuids !== undefined) {
+      dto.jnv_ids = await this.resolveUuidCsv(
+        dto.jnv_uuids,
+        'jnv_uuids',
+        'JNV organization',
+        (uuids) =>
+          this.prisma.organization.findMany({
+            where: { uuid: { in: uuids } },
+            select: { id: true, uuid: true },
+          }),
+      );
+    }
+  }
+
+  private async resolveUuidCsv(
+    value: string | null,
+    field: string,
+    label: string,
+    find: (uuids: string[]) => Promise<Array<{ id: number; uuid: string }>>,
+  ): Promise<string | null> {
+    if (value === null) return null;
+    const uuids = parseUuidList(value, field);
+    const records = await find(uuids);
+    if (records.length !== uuids.length)
+      throw new NotFoundException(`One or more ${label} UUIDs were not found.`);
+    const byUuid = new Map(records.map((record) => [record.uuid, record.id]));
+    return uuids.map((uuid) => byUuid.get(uuid)!).join(',');
+  }
+
   async cleanupUploadedFile(file?: Express.Multer.File): Promise<void> {
     await this.cleanupUploadedFiles([file]);
   }
@@ -501,6 +661,8 @@ export class MediaService {
   async findPublic(
     query: GetPublicMediaQueryDto,
   ): Promise<PaginatedResponseDto<PublicMediaResponseDto>> {
+    const organizationReference = query.organization_uuid;
+    await this.resolvePublicQueryRelations(query);
     const where = await this.publicWhere(query);
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
@@ -518,7 +680,12 @@ export class MediaService {
     const placementNames = await this.sharedMediaPlacementNames(media);
     return {
       items: media.map((item) =>
-        this.toPublicResponse(item, query.organization_id, placementNames),
+        this.toPublicResponse(
+          item,
+          organizationReference ?? query.organization_id?.toString(),
+          placementNames,
+          organizationReference !== undefined,
+        ),
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
@@ -528,6 +695,8 @@ export class MediaService {
     query: GetPublicMediaQueryDto,
     importantLink: ImportantLinkField,
   ): Promise<PaginatedResponseDto<PublicMediaResponseDto>> {
+    const organizationReference = query.organization_uuid;
+    await this.resolvePublicQueryRelations(query);
     const where = await this.publicWhere(query, importantLink);
     const [media, totalItems] = await this.prisma.$transaction([
       this.prisma.media.findMany({
@@ -545,7 +714,12 @@ export class MediaService {
     const placementNames = await this.sharedMediaPlacementNames(media);
     return {
       items: media.map((item) =>
-        this.toPublicResponse(item, query.organization_id, placementNames),
+        this.toPublicResponse(
+          item,
+          organizationReference ?? query.organization_id?.toString(),
+          placementNames,
+          organizationReference !== undefined,
+        ),
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
@@ -1148,6 +1322,7 @@ export class MediaService {
   ): Promise<void> {
     await transaction.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'MEDIA',
         entity: 'MEDIA',
@@ -1167,6 +1342,7 @@ export class MediaService {
   ): MediaResponseDto {
     return {
       id: media.id,
+      uuid: media.uuid,
       sourceType: media.sourceType,
       externalUrl: media.externalUrl,
       organizationId: media.organizationId,
@@ -1262,11 +1438,13 @@ export class MediaService {
 
   private toPublicResponse(
     media: Media,
-    organizationId?: number,
+    organizationReference?: string,
     placementNames: Map<number, string> = new Map(),
+    useOrganizationUuid = false,
   ): PublicMediaResponseDto {
     return {
       id: media.id,
+      uuid: media.uuid,
       source_type: media.sourceType,
       external_url: media.externalUrl,
       media_type_id: media.mediaTypeId,
@@ -1284,17 +1462,17 @@ export class MediaService {
       end_date: formatCalendarDate(media.endDate),
       download_url:
         media.sourceType === MediaSourceType.FILE
-          ? `/api/public/media/${media.id}/download${
-              organizationId === undefined
+          ? `/api/public/media/uuid/${media.uuid}/download${
+              organizationReference === undefined
                 ? ''
-                : `?organization_id=${organizationId}`
+                : `?${useOrganizationUuid ? 'organization_uuid' : 'organization_id'}=${organizationReference}`
             }`
           : null,
       hindi_download_url: media.hindiFilePath
-        ? `/api/public/media/${media.id}/download/hindi${
-            organizationId === undefined
+        ? `/api/public/media/uuid/${media.uuid}/download/hindi${
+            organizationReference === undefined
               ? ''
-              : `?organization_id=${organizationId}`
+              : `?${useOrganizationUuid ? 'organization_uuid' : 'organization_id'}=${organizationReference}`
           }`
         : null,
     };

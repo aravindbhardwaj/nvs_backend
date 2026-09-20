@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   Injectable,
@@ -24,6 +25,16 @@ type UserPermissionWithPermission = Prisma.UserPermissionGetPayload<{
 export class UserPermissionsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.user.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async findByUser(userId: number): Promise<UserPermissionsResponseDto> {
     await this.ensureUserExists(userId);
     const overrides = await this.findOverrides(userId);
@@ -36,6 +47,15 @@ export class UserPermissionsService {
     dto: ReplaceUserPermissionsDto,
     actor: AuthenticatedUser,
   ): Promise<UserPermissionsResponseDto> {
+    for (const override of dto.permissions) {
+      if (!override.permissionUuid) continue;
+      const permission = await this.prisma.permission.findUnique({
+        where: { uuid: override.permissionUuid },
+        select: { id: true },
+      });
+      if (!permission) throw new NotFoundException('Permission not found.');
+      override.permissionId = permission.id;
+    }
     this.ensureActorIsNotTarget(userId, actor);
     await this.ensureUserExists(userId);
     const permissions = await this.ensurePermissionsExist(dto.permissions);
@@ -48,7 +68,7 @@ export class UserPermissionsService {
         await transaction.userPermission.createMany({
           data: dto.permissions.map(({ permissionId, allowed }) => ({
             userId,
-            permissionId,
+            permissionId: permissionId!,
             allowed,
             createdById: actor.id,
           })),
@@ -57,6 +77,7 @@ export class UserPermissionsService {
 
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER_PERMISSION',
           entity: 'USER_PERMISSION',
@@ -83,6 +104,7 @@ export class UserPermissionsService {
       await transaction.userPermission.deleteMany({ where: { userId } });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'USER_PERMISSION',
           entity: 'USER_PERMISSION',
@@ -111,7 +133,7 @@ export class UserPermissionsService {
   private async ensurePermissionsExist(
     overrides: PermissionOverrideDto[],
   ): Promise<Prisma.PermissionGetPayload<Record<string, never>>[]> {
-    const permissionIds = overrides.map(({ permissionId }) => permissionId);
+    const permissionIds = overrides.map(({ permissionId }) => permissionId!);
     const permissions = await this.prisma.permission.findMany({
       where: { id: { in: permissionIds } },
       orderBy: { permissionKey: 'asc' },
@@ -171,6 +193,7 @@ export class UserPermissionsService {
 
       return {
         id: permission.id,
+        uuid: permission.uuid,
         permissionKey: permission.permissionKey,
         module: permission.module,
         action: permission.action,

@@ -1,12 +1,15 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsEmail,
+  IsDefined,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 const trimValue = ({ value }: { value: unknown }): unknown =>
@@ -51,13 +54,25 @@ export class CreateUserDto {
   @MaxLength(5000)
   address?: string;
 
+  @ValidateIf((dto: CreateUserDto) => dto.organizationUuid === undefined)
+  @IsDefined()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  organizationId: number;
+  organizationId?: number;
 
+  @IsOptional()
+  @IsUUID()
+  organizationUuid?: string;
+
+  @ValidateIf((dto: CreateUserDto) => dto.organization_type_uuid === undefined)
+  @IsDefined()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  organization_type_id: number;
+  organization_type_id?: number;
+
+  @IsOptional()
+  @IsUUID()
+  organization_type_uuid?: string;
 }

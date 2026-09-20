@@ -5,7 +5,10 @@ import { PermissionOverrideDto } from './permission-override.dto';
 
 export class ReplaceUserPermissionsDto {
   @IsArray()
-  @ArrayUnique((permission: PermissionOverrideDto) => permission.permissionId)
+  @ArrayUnique(
+    (permission: PermissionOverrideDto) =>
+      permission.permissionUuid ?? permission.permissionId,
+  )
   @ValidateNested({ each: true })
   @Type(() => PermissionOverrideDto)
   permissions: PermissionOverrideDto[];

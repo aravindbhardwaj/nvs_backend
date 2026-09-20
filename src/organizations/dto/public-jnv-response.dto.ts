@@ -1,5 +1,6 @@
 export class PublicJnvResponseDto {
   id: number;
+  uuid: string;
   name: string;
   organization_name_en: string | null;
   organization_name_hi: string | null;
@@ -22,4 +23,6 @@ export class PublicJnvResponseDto {
   principal_name_hindi: string | null;
   principal_email: string | null;
   principal_mobile: string | null;
+  short_description: string | null;
+  image_url: string | null;
 }

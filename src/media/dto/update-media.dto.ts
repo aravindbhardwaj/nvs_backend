@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -57,6 +58,7 @@ export class UpdateMediaDto {
   @IsInt()
   @Min(1)
   mediaTypeId?: number;
+  @IsOptional() @IsUUID() mediaTypeUuid?: string;
 
   @IsOptional()
   @Transform(trimValue)
@@ -64,6 +66,8 @@ export class UpdateMediaDto {
   @IsNotEmpty()
   @MaxLength(1000)
   sharedMediaTypeIds?: string | null;
+  @IsOptional() @Transform(trimValue) @IsString() sharedMediaTypeUuids?:
+    string | null;
 
   @IsOptional()
   @Type(() => Number)
@@ -91,13 +95,14 @@ export class UpdateMediaDto {
   @IsNotEmpty()
   @MaxLength(1000)
   ro_ids?: string | null;
+  @IsOptional() @Transform(trimValue) @IsString() ro_uuids?: string | null;
 
   @IsOptional()
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()
-  @MaxLength(1000)
   jnv_ids?: string | null;
+  @IsOptional() @Transform(trimValue) @IsString() jnv_uuids?: string | null;
 
   @IsOptional()
   @Transform(toBoolean)

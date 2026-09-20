@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -37,6 +38,7 @@ export class GetAuditLogsQueryDto {
   @IsInt()
   @Min(1)
   userId?: number;
+  @IsOptional() @IsUUID() userUuid?: string;
 
   @IsOptional()
   @IsString()

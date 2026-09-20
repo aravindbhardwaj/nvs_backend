@@ -1,13 +1,12 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -53,6 +52,47 @@ export class MediaTypesController {
     };
   }
 
+  @Get('uuid/:uuid')
+  @RequirePermission('MEDIA_TYPE_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    return this.findOne(await this.mediaTypesService.resolveUuid(uuid));
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_TYPE_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateMediaTypeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.update(
+      await this.mediaTypesService.resolveUuid(uuid),
+      dto,
+      user,
+    );
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_TYPE_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.remove(await this.mediaTypesService.resolveUuid(uuid), user);
+  }
+
+  @Post('uuid/:uuid/restore')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_TYPE_UPDATE')
+  async restoreByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.restore(await this.mediaTypesService.resolveUuid(uuid), user);
+  }
+
   @Get(':id')
   @RequirePermission('MEDIA_TYPE_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -62,7 +102,8 @@ export class MediaTypesController {
     };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('MEDIA_TYPE_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -75,7 +116,8 @@ export class MediaTypesController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   @RequirePermission('MEDIA_TYPE_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -87,7 +129,8 @@ export class MediaTypesController {
     };
   }
 
-  @Patch(':id/restore')
+  @Post(':id/restore')
+  @HttpCode(200)
   @RequirePermission('MEDIA_TYPE_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,

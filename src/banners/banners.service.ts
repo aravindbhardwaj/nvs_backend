@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   Injectable,
@@ -19,6 +20,7 @@ import {
   toCalendarDate,
 } from '../common/utils/calendar-date.util';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { BANNER_UPLOADS_ROOT, validateBannerImage } from './banner.storage';
 import {
@@ -38,6 +40,25 @@ export class BannersService {
     private readonly configService: ConfigService,
   ) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.banner.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
+  async resolveOrganizationReference(
+    value?: string,
+  ): Promise<number | undefined> {
+    if (value === undefined) return undefined;
+    return /^\d+$/.test(value)
+      ? Number(value)
+      : this.resolveOrganizationId(undefined, value);
+  }
+
   async create(
     dto: CreateBannerDto,
     file: Express.Multer.File,
@@ -45,7 +66,17 @@ export class BannersService {
   ): Promise<BannerResponseDto> {
     await validateBannerImage(file);
     this.assertDisplayDates(dto.start_date, dto.end_date);
-    const organizationId = dto.organizationId ?? actor.organizationId;
+    const organizationId =
+      (await resolveRelatedId(
+        dto.organizationId,
+        dto.organizationUuid,
+        'Organization',
+        (uuid) =>
+          this.prisma.organization.findUnique({
+            where: { uuid },
+            select: { id: true },
+          }),
+      )) ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
     const banner = await this.prisma.$transaction(async (transaction) => {
@@ -87,6 +118,10 @@ export class BannersService {
   ): Promise<
     PaginatedResponseDto<BannerResponseDto & { organization_name: string }>
   > {
+    query.organizationId = await this.resolveOrganizationId(
+      query.organizationId,
+      query.organizationUuid,
+    );
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
     const where = this.buildWhere(query, actor);
@@ -339,6 +374,11 @@ export class BannersService {
   async findDisplayable(
     query: GetPublicBannersQueryDto,
   ): Promise<PaginatedResponseDto<PublicBannerResponseDto>> {
+    const organizationReference = query.organization_uuid;
+    query.organization_id = await this.resolveOrganizationId(
+      query.organization_id,
+      query.organization_uuid,
+    );
     const where = await this.publicDisplayableWhere(query.organization_id);
     const [banners, totalItems] = await this.prisma.$transaction([
       this.prisma.banner.findMany({
@@ -355,7 +395,11 @@ export class BannersService {
     ]);
     return {
       items: banners.map((banner) =>
-        this.toPublicResponse(banner, query.organization_id),
+        this.toPublicResponse(
+          banner,
+          organizationReference ?? query.organization_id?.toString(),
+          organizationReference !== undefined,
+        ),
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
@@ -652,6 +696,7 @@ export class BannersService {
   ): Promise<void> {
     await transaction.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'BANNER',
         entity: 'BANNER',
@@ -668,6 +713,7 @@ export class BannersService {
   private toResponse(banner: Banner): BannerResponseDto {
     return {
       id: banner.id,
+      uuid: banner.uuid,
       organizationId: banner.organizationId,
       titleEnglish: banner.titleEnglish,
       titleHindi: banner.titleHindi,
@@ -691,12 +737,23 @@ export class BannersService {
     };
   }
 
+  private resolveOrganizationId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization', (value) =>
+      this.prisma.organization.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
+  }
+
   private toPublicResponse(
     banner: Banner,
-    organizationId?: number,
+    organizationReference?: string,
+    useOrganizationUuid = false,
   ): PublicBannerResponseDto {
     return {
       id: banner.id,
+      uuid: banner.uuid,
       title_english: banner.titleEnglish,
       title_hindi: banner.titleHindi,
       description_english: banner.descriptionEnglish,
@@ -704,8 +761,10 @@ export class BannersService {
       alt_text_english: banner.altTextEnglish,
       alt_text_hindi: banner.altTextHindi,
       link_url: banner.linkUrl,
-      image_url: `/api/public/banners/${banner.id}/image${
-        organizationId ? `?organization_id=${organizationId}` : ''
+      image_url: `/api/public/banners/uuid/${banner.uuid}/image${
+        organizationReference
+          ? `?${useOrganizationUuid ? 'organization_uuid' : 'organization_id'}=${organizationReference}`
+          : ''
       }`,
       display_order: banner.display_order,
       start_date: formatCalendarDate(banner.startDate),

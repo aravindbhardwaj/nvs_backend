@@ -3,6 +3,7 @@ import { District, Prisma } from '@prisma/client';
 
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { DistrictResponseDto } from './dto/district-response.dto';
 import { GetDistrictsQueryDto } from './dto/get-districts-query.dto';
@@ -14,6 +15,10 @@ export class DistrictsService {
   async findAll(
     query: GetDistrictsQueryDto,
   ): Promise<PaginatedResponseDto<DistrictResponseDto>> {
+    query.stateId = await resolveRelatedId(query.stateId, query.stateUuid, 'State',
+      (uuid) => this.prisma.state.findUnique({ where: { uuid }, select: { id: true } }));
+    query.roId = await resolveRelatedId(query.roId, query.roUuid, 'Region',
+      (uuid) => this.prisma.region.findUnique({ where: { uuid }, select: { id: true } }));
     const { page, limit, search, stateId, roId, isActive, sort, order } = query;
     const where: Prisma.DistrictWhereInput = {
       isActive,
@@ -53,6 +58,7 @@ export class DistrictsService {
   private toResponse(district: District): DistrictResponseDto {
     return {
       id: district.id,
+      uuid: district.uuid,
       districtName: district.districtName,
       nameHi: district.nameHi,
       districtCode: district.districtCode,

@@ -22,6 +22,16 @@ import {
 export class LeadershipService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.leader.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(
     dto: CreateLeaderDto,
     file: Express.Multer.File,
@@ -248,6 +258,7 @@ export class LeadershipService {
   private toResponse(leader: Leader): LeaderResponseDto {
     return {
       id: leader.id,
+      uuid: leader.uuid,
       leaderNameEnglish: leader.leaderNameEnglish,
       leaderNameHindi: leader.leaderNameHindi,
       leaderDesignationEnglish: leader.leaderDesignationEnglish,
@@ -266,11 +277,12 @@ export class LeadershipService {
   private toPublicResponse(leader: Leader): PublicLeaderResponseDto {
     return {
       id: leader.id,
+      uuid: leader.uuid,
       leader_name_english: leader.leaderNameEnglish,
       leader_name_hindi: leader.leaderNameHindi,
       leader_designation_english: leader.leaderDesignationEnglish,
       leader_designation_hindi: leader.leaderDesignationHindi,
-      picture_url: `/api/public/leadership/${leader.id}/image`,
+      picture_url: `/api/public/leadership/uuid/${leader.uuid}/image`,
       display_order: leader.display_order,
     };
   }

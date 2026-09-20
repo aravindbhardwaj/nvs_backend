@@ -1,4 +1,11 @@
-import { Controller, Get, Param, ParseIntPipe, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  ParseUUIDPipe,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
 import { LeadershipService } from './leadership.service';
@@ -7,6 +14,21 @@ import { LeadershipService } from './leadership.service';
 @Controller('api/public/leadership')
 export class PublicLeadershipController {
   constructor(private readonly leadership: LeadershipService) {}
+
+  @Get('uuid/:uuid/image')
+  async imageByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.image(id, response);
+  }
+
+  @Get('uuid/:uuid')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.leadership.resolveUuid(uuid);
+    return this.findOne(id);
+  }
 
   @Get()
   async findAll() {

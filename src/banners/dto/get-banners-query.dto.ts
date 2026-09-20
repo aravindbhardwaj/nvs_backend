@@ -1,5 +1,12 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SortOrder } from '../../common/enums/sort-order.enum';
@@ -10,6 +17,7 @@ export class GetBannersQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   organizationId?: number;
+  @IsOptional() @IsUUID() organizationUuid?: string;
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>

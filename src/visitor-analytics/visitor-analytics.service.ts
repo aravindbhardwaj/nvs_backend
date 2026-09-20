@@ -10,6 +10,7 @@ import {
   toCalendarDate,
 } from '../common/utils/calendar-date.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { CaptureVisitDto } from './dto/capture-visit.dto';
 import {
   VisitorAnalyticsDailyDto,
@@ -23,14 +24,18 @@ export class VisitorAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async captureVisit(dto: CaptureVisitDto): Promise<void> {
-    await this.ensureActiveOrganization(dto.organization_id);
+    const organizationId = (await this.resolveOrganizationId(
+      dto.organization_id,
+      dto.organization_uuid,
+    ))!;
+    await this.ensureActiveOrganization(organizationId);
     const now = new Date();
     const usesEnglish = dto.language === VISITOR_LANGUAGE.ENGLISH;
 
     await this.prisma.visitorSession.upsert({
       where: {
         organizationId_sessionId: {
-          organizationId: dto.organization_id,
+          organizationId,
           sessionId: dto.session_id,
         },
       },
@@ -39,7 +44,7 @@ export class VisitorAnalyticsService {
         ...(usesEnglish ? { usedEnglish: true } : { usedHindi: true }),
       },
       create: {
-        organizationId: dto.organization_id,
+        organizationId,
         visitorId: dto.visitor_id,
         sessionId: dto.session_id,
         usedEnglish: usesEnglish,
@@ -53,6 +58,10 @@ export class VisitorAnalyticsService {
   async report(
     query: VisitorReportQueryDto,
   ): Promise<VisitorAnalyticsReportDto> {
+    query.organization_id = await this.resolveOrganizationId(
+      query.organization_id,
+      query.organization_uuid,
+    );
     this.assertValidDateRange(query);
     const fromDate = toCalendarDate(query.from_date);
     const toDateExclusive = toCalendarDate(query.to_date);
@@ -108,12 +117,37 @@ export class VisitorAnalyticsService {
     };
   }
 
-  async publicCount(organizationId: number): Promise<{ total_visits: number }> {
+  async publicCount(organizationId?: number, organizationUuid?: string): Promise<{
+    total_visits: number;
+    english_visits: number;
+    hindi_visits: number;
+  }> {
+    organizationId = (await this.resolveOrganizationId(
+      organizationId,
+      organizationUuid,
+    ))!;
     await this.ensureActiveOrganization(organizationId);
+
+    const languageGroups = await this.prisma.visitorSession.groupBy({
+      by: ['usedEnglish', 'usedHindi'],
+      where: { organizationId },
+      _count: { _all: true },
+    });
+
     return {
-      total_visits: await this.prisma.visitorSession.count({
-        where: { organizationId },
-      }),
+      total_visits: languageGroups.reduce(
+        (total, group) => total + group._count._all,
+        0,
+      ),
+      english_visits: languageGroups.reduce(
+        (total, group) =>
+          total + (group.usedEnglish ? group._count._all : 0),
+        0,
+      ),
+      hindi_visits: languageGroups.reduce(
+        (total, group) => total + (group.usedHindi ? group._count._all : 0),
+        0,
+      ),
     };
   }
 
@@ -123,6 +157,15 @@ export class VisitorAnalyticsService {
       select: { id: true },
     });
     if (!organization) throw new NotFoundException('Organization not found.');
+  }
+
+  private resolveOrganizationId(id?: number, uuid?: string) {
+    return resolveRelatedId(id, uuid, 'Organization', (value) =>
+      this.prisma.organization.findUnique({
+        where: { uuid: value },
+        select: { id: true },
+      }),
+    );
   }
 
   private assertValidDateRange(query: VisitorReportQueryDto): void {

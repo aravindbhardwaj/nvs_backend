@@ -12,7 +12,7 @@ const validMenu = {
 };
 
 describe('CreateMenuDto', () => {
-  it.each([1, 2])('accepts menu location %i', async (menu_location) => {
+  it.each([1, 2, 3, 4])('accepts menu location %i', async (menu_location) => {
     expect(
       await validate(
         plainToInstance(CreateMenuDto, { ...validMenu, menu_location }),
@@ -31,7 +31,7 @@ describe('CreateMenuDto', () => {
   it('rejects invalid numeric enums and unsafe external URLs', async () => {
     const invalid = plainToInstance(CreateMenuDto, {
       ...validMenu,
-      menu_location: 3,
+      menu_location: 5,
       link_target: 3,
       external_url: 'javascript:alert(1)',
     });

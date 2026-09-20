@@ -1,5 +1,6 @@
 export class ModalResponseDto {
   id: number;
+  uuid: string;
   text_english: string;
   text_hindi: string;
   link: string;
@@ -14,6 +15,7 @@ export class ModalResponseDto {
 
 export class PublicModalResponseDto {
   id: number;
+  uuid: string;
   text_english: string;
   text_hindi: string;
   link: string;

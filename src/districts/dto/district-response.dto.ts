@@ -1,5 +1,6 @@
 export class DistrictResponseDto {
   id: number;
+  uuid: string;
   districtName: string;
   nameHi: string | null;
   districtCode: string;

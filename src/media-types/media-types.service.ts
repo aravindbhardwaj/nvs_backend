@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   ConflictException,
   Injectable,
@@ -30,6 +31,7 @@ export class MediaTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'MEDIA_TYPE',
           entity: 'MEDIA_TYPE',
@@ -75,6 +77,17 @@ export class MediaTypesService {
     return this.toResponse(await this.findActiveMediaType(id));
   }
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Include deleted records so the existing restore workflow can resolve them.
+    // Each operation continues to enforce its own deletion-state checks.
+    const mediaType = await this.prisma.mediaType.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!mediaType) throw new NotFoundException('Media type not found.');
+    return mediaType.id;
+  }
+
   async update(
     id: number,
     dto: UpdateMediaTypeDto,
@@ -90,6 +103,7 @@ export class MediaTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'MEDIA_TYPE',
           entity: 'MEDIA_TYPE',
@@ -138,6 +152,7 @@ export class MediaTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'MEDIA_TYPE',
           entity: 'MEDIA_TYPE',
@@ -174,6 +189,7 @@ export class MediaTypesService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'MEDIA_TYPE',
           entity: 'MEDIA_TYPE',
@@ -236,6 +252,7 @@ export class MediaTypesService {
   private toResponse(mediaType: MediaType): MediaTypeResponseDto {
     return {
       id: mediaType.id,
+      uuid: mediaType.uuid,
       nameEnglish: mediaType.nameEnglish,
       nameHindi: mediaType.nameHindi,
       descriptionEnglish: mediaType.descriptionEnglish,

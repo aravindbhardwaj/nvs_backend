@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
@@ -9,4 +9,5 @@ export class GetPublicBannersQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   organization_id?: number;
+  @IsOptional() @IsUUID() organization_uuid?: string;
 }

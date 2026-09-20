@@ -30,6 +30,10 @@ import { JnvPrincipalsModule } from './jnv-principals/jnv-principals.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import configuration from './config';
 
+import { WhoIsWhoModule } from './who-is-who/who-is-who.module';
+import { HeaderLogosModule } from './header-logos/header-logos.module';
+import { CkeditorImagesModule } from './ckeditor-images/ckeditor-images.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -62,6 +66,9 @@ import configuration from './config';
     LeadershipModule,
     ModalsModule,
     JnvPrincipalsModule,
+    WhoIsWhoModule,
+    HeaderLogosModule,
+    CkeditorImagesModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, AppService],

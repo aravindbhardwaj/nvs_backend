@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +22,13 @@ import { PermissionsService } from './permissions.service';
 @Roles(Role.SUPER_ADMIN)
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('PERMISSION_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.permissionsService.resolveUuid(uuid);
+    return this.findOne(id);
+  }
 
   @Get()
   @RequirePermission('PERMISSION_VIEW')

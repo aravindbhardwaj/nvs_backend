@@ -1,5 +1,6 @@
 export class MenuResponseDto {
   id: number;
+  uuid: string;
   organization_type_id: number;
   menu_location: number;
   parent_menu_id: number | null;
@@ -8,6 +9,9 @@ export class MenuResponseDto {
   content_type_id: number | null;
   media_type_id: number | null;
   external_url: string | null;
+  page_url: string | null;
+  tabular_type: boolean | null;
+  tabular_data: string | null;
   link_target: number;
   display_order: number;
   is_active: boolean;
@@ -19,11 +23,15 @@ export class MenuResponseDto {
 
 export class MenuNavigationDto {
   id: number;
+  uuid: string;
   title_english: string;
   title_hindi: string | null;
   content_type_id: number | null;
   media_type_id: number | null;
   external_url: string | null;
+  page_url: string | null;
+  tabular_type: boolean | null;
+  tabular_data: string | null;
   link_target: number;
   display_order: number;
   children: MenuNavigationDto[];

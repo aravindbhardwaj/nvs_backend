@@ -1,13 +1,12 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -30,6 +29,58 @@ import { ModalsService } from './modals.service';
 @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
 export class ModalsController {
   constructor(private readonly modals: ModalsService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('MODAL_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.modals.resolveUuid(uuid);
+    return this.findOne(id);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('MODAL_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateModalDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.modals.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/activate')
+  @HttpCode(200)
+  @RequirePermission('MODAL_UPDATE')
+  async activateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.modals.resolveUuid(uuid);
+    return this.activate(id, user);
+  }
+
+  @Post('uuid/:uuid/deactivate')
+  @HttpCode(200)
+  @RequirePermission('MODAL_UPDATE')
+  async deactivateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.modals.resolveUuid(uuid);
+    return this.deactivate(id, user);
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('MODAL_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.modals.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
 
   @Post()
   @RequirePermission('MODAL_CREATE')
@@ -61,7 +112,8 @@ export class ModalsController {
     };
   }
 
-  @Put('reorder')
+  @Post('reorder')
+  @HttpCode(200)
   @RequirePermission('MODAL_UPDATE')
   async reorder(
     @Body() dto: ReorderModalsDto,
@@ -71,7 +123,8 @@ export class ModalsController {
     return { message: 'Modals reordered successfully.', data: null };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('MODAL_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -84,7 +137,8 @@ export class ModalsController {
     };
   }
 
-  @Patch(':id/activate')
+  @Post(':id/activate')
+  @HttpCode(200)
   @RequirePermission('MODAL_UPDATE')
   async activate(
     @Param('id', ParseIntPipe) id: number,
@@ -96,7 +150,8 @@ export class ModalsController {
     };
   }
 
-  @Patch(':id/deactivate')
+  @Post(':id/deactivate')
+  @HttpCode(200)
   @RequirePermission('MODAL_UPDATE')
   async deactivate(
     @Param('id', ParseIntPipe) id: number,
@@ -108,7 +163,8 @@ export class ModalsController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   @RequirePermission('MODAL_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,

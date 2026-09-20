@@ -2,11 +2,11 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -31,6 +31,47 @@ import { MenusService } from './menus.service';
 @Roles(Role.SUPER_ADMIN)
 export class MenusController {
   constructor(private readonly menusService: MenusService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('MENU_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.menusService.resolveUuid(uuid);
+    return this.findOne(id);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('MENU_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdateMenuDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.menusService.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/activate')
+  @HttpCode(200)
+  @RequirePermission('MENU_UPDATE')
+  async activateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.menusService.resolveUuid(uuid);
+    return this.activate(id, user);
+  }
+
+  @Post('uuid/:uuid/deactivate')
+  @HttpCode(200)
+  @RequirePermission('MENU_UPDATE')
+  async deactivateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.menusService.resolveUuid(uuid);
+    return this.deactivate(id, user);
+  }
 
   @Post()
   @RequirePermission('MENU_CREATE')
@@ -72,7 +113,8 @@ export class MenusController {
     };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('MENU_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -85,7 +127,8 @@ export class MenusController {
     };
   }
 
-  @Patch(':id/activate')
+  @Post(':id/activate')
+  @HttpCode(200)
   @RequirePermission('MENU_UPDATE')
   async activate(
     @Param('id', ParseIntPipe) id: number,
@@ -97,7 +140,8 @@ export class MenusController {
     };
   }
 
-  @Patch(':id/deactivate')
+  @Post(':id/deactivate')
+  @HttpCode(200)
   @RequirePermission('MENU_UPDATE')
   async deactivate(
     @Param('id', ParseIntPipe) id: number,

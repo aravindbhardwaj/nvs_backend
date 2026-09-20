@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { isUUID } from 'class-validator';
+import {
+  BadRequestException,
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 
@@ -50,25 +56,30 @@ export class OrganizationOwnershipGuard implements CanActivate {
     }
 
     const id = this.toPositiveInteger(request.params?.id);
-    if (id) {
+    const uuid = request.params?.uuid;
+    if (uuid && !isUUID(uuid)) {
+      throw new BadRequestException('Validation failed (uuid is expected)');
+    }
+    if (id || uuid) {
+      const where = id ? { id } : { uuid: uuid! };
       const record =
         resource === 'page'
           ? await this.prisma.page.findUnique({
-              where: { id },
+              where,
               select: { organizationId: true },
             })
           : resource === 'media'
             ? await this.prisma.media.findUnique({
-                where: { id },
+                where,
                 select: { organizationId: true },
               })
             : resource === 'banner'
               ? await this.prisma.banner.findUnique({
-                  where: { id },
+                  where,
                   select: { organizationId: true },
                 })
               : await this.prisma.galleryImage.findUnique({
-                  where: { id },
+                  where,
                   select: { organizationId: true },
                 });
       if (record) {

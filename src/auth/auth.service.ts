@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   ForbiddenException,
   Injectable,
@@ -22,10 +23,15 @@ import { roleFromOrganizationTypeCode } from './utils/organization-type-role.uti
 
 const userWithOrganizationType = {
   organizationType: { select: { code: true } },
+  organization: { select: { uuid: true } },
 } satisfies Prisma.UserInclude;
 type UserWithOrganizationType = Prisma.UserGetPayload<{
   include: typeof userWithOrganizationType;
 }>;
+type JwtUser = Pick<
+  UserWithOrganizationType,
+  'id' | 'organizationId' | 'organizationTypeId' | 'sessionVersion'
+> & { organizationType: { code: string } };
 
 @Injectable()
 export class AuthService {
@@ -126,6 +132,7 @@ export class AuthService {
 
       await tx.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: user.id,
           module: 'AUTHENTICATION',
           entity: 'USER',
@@ -140,6 +147,7 @@ export class AuthService {
       if (isLocked) {
         await tx.auditLog.create({
           data: {
+            ...getAuditRequestContext(),
             userId: user.id,
             module: 'AUTHENTICATION',
             entity: 'USER',
@@ -167,7 +175,7 @@ export class AuthService {
     });
   }
 
-  private buildJwtPayload(user: UserWithOrganizationType): JwtPayload {
+  private buildJwtPayload(user: JwtUser): JwtPayload {
     return {
       userId: user.id,
       organizationId: user.organizationId,
@@ -189,6 +197,7 @@ export class AuthService {
   ): Promise<void> {
     await this.prisma.auditLog.create({
       data: {
+        ...getAuditRequestContext(),
         userId,
         module: 'AUTHENTICATION',
         entity: 'USER',
@@ -238,9 +247,11 @@ export class AuthService {
       refreshToken,
       user: {
         id: user.id,
+        uuid: user.uuid,
         name: user.name,
         email: user.email,
         organizationId: user.organizationId,
+        organizationUuid: user.organization.uuid,
         organization_type_id: user.organizationTypeId,
         organization_type: user.organizationType.code,
         role: roleFromOrganizationTypeCode(user.organizationType.code),

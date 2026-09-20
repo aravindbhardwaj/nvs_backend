@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, Min } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class VisitorReportQueryDto {
   @IsOptional()
@@ -7,6 +7,7 @@ export class VisitorReportQueryDto {
   @IsInt()
   @Min(1)
   organization_id?: number;
+  @IsOptional() @IsUUID() organization_uuid?: string;
 
   @IsDateString()
   from_date: string;

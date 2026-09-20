@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -25,6 +26,7 @@ export class CreateGalleryImageDto {
   @IsInt()
   @Min(1)
   organizationId?: number;
+  @IsOptional() @IsUUID() organizationUuid?: string;
   @Transform(trim)
   @IsString()
   @IsNotEmpty()

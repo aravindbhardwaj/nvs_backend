@@ -1,13 +1,12 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
-  Patch,
+  ParseUUIDPipe,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -38,6 +37,72 @@ import { PagesService } from './pages.service';
 @OrganizationOwned('page')
 export class PagesController {
   constructor(private readonly pagesService: PagesService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('PAGE_VIEW')
+  async findOneByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.pagesService.resolveUuid(uuid);
+    return this.findOne(id, user);
+  }
+
+  @Post('uuid/:uuid/update')
+  @HttpCode(200)
+  @RequirePermission('PAGE_UPDATE')
+  async updateByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @Body() dto: UpdatePageDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.pagesService.resolveUuid(uuid);
+    return this.update(id, dto, user);
+  }
+
+  @Post('uuid/:uuid/publish')
+  @HttpCode(200)
+  @RequirePermission('PAGE_UPDATE')
+  async publishByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.pagesService.resolveUuid(uuid);
+    return this.publish(id, user);
+  }
+
+  @Post('uuid/:uuid/unpublish')
+  @HttpCode(200)
+  @RequirePermission('PAGE_UPDATE')
+  async unpublishByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.pagesService.resolveUuid(uuid);
+    return this.unpublish(id, user);
+  }
+
+  @Post('uuid/:uuid/delete')
+  @HttpCode(200)
+  @RequirePermission('PAGE_DELETE')
+  async removeByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.pagesService.resolveUuid(uuid);
+    return this.remove(id, user);
+  }
+
+  @Post('uuid/:uuid/restore')
+  @HttpCode(200)
+  @RequirePermission('PAGE_UPDATE')
+  async restoreByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const id = await this.pagesService.resolveUuid(uuid);
+    return this.restore(id, user);
+  }
 
   @Post()
   @RequirePermission('PAGE_CREATE')
@@ -87,7 +152,8 @@ export class PagesController {
     };
   }
 
-  @Put(':id')
+  @Post(':id/update')
+  @HttpCode(200)
   @RequirePermission('PAGE_UPDATE')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -100,7 +166,8 @@ export class PagesController {
     };
   }
 
-  @Patch(':id/publish')
+  @Post(':id/publish')
+  @HttpCode(200)
   @RequirePermission('PAGE_UPDATE')
   async publish(
     @Param('id', ParseIntPipe) id: number,
@@ -112,7 +179,8 @@ export class PagesController {
     };
   }
 
-  @Patch(':id/unpublish')
+  @Post(':id/unpublish')
+  @HttpCode(200)
   @RequirePermission('PAGE_UPDATE')
   async unpublish(
     @Param('id', ParseIntPipe) id: number,
@@ -124,7 +192,8 @@ export class PagesController {
     };
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
+  @HttpCode(200)
   @RequirePermission('PAGE_DELETE')
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -136,7 +205,8 @@ export class PagesController {
     };
   }
 
-  @Patch(':id/restore')
+  @Post(':id/restore')
+  @HttpCode(200)
   @RequirePermission('PAGE_UPDATE')
   async restore(
     @Param('id', ParseIntPipe) id: number,

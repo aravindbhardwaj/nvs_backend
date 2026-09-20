@@ -5,12 +5,20 @@ import {
   IsArray,
   IsInt,
   Min,
+  IsOptional,
+  IsUUID,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { MAX_GALLERY_UPLOAD_COUNT } from '../gallery.constants';
 
 class GalleryImageOrderDto {
-  @Type(() => Number) @IsInt() @Min(1) id: number;
+  @ValidateIf((dto: GalleryImageOrderDto) => dto.uuid === undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  id?: number;
+  @IsOptional() @IsUUID() uuid?: string;
   @Type(() => Number) @IsInt() display_order: number;
 }
 

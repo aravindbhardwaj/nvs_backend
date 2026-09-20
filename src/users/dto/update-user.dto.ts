@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -53,10 +54,12 @@ export class UpdateUserDto {
   @IsInt()
   @Min(1)
   organizationId?: number;
+  @IsOptional() @IsUUID() organizationUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   organization_type_id?: number;
+  @IsOptional() @IsUUID() organization_type_uuid?: string;
 }

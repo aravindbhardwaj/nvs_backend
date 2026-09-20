@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +22,13 @@ import { AuditLogsService } from './audit-logs.service';
 @Roles(Role.SUPER_ADMIN)
 export class AuditLogsController {
   constructor(private readonly auditLogsService: AuditLogsService) {}
+
+  @Get('uuid/:uuid')
+  @RequirePermission('AUDIT_LOG_VIEW')
+  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
+    const id = await this.auditLogsService.resolveUuid(uuid);
+    return this.findOne(id);
+  }
 
   @Get()
   @RequirePermission('AUDIT_LOG_VIEW')

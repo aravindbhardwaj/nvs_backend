@@ -1,5 +1,6 @@
 export class MediaTypeResponseDto {
   id: number;
+  uuid: string;
   nameEnglish: string;
   nameHindi: string | null;
   descriptionEnglish: string | null;

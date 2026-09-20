@@ -6,6 +6,7 @@ import {
   IsInt,
   Max,
   IsOptional,
+  IsUUID,
   Min,
 } from 'class-validator';
 
@@ -25,30 +26,35 @@ export class GetOrganizationsQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   organizationTypeId?: number;
+  @IsOptional() @IsUUID() organizationTypeUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   regionId?: number;
+  @IsOptional() @IsUUID() regionUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   stateId?: number;
+  @IsOptional() @IsUUID() stateUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   districtId?: number;
+  @IsOptional() @IsUUID() districtUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   parentOrganizationId?: number;
+  @IsOptional() @IsUUID() parentOrganizationUuid?: string;
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>

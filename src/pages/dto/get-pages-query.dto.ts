@@ -6,6 +6,7 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsUUID,
   Min,
 } from 'class-validator';
 
@@ -18,12 +19,14 @@ export class GetPagesQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   organizationId?: number;
+  @IsOptional() @IsUUID() organizationUuid?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   contentTypeId?: number;
+  @IsOptional() @IsUUID() contentTypeUuid?: string;
 
   @IsOptional()
   @IsEnum(PageStatus)

@@ -1,3 +1,4 @@
+import { getAuditRequestContext } from '../common/request-context/audit-request-context';
 import {
   BadRequestException,
   ConflictException,
@@ -9,26 +10,34 @@ import { Organization, Prisma } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
+import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { GetOrganizationsQueryDto } from './dto/get-organizations-query.dto';
 import { GetPublicJnvsQueryDto } from './dto/get-public-jnvs-query.dto';
+import { GetPublicOrganizationsQueryDto } from './dto/get-public-organizations-query.dto';
 import { OrganizationResponseDto } from './dto/organization-response.dto';
 import { PublicJnvResponseDto } from './dto/public-jnv-response.dto';
+import { PublicNliResponseDto } from './dto/public-nli-response.dto';
+import { PublicOrganizationResponseDto } from './dto/public-organization-response.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { cleanupOrganizationProfileImageUrl } from './organization-profile-image.storage';
 
 const organizationInclude = {
-  organizationType: { select: { id: true, code: true, name: true } },
+  organizationType: {
+    select: { id: true, uuid: true, code: true, name: true },
+  },
   parentOrganization: {
     select: {
       id: true,
+      uuid: true,
       organizationName: true,
       organizationType: { select: { code: true } },
     },
   },
-  region: { select: { id: true, regionName: true } },
-  state: { select: { id: true, stateName: true } },
-  district: { select: { id: true, districtName: true } },
+  region: { select: { id: true, uuid: true, regionName: true } },
+  state: { select: { id: true, uuid: true, stateName: true } },
+  district: { select: { id: true, uuid: true, districtName: true } },
 } satisfies Prisma.OrganizationInclude;
 
 const organizationTypeCodes = {
@@ -42,12 +51,15 @@ const JNV_ORGANIZATION_TYPE_ID = 4;
 
 const publicJnvSelect = {
   id: true,
+  uuid: true,
   organizationName: true,
   organizationHindiName: true,
   organizationNameEn: true,
   organizationNameHi: true,
   organizationCode: true,
   schoolUrl: true,
+  shortDescription: true,
+  imageUrl: true,
   address: true,
   addressHindi: true,
   estdYear: true,
@@ -87,6 +99,16 @@ type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
 export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async resolveUuid(uuid: string): Promise<number> {
+    // Resolve deleted records too; existing operations enforce visibility and state.
+    const record = await this.prisma.organization.findUnique({
+      where: { uuid },
+      select: { id: true },
+    });
+    if (!record) throw new NotFoundException('Record not found.');
+    return record.id;
+  }
+
   async create(
     dto: CreateOrganizationDto,
     actor: AuthenticatedUser,
@@ -95,7 +117,8 @@ export class OrganizationsService {
       dto.organizationName,
       dto.organizationCode,
     );
-    const normalized = await this.validateHierarchy(dto);
+    const resolvedDto = await this.resolveCreateRelations(dto);
+    const normalized = await this.validateHierarchy(resolvedDto);
 
     const organization = await this.prisma.$transaction(async (transaction) => {
       const createdOrganization = await transaction.organization.create({
@@ -104,6 +127,7 @@ export class OrganizationsService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'ORGANIZATION',
           entity: 'ORGANIZATION',
@@ -121,6 +145,7 @@ export class OrganizationsService {
   async findAll(
     query: GetOrganizationsQueryDto,
   ): Promise<PaginatedResponseDto<OrganizationResponseDto>> {
+    await this.resolveQueryRelations(query);
     const { page, limit, sort, order } = query;
     const where = this.buildWhere(query);
     const orderBy: Prisma.OrganizationOrderByWithRelationInput = {
@@ -146,12 +171,16 @@ export class OrganizationsService {
   async findMaster(query: GetOrganizationsQueryDto): Promise<
     PaginatedResponseDto<{
       id: number;
+      uuid: string;
       name: string;
       organizationTypeId: number;
       organization_name_en: string | null;
       organization_name_hi: string | null;
+      short_description: string | null;
+      image_url: string | null;
     }>
   > {
+    await this.resolveQueryRelations(query);
     const { page, limit, sort, order } = query;
     const where = this.buildWhere(query);
     const [organizations, totalItems] = await this.prisma.$transaction([
@@ -159,10 +188,13 @@ export class OrganizationsService {
         where,
         select: {
           id: true,
+          uuid: true,
           organizationName: true,
           organizationTypeId: true,
           organizationNameEn: true,
           organizationNameHi: true,
+          shortDescription: true,
+          imageUrl: true,
         },
         orderBy: { [sort]: order },
         skip: (page - 1) * limit,
@@ -174,10 +206,13 @@ export class OrganizationsService {
     return {
       items: organizations.map((organization) => ({
         id: organization.id,
+        uuid: organization.uuid,
         name: organization.organizationName,
         organizationTypeId: organization.organizationTypeId,
         organization_name_en: organization.organizationNameEn,
         organization_name_hi: organization.organizationNameHi,
+        short_description: organization.shortDescription,
+        image_url: organization.imageUrl,
       })),
       meta: PaginationUtil.buildMeta(page, limit, totalItems),
     };
@@ -192,9 +227,76 @@ export class OrganizationsService {
     return this.toResponse(organization);
   }
 
+  async updateProfileByUuid(
+    uuid: string,
+    dto: { short_description?: string | null; image_url?: string },
+    actor: AuthenticatedUser,
+  ): Promise<OrganizationResponseDto> {
+    if (dto.short_description === undefined && dto.image_url === undefined) {
+      throw new BadRequestException(
+        'At least one of short_description or image_url is required.',
+      );
+    }
+
+    let previousImageUrl: string | null = null;
+    const organization = await this.prisma.$transaction(async (transaction) => {
+      const existingOrganization = await transaction.organization.findFirst({
+        where: { uuid, isDeleted: false },
+        include: organizationInclude,
+      });
+      if (!existingOrganization)
+        throw new NotFoundException(
+          'Organization not found or has been deleted.',
+        );
+      previousImageUrl = existingOrganization.imageUrl;
+
+      const updatedOrganization = await transaction.organization.update({
+        where: { uuid },
+        data: {
+          ...(dto.short_description !== undefined
+            ? { shortDescription: dto.short_description }
+            : {}),
+          ...(dto.image_url !== undefined ? { imageUrl: dto.image_url } : {}),
+          updatedById: actor.id,
+        },
+        include: organizationInclude,
+      });
+      await transaction.auditLog.create({
+        data: {
+          ...getAuditRequestContext(),
+          userId: actor.id,
+          module: 'ORGANIZATION',
+          entity: 'ORGANIZATION',
+          entityId: updatedOrganization.id,
+          action: 'UPDATE',
+          previousValues: this.toAuditValues(existingOrganization),
+          newValues: this.toAuditValues(updatedOrganization),
+        },
+      });
+      return updatedOrganization;
+    });
+
+    if (dto.image_url && previousImageUrl !== dto.image_url)
+      await cleanupOrganizationProfileImageUrl(previousImageUrl);
+
+    return this.toResponse(organization);
+  }
+
   async findPublicJnvs(
     query: GetPublicJnvsQueryDto,
   ): Promise<PaginatedResponseDto<PublicJnvResponseDto>> {
+    query.district_id = await this.resolveModelId(
+      query.district_id,
+      query.district_uuid,
+      'District',
+      this.prisma.district,
+    );
+    query.regional_office_id = await this.resolveModelId(
+      query.regional_office_id,
+      query.regional_office_uuid,
+      'Regional Office',
+      this.prisma.organization,
+    );
     const stateCode = query.state_code?.trim().toUpperCase();
     const where: Prisma.OrganizationWhereInput = {
       organizationTypeId: JNV_ORGANIZATION_TYPE_ID,
@@ -232,6 +334,186 @@ export class OrganizationsService {
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
+  }
+
+  async findPublicRegionalOffices(
+    query: GetPublicOrganizationsQueryDto,
+  ): Promise<PaginatedResponseDto<PublicOrganizationResponseDto>> {
+    return this.findPublicOrganizations(
+      organizationTypeCodes.regionalOffice,
+      query,
+    );
+  }
+
+  async findPublicNlis(
+    query: GetPublicOrganizationsQueryDto,
+  ): Promise<PaginatedResponseDto<PublicNliResponseDto>> {
+    const where: Prisma.OrganizationWhereInput = {
+      organizationType: {
+        code: organizationTypeCodes.nli,
+        isActive: true,
+      },
+      isDeleted: false,
+      isFunctional: true,
+    };
+    const [organizations, totalItems] = await this.prisma.$transaction([
+      this.prisma.organization.findMany({
+        where,
+        select: {
+          uuid: true,
+          organizationCode: true,
+          organizationName: true,
+          organizationHindiName: true,
+          organizationNameEn: true,
+          organizationNameHi: true,
+          directorNameEn: true,
+          directorNameHi: true,
+          address: true,
+          addressHindi: true,
+          phoneNumber: true,
+          emailAddress: true,
+          shortDescription: true,
+          imageUrl: true,
+        },
+        orderBy: [{ organizationName: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.organization.count({ where }),
+    ]);
+
+    return {
+      items: organizations.map((organization) => ({
+        uuid: organization.uuid,
+        url: `/nli/${organization.organizationCode.toLowerCase()}`,
+        name_en:
+          organization.organizationNameEn ?? organization.organizationName,
+        name_hi:
+          organization.organizationNameHi ?? organization.organizationHindiName,
+        director_name_en: organization.directorNameEn,
+        director_name_hi: organization.directorNameHi,
+        address_en: organization.address,
+        address_hi: organization.addressHindi,
+        phone_number: organization.phoneNumber,
+        email_address: organization.emailAddress,
+        short_description: organization.shortDescription,
+        image_url: organization.imageUrl,
+      })),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  private async findPublicOrganizations(
+    typeCode: 'REGIONAL_OFFICE' | 'NLI',
+    query: GetPublicOrganizationsQueryDto,
+  ): Promise<PaginatedResponseDto<PublicOrganizationResponseDto>> {
+    const where: Prisma.OrganizationWhereInput = {
+      organizationType: { code: typeCode, isActive: true },
+      isDeleted: false,
+      isFunctional: true,
+    };
+    const [organizations, totalItems] = await this.prisma.$transaction([
+      this.prisma.organization.findMany({
+        where,
+        select: {
+          id: true,
+          uuid: true,
+          organizationName: true,
+          organizationHindiName: true,
+          organizationNameHi: true,
+          organizationCode: true,
+          address: true,
+          addressHindi: true,
+          shortDescription: true,
+          imageUrl: true,
+          region: {
+            select: {
+              regionName: true,
+              regionNameHi: true,
+              stateIds: true,
+              dcRoName: true,
+              dcRoNameHi: true,
+              address: true,
+              addressHindi: true,
+              phone: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: [{ organizationName: 'asc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.organization.count({ where }),
+    ]);
+
+    const stateIds = [
+      ...new Set(
+        organizations.flatMap((organization) =>
+          this.parseStoredIds(organization.region?.stateIds),
+        ),
+      ),
+    ];
+    const states = stateIds.length
+      ? await this.prisma.state.findMany({
+          where: {
+            id: { in: stateIds },
+            isActive: true,
+            isDeleted: false,
+          },
+          select: { id: true, stateName: true, nameHi: true },
+        })
+      : [];
+    const statesById = new Map(states.map((state) => [state.id, state]));
+
+    return {
+      items: organizations.map((organization) => {
+        const regionStateIds = this.parseStoredIds(
+          organization.region?.stateIds,
+        );
+        const stateNames = regionStateIds.flatMap((stateId) => {
+          const name = statesById.get(stateId)?.stateName;
+          return name ? [name] : [];
+        });
+        const stateNamesHi = regionStateIds.flatMap((stateId) => {
+          const name = statesById.get(stateId)?.nameHi;
+          return name ? [name] : [];
+        });
+        return {
+          id: organization.id,
+          uuid: organization.uuid,
+          url: `/ro/${organization.organizationCode.toLowerCase()}`,
+          name: organization.organizationName,
+          nameHi:
+            organization.organizationNameHi ??
+            organization.organizationHindiName,
+          code: organization.organizationCode,
+          address: organization.address,
+          address_hindi: organization.addressHindi,
+          region: organization.region?.regionName ?? null,
+          regionHi: organization.region?.regionNameHi ?? null,
+          dcRoName: organization.region?.dcRoName ?? null,
+          dcRoNameHi: organization.region?.dcRoNameHi ?? null,
+          regionAddress: organization.region?.address ?? null,
+          regionAddressHindi: organization.region?.addressHindi ?? null,
+          regionPhone: organization.region?.phone ?? null,
+          regionEmail: organization.region?.email ?? null,
+          stateNames: stateNames.length ? stateNames.join(', ') : null,
+          stateNamesHi: stateNamesHi.length ? stateNamesHi.join(', ') : null,
+          short_description: organization.shortDescription,
+          image_url: organization.imageUrl,
+        };
+      }),
+      meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
+    };
+  }
+
+  private parseStoredIds(value: string | null | undefined): number[] {
+    if (!value) return [];
+    return value
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
   }
 
   async findPublicJnvStateMap(): Promise<
@@ -279,6 +561,36 @@ export class OrganizationsService {
     actor: AuthenticatedUser,
   ): Promise<OrganizationResponseDto> {
     const existingOrganization = await this.findActiveOrganization(id);
+    dto.organizationTypeId = await this.resolveModelId(
+      dto.organizationTypeId,
+      dto.organizationTypeUuid,
+      'Organization type',
+      this.prisma.organizationType,
+    );
+    dto.parentOrganizationId = await this.resolveModelId(
+      dto.parentOrganizationId,
+      dto.parentOrganizationUuid,
+      'Parent organization',
+      this.prisma.organization,
+    );
+    dto.regionId = await this.resolveModelId(
+      dto.regionId,
+      dto.regionUuid,
+      'Region',
+      this.prisma.region,
+    );
+    dto.stateId = await this.resolveModelId(
+      dto.stateId,
+      dto.stateUuid,
+      'State',
+      this.prisma.state,
+    );
+    dto.districtId = await this.resolveModelId(
+      dto.districtId,
+      dto.districtUuid,
+      'District',
+      this.prisma.district,
+    );
     const mergedDto = this.mergeWithExistingOrganization(
       dto,
       existingOrganization,
@@ -291,7 +603,7 @@ export class OrganizationsService {
     const normalized = await this.validateHierarchy(mergedDto, id);
     await this.ensureTypeChangeDoesNotInvalidateChildren(
       existingOrganization,
-      mergedDto.organizationTypeId,
+      mergedDto.organizationTypeId!,
     );
 
     const organization = await this.prisma.$transaction(async (transaction) => {
@@ -302,6 +614,7 @@ export class OrganizationsService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'ORGANIZATION',
           entity: 'ORGANIZATION',
@@ -360,6 +673,7 @@ export class OrganizationsService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'ORGANIZATION',
           entity: 'ORGANIZATION',
@@ -398,6 +712,7 @@ export class OrganizationsService {
       });
       await transaction.auditLog.create({
         data: {
+          ...getAuditRequestContext(),
           userId: actor.id,
           module: 'ORGANIZATION',
           entity: 'ORGANIZATION',
@@ -416,7 +731,8 @@ export class OrganizationsService {
     dto: CreateOrganizationDto,
     organizationId?: number,
   ): Promise<Prisma.OrganizationUncheckedCreateInput> {
-    const { organizationTypeId, parentOrganizationId, regionId, stateId } = dto;
+    const { parentOrganizationId, regionId, stateId } = dto;
+    const organizationTypeId = dto.organizationTypeId!;
     const organizationType =
       await this.ensureActiveOrganizationType(organizationTypeId);
     if (parentOrganizationId === organizationId)
@@ -539,6 +855,111 @@ export class OrganizationsService {
     );
   }
 
+  private async resolveCreateRelations(
+    dto: CreateOrganizationDto,
+  ): Promise<CreateOrganizationDto & { organizationTypeId: number }> {
+    const resolveId = (
+      id: number | null | undefined,
+      uuid: string | null | undefined,
+      label: string,
+      model: {
+        findUnique(args: {
+          where: { uuid: string };
+          select: { id: true };
+        }): Promise<{ id: number } | null>;
+      },
+    ) =>
+      resolveRelatedId(id, uuid, label, (value) =>
+        model.findUnique({ where: { uuid: value }, select: { id: true } }),
+      );
+
+    return {
+      ...dto,
+      organizationTypeId: (await resolveId(
+        dto.organizationTypeId,
+        dto.organizationTypeUuid,
+        'Organization type',
+        this.prisma.organizationType,
+      ))!,
+      parentOrganizationId: await resolveId(
+        dto.parentOrganizationId,
+        dto.parentOrganizationUuid,
+        'Parent organization',
+        this.prisma.organization,
+      ),
+      regionId: await resolveId(
+        dto.regionId,
+        dto.regionUuid,
+        'Region',
+        this.prisma.region,
+      ),
+      stateId: await resolveId(
+        dto.stateId,
+        dto.stateUuid,
+        'State',
+        this.prisma.state,
+      ),
+      districtId: await resolveId(
+        dto.districtId,
+        dto.districtUuid,
+        'District',
+        this.prisma.district,
+      ),
+    };
+  }
+
+  private resolveModelId(
+    id: number | null | undefined,
+    uuid: string | null | undefined,
+    label: string,
+    model: {
+      findUnique(args: {
+        where: { uuid: string };
+        select: { id: true };
+      }): Promise<{ id: number } | null>;
+    },
+  ) {
+    if (uuid === null) return Promise.resolve(undefined);
+    return resolveRelatedId(id, uuid, label, (value) =>
+      model.findUnique({ where: { uuid: value }, select: { id: true } }),
+    );
+  }
+
+  private async resolveQueryRelations(
+    query: GetOrganizationsQueryDto,
+  ): Promise<void> {
+    query.organizationTypeId = await this.resolveModelId(
+      query.organizationTypeId,
+      query.organizationTypeUuid,
+      'Organization type',
+      this.prisma.organizationType,
+    );
+    query.regionId = await this.resolveModelId(
+      query.regionId,
+      query.regionUuid,
+      'Region',
+      this.prisma.region,
+    );
+    query.stateId = await this.resolveModelId(
+      query.stateId,
+      query.stateUuid,
+      'State',
+      this.prisma.state,
+    );
+    query.districtId = await this.resolveModelId(
+      query.districtId,
+      query.districtUuid,
+      'District',
+      this.prisma.district,
+    );
+    query.parentOrganizationId = await this.resolveModelId(
+      query.parentOrganizationId,
+      query.parentOrganizationUuid,
+      'Parent organization',
+      this.prisma.organization,
+    );
+  }
+
   private async withSupplementalFields(
     data: Prisma.OrganizationUncheckedCreateInput,
     dto: CreateOrganizationDto,
@@ -547,6 +968,12 @@ export class OrganizationsService {
   ): Promise<Prisma.OrganizationUncheckedCreateInput> {
     const districtId = dto.districtId ?? null;
     const studentsCount = dto.studentsCount ?? null;
+    const nliContactFields = [
+      dto.director_name_en,
+      dto.director_name_hi,
+      dto.phone_number,
+      dto.email_address,
+    ];
 
     if (districtId !== null)
       await this.ensureActiveDistrict(districtId, stateId);
@@ -557,12 +984,43 @@ export class OrganizationsService {
       throw new BadRequestException(
         'studentsCount is only applicable to JNV organizations.',
       );
+    if (
+      organizationTypeCode !== organizationTypeCodes.nli &&
+      nliContactFields.some((value) => value != null)
+    )
+      throw new BadRequestException(
+        'Director, phone number, and email address fields are only applicable to NLI organizations.',
+      );
 
     return {
       ...data,
+      address:
+        dto.address_en !== undefined ? dto.address_en : (data.address ?? null),
+      addressHindi:
+        dto.address_hi !== undefined
+          ? dto.address_hi
+          : (data.addressHindi ?? null),
+      organizationNameEn: dto.name_en ?? null,
+      organizationNameHi: dto.name_hi ?? null,
       districtId,
       estdYear: dto.estdYear ?? null,
       studentsCount,
+      directorNameEn:
+        organizationTypeCode === organizationTypeCodes.nli
+          ? (dto.director_name_en ?? null)
+          : null,
+      directorNameHi:
+        organizationTypeCode === organizationTypeCodes.nli
+          ? (dto.director_name_hi ?? null)
+          : null,
+      phoneNumber:
+        organizationTypeCode === organizationTypeCodes.nli
+          ? (dto.phone_number ?? null)
+          : null,
+      emailAddress:
+        organizationTypeCode === organizationTypeCodes.nli
+          ? (dto.email_address ?? null)
+          : null,
     };
   }
 
@@ -576,6 +1034,10 @@ export class OrganizationsService {
         dto.organizationHindiName === undefined
           ? (existing.organizationHindiName ?? undefined)
           : (dto.organizationHindiName ?? undefined),
+      name_en:
+        dto.name_en === undefined ? existing.organizationNameEn : dto.name_en,
+      name_hi:
+        dto.name_hi === undefined ? existing.organizationNameHi : dto.name_hi,
       organizationCode: dto.organizationCode ?? existing.organizationCode,
       organizationTypeId: dto.organizationTypeId ?? existing.organizationTypeId,
       parentOrganizationId:
@@ -598,13 +1060,33 @@ export class OrganizationsService {
           ? existing.studentsCount
           : dto.studentsCount,
       address:
-        dto.address === undefined
-          ? (existing.address ?? undefined)
-          : (dto.address ?? undefined),
+        dto.address_en !== undefined
+          ? (dto.address_en ?? undefined)
+          : dto.address === undefined
+            ? (existing.address ?? undefined)
+            : (dto.address ?? undefined),
       addressHindi:
-        dto.addressHindi === undefined
-          ? (existing.addressHindi ?? undefined)
-          : (dto.addressHindi ?? undefined),
+        dto.address_hi !== undefined
+          ? (dto.address_hi ?? undefined)
+          : dto.addressHindi === undefined
+            ? (existing.addressHindi ?? undefined)
+            : (dto.addressHindi ?? undefined),
+      director_name_en:
+        dto.director_name_en === undefined
+          ? existing.directorNameEn
+          : dto.director_name_en,
+      director_name_hi:
+        dto.director_name_hi === undefined
+          ? existing.directorNameHi
+          : dto.director_name_hi,
+      phone_number:
+        dto.phone_number === undefined
+          ? existing.phoneNumber
+          : dto.phone_number,
+      email_address:
+        dto.email_address === undefined
+          ? existing.emailAddress
+          : dto.email_address,
       isFunctional: dto.isFunctional ?? existing.isFunctional,
     };
   }
@@ -802,6 +1284,7 @@ export class OrganizationsService {
   ): OrganizationResponseDto {
     return {
       id: organization.id,
+      uuid: organization.uuid,
       organizationName: organization.organizationName,
       organizationHindiName: organization.organizationHindiName,
       organization_name_en: organization.organizationNameEn,
@@ -817,22 +1300,38 @@ export class OrganizationsService {
       studentsCount: organization.studentsCount,
       address: organization.address,
       addressHindi: organization.addressHindi,
+      director_name_en: organization.directorNameEn,
+      director_name_hi: organization.directorNameHi,
+      phone_number: organization.phoneNumber,
+      email_address: organization.emailAddress,
+      short_description: organization.shortDescription,
+      image_url: organization.imageUrl,
       isFunctional: organization.isFunctional,
       parentOrganization: organization.parentOrganization
         ? {
             id: organization.parentOrganization.id,
+            uuid: organization.parentOrganization.uuid,
             name: organization.parentOrganization.organizationName,
           }
         : null,
       region: organization.region
-        ? { id: organization.region.id, name: organization.region.regionName }
+        ? {
+            id: organization.region.id,
+            uuid: organization.region.uuid,
+            name: organization.region.regionName,
+          }
         : null,
       state: organization.state
-        ? { id: organization.state.id, name: organization.state.stateName }
+        ? {
+            id: organization.state.id,
+            uuid: organization.state.uuid,
+            name: organization.state.stateName,
+          }
         : null,
       district: organization.district
         ? {
             id: organization.district.id,
+            uuid: organization.district.uuid,
             name: organization.district.districtName,
           }
         : null,
@@ -852,6 +1351,7 @@ export class OrganizationsService {
 
     return {
       id: organization.id,
+      uuid: organization.uuid,
       name: organization.organizationName,
       stateCode,
       organization_name_en: organization.organizationNameEn,
@@ -878,6 +1378,8 @@ export class OrganizationsService {
       principal_name_hindi: principal?.principalNameHindi ?? null,
       principal_email: principal?.email ?? null,
       principal_mobile: principal?.mobile ?? null,
+      short_description: organization.shortDescription,
+      image_url: organization.imageUrl,
     };
   }
 
@@ -904,6 +1406,12 @@ export class OrganizationsService {
       studentsCount: organization.studentsCount,
       address: organization.address,
       addressHindi: organization.addressHindi,
+      director_name_en: organization.directorNameEn,
+      director_name_hi: organization.directorNameHi,
+      phone_number: organization.phoneNumber,
+      email_address: organization.emailAddress,
+      short_description: organization.shortDescription,
+      image_url: organization.imageUrl,
       isFunctional: organization.isFunctional,
       createdAt: organization.createdAt.toISOString(),
       updatedAt: organization.updatedAt.toISOString(),

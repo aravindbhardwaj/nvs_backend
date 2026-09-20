@@ -57,7 +57,10 @@ describe('JnvPrincipalsService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('closes the previous current tenure and creates the replacement atomically', async () => {
-    prisma.organization.findFirst.mockResolvedValue({ id: 42 });
+    prisma.organization.findFirst.mockResolvedValue({
+      id: 42,
+      uuid: '00000000-0000-4000-8000-000000000042',
+    });
     transaction.jnvPrincipal.findFirst.mockResolvedValue({
       ...principal,
       id: 8,
@@ -105,7 +108,10 @@ describe('JnvPrincipalsService', () => {
   });
 
   it('exposes only the active, non-deleted current principal publicly', async () => {
-    prisma.organization.findFirst.mockResolvedValue({ id: 42 });
+    prisma.organization.findFirst.mockResolvedValue({
+      id: 42,
+      uuid: '00000000-0000-4000-8000-000000000042',
+    });
     prisma.jnvPrincipal.findFirst.mockResolvedValue(principal);
 
     await service.findPublicCurrent(42);

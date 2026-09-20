@@ -9,6 +9,7 @@ describe('VisitorAnalyticsService', () => {
       upsert: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      groupBy: jest.fn(),
     },
   };
   const service = new VisitorAnalyticsService(prisma as never);
@@ -59,12 +60,34 @@ describe('VisitorAnalyticsService', () => {
     );
   });
 
-  it('returns the number of recorded sessions for one organization publicly', async () => {
-    prisma.visitorSession.count.mockResolvedValue(2);
+  it('returns total and language-wise session counts publicly', async () => {
+    prisma.visitorSession.groupBy.mockResolvedValue([
+      {
+        usedEnglish: true,
+        usedHindi: false,
+        _count: { _all: 2 },
+      },
+      {
+        usedEnglish: false,
+        usedHindi: true,
+        _count: { _all: 3 },
+      },
+      {
+        usedEnglish: true,
+        usedHindi: true,
+        _count: { _all: 1 },
+      },
+    ]);
 
-    await expect(service.publicCount(1)).resolves.toEqual({ total_visits: 2 });
-    expect(prisma.visitorSession.count).toHaveBeenCalledWith({
+    await expect(service.publicCount(1)).resolves.toEqual({
+      total_visits: 6,
+      english_visits: 3,
+      hindi_visits: 4,
+    });
+    expect(prisma.visitorSession.groupBy).toHaveBeenCalledWith({
+      by: ['usedEnglish', 'usedHindi'],
       where: { organizationId: 1 },
+      _count: { _all: true },
     });
   });
 

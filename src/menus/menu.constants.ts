@@ -1,6 +1,8 @@
 export const MENU_LOCATION = {
   HEADER: 1,
   FOOTER: 2,
+  MID_MENU_1: 3,
+  MID_MENU_2: 4,
 } as const;
 
 export const LINK_TARGET = {

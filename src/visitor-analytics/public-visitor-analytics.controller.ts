@@ -14,7 +14,10 @@ export class PublicVisitorAnalyticsController {
   async visitorCount(@Query() query: VisitorCountQueryDto) {
     return {
       message: 'Visitor count retrieved successfully.',
-      data: await this.visitorAnalytics.publicCount(query.organization_id),
+      data: await this.visitorAnalytics.publicCount(
+        query.organization_id,
+        query.organization_uuid,
+      ),
     };
   }
 }
