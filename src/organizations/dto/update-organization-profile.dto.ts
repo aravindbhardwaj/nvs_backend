@@ -10,4 +10,10 @@ export class UpdateOrganizationProfileDto {
   @IsString()
   @IsNotEmpty()
   short_description?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @Transform(trimValue)
+  @IsString()
+  @IsNotEmpty()
+  short_description_hi?: string | null;
 }

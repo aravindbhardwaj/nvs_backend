@@ -18,5 +18,6 @@ export class PublicOrganizationResponseDto {
   stateNames: string | null;
   stateNamesHi: string | null;
   short_description: string | null;
+  short_description_hi: string | null;
   image_url: string | null;
 }

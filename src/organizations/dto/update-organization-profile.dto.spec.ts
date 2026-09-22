@@ -8,10 +8,12 @@ describe('UpdateOrganizationProfileDto', () => {
   it('accepts profile values and trims strings', async () => {
     const dto = plainToInstance(UpdateOrganizationProfileDto, {
       short_description: '  Organization summary  ',
+      short_description_hi: '  संगठन का सारांश  ',
     });
 
     expect(await validate(dto)).toHaveLength(0);
     expect(dto.short_description).toBe('Organization summary');
+    expect(dto.short_description_hi).toBe('संगठन का सारांश');
   });
 
   it('accepts null to clear the description', async () => {

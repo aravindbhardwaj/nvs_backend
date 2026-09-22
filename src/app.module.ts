@@ -33,6 +33,7 @@ import configuration from './config';
 import { WhoIsWhoModule } from './who-is-who/who-is-who.module';
 import { HeaderLogosModule } from './header-logos/header-logos.module';
 import { CkeditorImagesModule } from './ckeditor-images/ckeditor-images.module';
+import { OrganizationLeadershipModule } from './organization-leadership/organization-leadership.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { CkeditorImagesModule } from './ckeditor-images/ckeditor-images.module';
     WhoIsWhoModule,
     HeaderLogosModule,
     CkeditorImagesModule,
+    OrganizationLeadershipModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, AppService],

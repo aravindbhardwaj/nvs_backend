@@ -62,10 +62,16 @@ export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
 
   @Get('uuid/:uuid')
+  @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
   @RequirePermission('ORGANIZATION_VIEW')
-  async findOneByUuid(@Param('uuid', ParseUUIDPipe) uuid: string) {
-    const id = await this.organizationsService.resolveUuid(uuid);
-    return this.findOne(id);
+  async findOneByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Organization retrieved successfully.',
+      data: await this.organizationsService.findOneByUuid(uuid, user),
+    };
   }
 
   @Post('uuid/:uuid/update')
@@ -82,6 +88,7 @@ export class OrganizationsController {
 
   @Post('uuid/:uuid/profile')
   @HttpCode(200)
+  @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER, Role.NLI, Role.REGIONAL, Role.JNV)
   @RequirePermission('ORGANIZATION_UPDATE')
   @UseInterceptors(FileInterceptor('image_url', profileImageUploadOptions))
   async updateProfileByUuid(
@@ -91,9 +98,13 @@ export class OrganizationsController {
     @Req() request: Request,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    if (dto.short_description === undefined && !file)
+    if (
+      dto.short_description === undefined &&
+      dto.short_description_hi === undefined &&
+      !file
+    )
       throw new BadRequestException(
-        'At least one of short_description or image_url is required.',
+        'At least one of short_description, short_description_hi, or image_url is required.',
       );
 
     try {
@@ -109,7 +120,11 @@ export class OrganizationsController {
         message: 'Organization profile updated successfully.',
         data: await this.organizationsService.updateProfileByUuid(
           uuid,
-          { short_description: dto.short_description, image_url: imageUrl },
+          {
+            short_description: dto.short_description,
+            short_description_hi: dto.short_description_hi,
+            image_url: imageUrl,
+          },
           user,
         ),
       };

@@ -150,6 +150,7 @@ model Organization {
   phoneNumber           String?   @map("phone_number") @db.Text
   emailAddress          String?   @map("email_address") @db.Text
   shortDescription      String?   @map("short_description") @db.Text
+  shortDescriptionHi    String?   @map("short_description_hi") @db.Text
   imageUrl              String?   @map("image_url") @db.VarChar(2048)
   isFunctional          Boolean   @default(true) @map("is_functional")
   createdAt             DateTime  @default(now()) @map("created_at")
@@ -160,23 +161,25 @@ model Organization {
   deletedAt             DateTime? @map("deleted_at")
   deletedById           Int?      @map("deleted_by")
 
-  parentOrganization Organization?    @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id], onDelete: Restrict)
-  childOrganizations Organization[]   @relation("OrganizationHierarchy")
-  organizationType   OrganizationType @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
-  region             Region?          @relation(fields: [regionId], references: [id], onDelete: Restrict)
-  state              State?           @relation(fields: [stateId], references: [id], onDelete: Restrict)
-  district           District?        @relation(fields: [districtId], references: [id], onDelete: Restrict)
-  createdBy          User?            @relation("OrganizationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy          User?            @relation("OrganizationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  deletedBy          User?            @relation("OrganizationDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  users              User[]           @relation("UserOrganization")
-  pages              Page[]
-  media              Media[]
-  banners            Banner[]
-  galleryImages      GalleryImage[]
-  visitorSessions    VisitorSession[]
-  jnvPrincipals      JnvPrincipal[]
-  whoIsWhoOfficers   WhoIsWho[]
+  parentOrganization     Organization?        @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id], onDelete: Restrict)
+  childOrganizations     Organization[]       @relation("OrganizationHierarchy")
+  organizationType       OrganizationType     @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
+  region                 Region?              @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  state                  State?               @relation(fields: [stateId], references: [id], onDelete: Restrict)
+  district               District?            @relation(fields: [districtId], references: [id], onDelete: Restrict)
+  createdBy              User?                @relation("OrganizationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy              User?                @relation("OrganizationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy              User?                @relation("OrganizationDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  users                  User[]               @relation("UserOrganization")
+  pages                  Page[]
+  media                  Media[]
+  banners                Banner[]
+  galleryImages          GalleryImage[]
+  galleries              Gallery[]
+  visitorSessions        VisitorSession[]
+  jnvPrincipals          JnvPrincipal[]
+  whoIsWhoOfficers       WhoIsWho[]
+  organizationLeadership OrganizationLeader[]
 
   @@index([organizationCode])
   @@index([organizationTypeId])
@@ -217,60 +220,66 @@ model User {
   passwordResetRequired Boolean    @default(false) @map("password_reset_required")
   passwordChangedAt     DateTime?  @map("password_changed_at")
 
-  organization           Organization     @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: Restrict)
-  organizationType       OrganizationType @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
-  createdBy              User?            @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy              User?            @relation("UserUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  deletedBy              User?            @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  createdUsers           User[]           @relation("UserCreatedBy")
-  updatedUsers           User[]           @relation("UserUpdatedBy")
-  deletedUsers           User[]           @relation("UserDeletedBy")
-  createdRegions         Region[]         @relation("RegionCreatedBy")
-  updatedRegions         Region[]         @relation("RegionUpdatedBy")
-  deletedRegions         Region[]         @relation("RegionDeletedBy")
-  createdStates          State[]          @relation("StateCreatedBy")
-  updatedStates          State[]          @relation("StateUpdatedBy")
-  deletedStates          State[]          @relation("StateDeletedBy")
-  createdOrganizations   Organization[]   @relation("OrganizationCreatedBy")
-  updatedOrganizations   Organization[]   @relation("OrganizationUpdatedBy")
-  deletedOrganizations   Organization[]   @relation("OrganizationDeletedBy")
-  createdContentTypes    ContentType[]    @relation("ContentTypeCreatedBy")
-  updatedContentTypes    ContentType[]    @relation("ContentTypeUpdatedBy")
-  deletedContentTypes    ContentType[]    @relation("ContentTypeDeletedBy")
-  createdMediaTypes      MediaType[]      @relation("MediaTypeCreatedBy")
-  updatedMediaTypes      MediaType[]      @relation("MediaTypeUpdatedBy")
-  deletedMediaTypes      MediaType[]      @relation("MediaTypeDeletedBy")
-  createdPages           Page[]           @relation("PageCreatedBy")
-  updatedPages           Page[]           @relation("PageUpdatedBy")
-  deletedPages           Page[]           @relation("PageDeletedBy")
-  createdMedia           Media[]          @relation("MediaCreatedBy")
-  updatedMedia           Media[]          @relation("MediaUpdatedBy")
-  deletedMedia           Media[]          @relation("MediaDeletedBy")
-  createdBanners         Banner[]         @relation("BannerCreatedBy")
-  updatedBanners         Banner[]         @relation("BannerUpdatedBy")
-  deletedBanners         Banner[]         @relation("BannerDeletedBy")
-  createdHeaderLogos     HeaderLogo[]     @relation("HeaderLogoCreatedBy")
-  updatedHeaderLogos     HeaderLogo[]     @relation("HeaderLogoUpdatedBy")
-  deletedHeaderLogos     HeaderLogo[]     @relation("HeaderLogoDeletedBy")
-  createdGalleryImages   GalleryImage[]   @relation("GalleryImageCreatedBy")
-  updatedGalleryImages   GalleryImage[]   @relation("GalleryImageUpdatedBy")
-  deletedGalleryImages   GalleryImage[]   @relation("GalleryImageDeletedBy")
-  createdLeaders         Leader[]         @relation("LeaderCreatedBy")
-  updatedLeaders         Leader[]         @relation("LeaderUpdatedBy")
-  deletedLeaders         Leader[]         @relation("LeaderDeletedBy")
-  createdModals          Modal[]          @relation("ModalCreatedBy")
-  updatedModals          Modal[]          @relation("ModalUpdatedBy")
-  deletedModals          Modal[]          @relation("ModalDeletedBy")
-  createdUserPermissions UserPermission[] @relation("UserPermissionCreatedBy")
-  refreshTokens          RefreshToken[]
-  userPermissions        UserPermission[] @relation("UserPermissionUser")
-  auditLogs              AuditLog[]
-  createdMenus           Menu[]           @relation("MenuCreatedBy")
-  updatedMenus           Menu[]           @relation("MenuUpdatedBy")
-  deletedMenus           Menu[]           @relation("MenuDeletedBy")
-  createdJnvPrincipals   JnvPrincipal[]   @relation("JnvPrincipalCreatedBy")
-  updatedJnvPrincipals   JnvPrincipal[]   @relation("JnvPrincipalUpdatedBy")
-  deletedJnvPrincipals   JnvPrincipal[]   @relation("JnvPrincipalDeletedBy")
+  organization               Organization         @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: Restrict)
+  organizationType           OrganizationType     @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
+  createdBy                  User?                @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy                  User?                @relation("UserUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy                  User?                @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  createdUsers               User[]               @relation("UserCreatedBy")
+  updatedUsers               User[]               @relation("UserUpdatedBy")
+  deletedUsers               User[]               @relation("UserDeletedBy")
+  createdRegions             Region[]             @relation("RegionCreatedBy")
+  updatedRegions             Region[]             @relation("RegionUpdatedBy")
+  deletedRegions             Region[]             @relation("RegionDeletedBy")
+  createdStates              State[]              @relation("StateCreatedBy")
+  updatedStates              State[]              @relation("StateUpdatedBy")
+  deletedStates              State[]              @relation("StateDeletedBy")
+  createdOrganizations       Organization[]       @relation("OrganizationCreatedBy")
+  updatedOrganizations       Organization[]       @relation("OrganizationUpdatedBy")
+  deletedOrganizations       Organization[]       @relation("OrganizationDeletedBy")
+  createdContentTypes        ContentType[]        @relation("ContentTypeCreatedBy")
+  updatedContentTypes        ContentType[]        @relation("ContentTypeUpdatedBy")
+  deletedContentTypes        ContentType[]        @relation("ContentTypeDeletedBy")
+  createdMediaTypes          MediaType[]          @relation("MediaTypeCreatedBy")
+  updatedMediaTypes          MediaType[]          @relation("MediaTypeUpdatedBy")
+  deletedMediaTypes          MediaType[]          @relation("MediaTypeDeletedBy")
+  createdPages               Page[]               @relation("PageCreatedBy")
+  updatedPages               Page[]               @relation("PageUpdatedBy")
+  deletedPages               Page[]               @relation("PageDeletedBy")
+  createdMedia               Media[]              @relation("MediaCreatedBy")
+  updatedMedia               Media[]              @relation("MediaUpdatedBy")
+  deletedMedia               Media[]              @relation("MediaDeletedBy")
+  createdBanners             Banner[]             @relation("BannerCreatedBy")
+  updatedBanners             Banner[]             @relation("BannerUpdatedBy")
+  deletedBanners             Banner[]             @relation("BannerDeletedBy")
+  createdHeaderLogos         HeaderLogo[]         @relation("HeaderLogoCreatedBy")
+  updatedHeaderLogos         HeaderLogo[]         @relation("HeaderLogoUpdatedBy")
+  deletedHeaderLogos         HeaderLogo[]         @relation("HeaderLogoDeletedBy")
+  createdGalleryImages       GalleryImage[]       @relation("GalleryImageCreatedBy")
+  updatedGalleryImages       GalleryImage[]       @relation("GalleryImageUpdatedBy")
+  deletedGalleryImages       GalleryImage[]       @relation("GalleryImageDeletedBy")
+  createdGalleries           Gallery[]            @relation("GalleryCreatedBy")
+  updatedGalleries           Gallery[]            @relation("GalleryUpdatedBy")
+  deletedGalleries           Gallery[]            @relation("GalleryDeletedBy")
+  createdLeaders             Leader[]             @relation("LeaderCreatedBy")
+  updatedLeaders             Leader[]             @relation("LeaderUpdatedBy")
+  deletedLeaders             Leader[]             @relation("LeaderDeletedBy")
+  createdModals              Modal[]              @relation("ModalCreatedBy")
+  updatedModals              Modal[]              @relation("ModalUpdatedBy")
+  deletedModals              Modal[]              @relation("ModalDeletedBy")
+  createdUserPermissions     UserPermission[]     @relation("UserPermissionCreatedBy")
+  refreshTokens              RefreshToken[]
+  userPermissions            UserPermission[]     @relation("UserPermissionUser")
+  auditLogs                  AuditLog[]
+  createdMenus               Menu[]               @relation("MenuCreatedBy")
+  updatedMenus               Menu[]               @relation("MenuUpdatedBy")
+  deletedMenus               Menu[]               @relation("MenuDeletedBy")
+  createdJnvPrincipals       JnvPrincipal[]       @relation("JnvPrincipalCreatedBy")
+  updatedJnvPrincipals       JnvPrincipal[]       @relation("JnvPrincipalUpdatedBy")
+  deletedJnvPrincipals       JnvPrincipal[]       @relation("JnvPrincipalDeletedBy")
+  createdOrganizationLeaders OrganizationLeader[] @relation("OrganizationLeaderCreatedBy")
+  updatedOrganizationLeaders OrganizationLeader[] @relation("OrganizationLeaderUpdatedBy")
+  deletedOrganizationLeaders OrganizationLeader[] @relation("OrganizationLeaderDeletedBy")
 
   @@index([organizationId])
   @@index([organizationTypeId])
@@ -513,6 +522,7 @@ model Banner {
   @@index([isActive])
   @@index([display_order])
   @@index([organizationId, isActive, display_order])
+  @@index([organizationId, visibleToAll])
   @@index([isDeleted])
   @@map("nvs_banners")
 }
@@ -574,10 +584,43 @@ model Modal {
   @@map("nvs_modals")
 }
 
+model Gallery {
+  id                 Int       @id @default(autoincrement())
+  uuid               String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     Int       @map("organization_id")
+  titleEnglish       String    @map("title_english") @db.VarChar(255)
+  titleHindi         String?   @map("title_hindi") @db.VarChar(255)
+  descriptionEnglish String?   @map("description_english") @db.Text
+  descriptionHindi   String?   @map("description_hindi") @db.Text
+  displayOrder       Int       @default(0) @map("display_order")
+  isActive           Boolean   @default(true) @map("is_active")
+  isDefault          Boolean   @default(false) @map("is_default")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  createdById        Int?      @map("created_by")
+  updatedById        Int?      @map("updated_by")
+  isDeleted          Boolean   @default(false) @map("is_deleted")
+  deletedAt          DateTime? @map("deleted_at")
+  deletedById        Int?      @map("deleted_by")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  images       GalleryImage[]
+  createdBy    User?          @relation("GalleryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?          @relation("GalleryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy    User?          @relation("GalleryDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, isActive, displayOrder])
+  @@index([organizationId, isDefault])
+  @@index([isDeleted])
+  @@map("nvs_galleries")
+}
+
 model GalleryImage {
   id                 Int       @id @default(autoincrement())
   uuid               String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId     Int       @map("organization_id")
+  galleryId          Int?      @map("gallery_id")
   titleEnglish       String    @map("title_english") @db.VarChar(255)
   titleHindi         String?   @map("title_hindi") @db.VarChar(255)
   descriptionEnglish String?   @map("description_english") @db.Text
@@ -591,7 +634,6 @@ model GalleryImage {
   fileSize           BigInt    @map("file_size")
   display_order      Int       @default(0) @map("display_order")
   isActive           Boolean   @default(true) @map("is_active")
-  visibleToAll       Boolean?  @map("visible_to_all")
   startDate          DateTime? @map("start_date") @db.Date
   endDate            DateTime? @map("end_date") @db.Date
   createdAt          DateTime  @default(now()) @map("created_at")
@@ -603,15 +645,16 @@ model GalleryImage {
   deletedById        Int?      @map("deleted_by")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  gallery      Gallery?     @relation(fields: [galleryId], references: [id], onDelete: SetNull)
   createdBy    User?        @relation("GalleryImageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy    User?        @relation("GalleryImageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   deletedBy    User?        @relation("GalleryImageDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
+  @@index([galleryId])
   @@index([isActive])
   @@index([display_order])
   @@index([organizationId, isActive, display_order])
-  @@index([organizationId, visibleToAll])
   @@index([isDeleted])
   @@map("nvs_gallery_images")
 }
@@ -688,6 +731,42 @@ model JnvPrincipal {
   @@index([organizationId, joinedAt])
   @@index([isDeleted])
   @@map("nvs_jnv_principals")
+}
+
+model OrganizationLeader {
+  id                       Int       @id @default(autoincrement())
+  uuid                     String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId           Int       @map("organization_id")
+  leaderNameEnglish        String    @map("leader_name_english") @db.VarChar(255)
+  leaderNameHindi          String?   @map("leader_name_hindi") @db.VarChar(255)
+  leaderDesignationEnglish String    @map("leader_designation_english") @db.VarChar(255)
+  leaderDesignationHindi   String?   @map("leader_designation_hindi") @db.VarChar(255)
+  messageEnglish           String?   @map("message_english") @db.Text
+  messageHindi             String?   @map("message_hindi") @db.Text
+  storedFilename           String    @unique @map("stored_filename") @db.VarChar(255)
+  imagePath                String    @map("image_path") @db.VarChar(500)
+  mimeType                 String    @map("mime_type") @db.VarChar(100)
+  extension                String    @db.VarChar(20)
+  fileSize                 BigInt    @map("file_size")
+  isActive                 Boolean   @default(true) @map("is_active")
+  visibleToAll             Boolean   @default(false) @map("visible_to_all")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  createdById              Int?      @map("created_by")
+  updatedById              Int?      @map("updated_by")
+  isDeleted                Boolean   @default(false) @map("is_deleted")
+  deletedAt                DateTime? @map("deleted_at")
+  deletedById              Int?      @map("deleted_by")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("OrganizationLeaderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?        @relation("OrganizationLeaderUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedBy    User?        @relation("OrganizationLeaderDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, isActive, isDeleted])
+  @@index([isDeleted])
+  @@map("nvs_organization_leaders")
 }
 
 model Menu {

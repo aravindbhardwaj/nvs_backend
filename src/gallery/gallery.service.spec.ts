@@ -16,6 +16,7 @@ describe('GalleryService', () => {
       findMany: jest.fn(),
       count: jest.fn(),
     },
+    organization: { findFirst: jest.fn() },
     $transaction: jest.fn(),
   };
   const ownership = { assertAccess: jest.fn() };
@@ -38,42 +39,26 @@ describe('GalleryService', () => {
     });
   });
 
-  it('includes own, Headquarters, and parent Regional Office images for a JNV', async () => {
+  it('limits a JNV to its own organization images', async () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
     await service.findAll(
       { page: 1, limit: 20, sort: 'display_order', order: 'asc' },
       { ...actor, role: Role.JNV, organizationId: 28 },
     );
     expect(prisma.galleryImage.findMany.mock.calls[0][0].where).toMatchObject({
-      AND: [
-        {
-          OR: [
-            { organizationId: 28 },
-            {
-              visibleToAll: true,
-              organization: { organizationType: { code: 'HEADQUARTER' } },
-            },
-            {
-              visibleToAll: true,
-              organization: {
-                organizationType: { code: 'REGIONAL_OFFICE' },
-                childOrganizations: { some: { id: 28 } },
-              },
-            },
-          ],
-        },
-      ],
+      AND: [{ organizationId: 28 }],
     });
   });
 
   it('uses only active, non-deleted images in deterministic public order', async () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
-    await service.findPublic({ page: 1, limit: 20 });
+    prisma.organization.findFirst.mockResolvedValue({ id: 5 });
+    await service.findPublic({ page: 1, limit: 20, organization_id: 5 });
     expect(prisma.galleryImage.findMany.mock.calls[0][0]).toMatchObject({
       where: expect.objectContaining({
         isDeleted: false,
         isActive: true,
-        AND: expect.arrayContaining([{ visibleToAll: true }]),
+        organizationId: 5,
       }),
       orderBy: [
         { display_order: 'asc' },

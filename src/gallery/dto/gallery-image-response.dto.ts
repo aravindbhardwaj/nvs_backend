@@ -2,6 +2,7 @@ export class GalleryImageResponseDto {
   id: number;
   uuid: string;
   organizationId: number;
+  galleryId: number | null;
   titleEnglish: string;
   titleHindi: string | null;
   descriptionEnglish: string | null;
@@ -14,7 +15,6 @@ export class GalleryImageResponseDto {
   fileSize: string;
   display_order: number;
   isActive: boolean;
-  visible_to_all: boolean | null;
   start_date: string | null;
   end_date: string | null;
   createdAt: Date;
@@ -25,6 +25,8 @@ export class GalleryImageResponseDto {
 export class PublicGalleryImageResponseDto {
   id: number;
   uuid: string;
+  galleryId: number | null;
+  gallery_uuid: string | null;
   title_english: string;
   title_hindi: string | null;
   description_english: string | null;

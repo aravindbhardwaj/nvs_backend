@@ -24,5 +24,6 @@ export class PublicJnvResponseDto {
   principal_email: string | null;
   principal_mobile: string | null;
   short_description: string | null;
+  short_description_hi: string | null;
   image_url: string | null;
 }

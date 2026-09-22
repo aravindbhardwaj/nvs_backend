@@ -13,6 +13,7 @@ import { SortOrder } from '../../common/enums/sort-order.enum';
 export class GetGalleryImagesQueryDto extends PaginationQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) organizationId?: number;
   @IsOptional() @IsUUID() organizationUuid?: string;
+  @IsOptional() @IsUUID() galleryUuid?: string;
   @IsOptional()
   @Transform(({ value }) =>
     value === undefined ? undefined : value === true || value === 'true',

@@ -68,10 +68,16 @@ export class GalleryService {
       (await this.resolveCreateOrganizationId(dto)) ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
+    const galleryId = await this.resolveUploadGallery(
+      organizationId,
+      dto.galleryUuid,
+      actor.id,
+    );
     const image = await this.prisma.$transaction(async (tx) => {
       const created = await tx.galleryImage.create({
         data: {
           organizationId,
+          galleryId,
           titleEnglish: dto.titleEnglish,
           titleHindi: dto.titleHindi,
           descriptionEnglish: dto.descriptionEnglish ?? null,
@@ -85,7 +91,6 @@ export class GalleryService {
           fileSize: BigInt(file.size),
           display_order: dto.display_order ?? 0,
           isActive: dto.isActive ?? true,
-          visibleToAll: dto.visible_to_all ?? null,
           startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
           endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
           createdById: actor.id,
@@ -109,12 +114,18 @@ export class GalleryService {
       (await this.resolveCreateOrganizationId(dto)) ?? actor.organizationId;
     this.ownership.assertAccess(organizationId, actor);
     await this.ensureActiveOrganization(organizationId);
+    const galleryId = await this.resolveUploadGallery(
+      organizationId,
+      dto.galleryUuid,
+      actor.id,
+    );
     const images = await this.prisma.$transaction(async (tx) =>
       Promise.all(
         files.map(async (file, index) => {
           const created = await tx.galleryImage.create({
             data: {
               organizationId,
+              galleryId,
               titleEnglish:
                 dto.titleEnglish || this.filenameTitle(file.originalname),
               titleHindi: dto.titleHindi,
@@ -129,7 +140,6 @@ export class GalleryService {
               fileSize: BigInt(file.size),
               display_order: (dto.display_order ?? 0) + index,
               isActive: dto.isActive ?? true,
-              visibleToAll: dto.visible_to_all ?? null,
               startDate: dto.start_date ? toCalendarDate(dto.start_date) : null,
               endDate: dto.end_date ? toCalendarDate(dto.end_date) : null,
               createdById: actor.id,
@@ -156,9 +166,10 @@ export class GalleryService {
       query.organizationId,
       query.organizationUuid,
     );
+    const galleryId = await this.resolveGalleryId(query.galleryUuid);
     if (query.organizationId)
       this.ownership.assertAccess(query.organizationId, actor);
-    const where = this.where(query, actor);
+    const where = this.where(query, actor, galleryId);
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
         include: { organization: { select: { organizationName: true } } },
@@ -208,11 +219,15 @@ export class GalleryService {
         ? formatCalendarDate(previous.endDate)
         : dto.end_date,
     );
+    const galleryId = dto.galleryUuid
+      ? await this.resolveGalleryId(dto.galleryUuid, previous.organizationId)
+      : undefined;
     const image = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.galleryImage.update({
         where: { id },
         data: {
           titleEnglish: dto.titleEnglish,
+          galleryId,
           titleHindi: dto.titleHindi,
           descriptionEnglish: dto.descriptionEnglish,
           descriptionHindi: dto.descriptionHindi,
@@ -220,9 +235,6 @@ export class GalleryService {
           altTextHindi: dto.altTextHindi,
           display_order: dto.display_order,
           isActive: dto.isActive,
-          ...(dto.visible_to_all === undefined
-            ? {}
-            : { visibleToAll: dto.visible_to_all }),
           ...(dto.start_date === undefined
             ? {}
             : {
@@ -394,10 +406,13 @@ export class GalleryService {
       query.organization_id,
       query.organization_uuid,
     );
+    const galleryId = await this.resolveGalleryId(query.gallery_uuid);
     const where = await this.publicWhere(query.organization_id);
+    if (galleryId) where.galleryId = galleryId;
     const [images, totalItems] = await this.prisma.$transaction([
       this.prisma.galleryImage.findMany({
         where,
+        include: { gallery: { select: { uuid: true } } },
         orderBy: [
           { display_order: 'asc' },
           { createdAt: 'desc' },
@@ -469,6 +484,47 @@ export class GalleryService {
       }),
     );
   }
+  private async resolveGalleryId(
+    uuid?: string,
+    organizationId?: number,
+  ): Promise<number | undefined> {
+    if (!uuid) return undefined;
+    const gallery = await this.prisma.gallery.findFirst({
+      where: {
+        uuid,
+        isDeleted: false,
+        ...(organizationId ? { organizationId } : {}),
+      },
+      select: { id: true },
+    });
+    if (!gallery) throw new NotFoundException('Gallery not found.');
+    return gallery.id;
+  }
+  private async resolveUploadGallery(
+    organizationId: number,
+    uuid: string | undefined,
+    actorId: number,
+  ): Promise<number> {
+    const selected = await this.resolveGalleryId(uuid, organizationId);
+    if (selected) return selected;
+    const existing = await this.prisma.gallery.findFirst({
+      where: { organizationId, isDefault: true, isDeleted: false },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const created = await this.prisma.gallery.create({
+      data: {
+        organizationId,
+        titleEnglish: 'Default Gallery',
+        titleHindi: 'डिफ़ॉल्ट गैलरी',
+        isDefault: true,
+        createdById: actorId,
+        updatedById: actorId,
+      },
+      select: { id: true },
+    });
+    return created.id;
+  }
   private async active(id: number): Promise<GalleryImage> {
     const image = await this.prisma.galleryImage.findFirst({
       where: { id, isDeleted: false },
@@ -519,10 +575,12 @@ export class GalleryService {
   private where(
     query: GetGalleryImagesQueryDto,
     actor: AuthenticatedUser,
+    galleryId?: number,
   ): Prisma.GalleryImageWhereInput {
     const where: Prisma.GalleryImageWhereInput = {
       isDeleted: query.isDeleted ?? false,
       ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
+      ...(galleryId ? { galleryId } : {}),
     };
     const visibility = this.visibilityWhere(query, actor);
     if (visibility) where.AND = [visibility];
@@ -564,31 +622,7 @@ export class GalleryService {
       return query.organizationId
         ? { organizationId: query.organizationId }
         : undefined;
-    if (query.organizationId) return { organizationId: actor.organizationId };
-
-    const own = { organizationId: actor.organizationId };
-    const headquartersShared: Prisma.GalleryImageWhereInput = {
-      visibleToAll: true,
-      organization: { organizationType: { code: 'HEADQUARTER' } },
-    };
-    if (actor.role === Role.HEADQUARTER) return own;
-    if (actor.role === Role.NLI || actor.role === Role.REGIONAL)
-      return { OR: [own, headquartersShared] };
-    if (actor.role === Role.JNV)
-      return {
-        OR: [
-          own,
-          headquartersShared,
-          {
-            visibleToAll: true,
-            organization: {
-              organizationType: { code: 'REGIONAL_OFFICE' },
-              childOrganizations: { some: { id: actor.organizationId } },
-            },
-          },
-        ],
-      };
-    return own;
+    return { organizationId: actor.organizationId };
   }
   private async publicWhere(
     organizationId?: number,
@@ -607,35 +641,17 @@ export class GalleryService {
     ];
     const base = { isDeleted: false, isActive: true };
     if (organizationId === undefined)
-      return { ...base, AND: [...dates, { visibleToAll: true }] };
+      throw new BadRequestException(
+        'organization_id or organization_uuid is required.',
+      );
 
     const organization = await this.prisma.organization.findFirst({
       where: { id: organizationId, isDeleted: false },
-      select: {
-        id: true,
-        parentOrganizationId: true,
-        organizationType: { select: { code: true } },
-      },
+      select: { id: true },
     });
     if (!organization) throw new NotFoundException('Organization not found.');
 
-    const visible: Prisma.GalleryImageWhereInput[] = [
-      { organizationId: organization.id },
-      {
-        visibleToAll: true,
-        organization: { organizationType: { code: 'HEADQUARTER' } },
-      },
-    ];
-    if (
-      organization.organizationType.code === 'JNV' &&
-      organization.parentOrganizationId
-    )
-      visible.push({
-        visibleToAll: true,
-        organizationId: organization.parentOrganizationId,
-        organization: { organizationType: { code: 'REGIONAL_OFFICE' } },
-      });
-    return { ...base, AND: [...dates, { OR: visible }] };
+    return { ...base, organizationId: organization.id, AND: dates };
   }
   private async audit(
     tx: Prisma.TransactionClient,
@@ -662,6 +678,7 @@ export class GalleryService {
       id: image.id,
       uuid: image.uuid,
       organizationId: image.organizationId,
+      galleryId: image.galleryId,
       titleEnglish: image.titleEnglish,
       titleHindi: image.titleHindi,
       descriptionEnglish: image.descriptionEnglish,
@@ -674,7 +691,6 @@ export class GalleryService {
       fileSize: image.fileSize.toString(),
       display_order: image.display_order,
       isActive: image.isActive,
-      visible_to_all: image.visibleToAll,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
       createdAt: image.createdAt,
@@ -683,13 +699,15 @@ export class GalleryService {
     };
   }
   private publicResponse(
-    image: GalleryImage,
+    image: GalleryImage & { gallery: { uuid: string } | null },
     organizationReference?: string,
     useOrganizationUuid = false,
   ): PublicGalleryImageResponseDto {
     return {
       id: image.id,
       uuid: image.uuid,
+      galleryId: image.galleryId,
+      gallery_uuid: image.gallery?.uuid ?? null,
       title_english: image.titleEnglish,
       title_hindi: image.titleHindi,
       description_english: image.descriptionEnglish,
@@ -710,6 +728,7 @@ export class GalleryService {
     return {
       id: image.id,
       organizationId: image.organizationId,
+      galleryId: image.galleryId,
       titleEnglish: image.titleEnglish,
       titleHindi: image.titleHindi,
       descriptionEnglish: image.descriptionEnglish,
@@ -723,7 +742,6 @@ export class GalleryService {
       fileSize: image.fileSize.toString(),
       display_order: image.display_order,
       isActive: image.isActive,
-      visibleToAll: image.visibleToAll,
       start_date: formatCalendarDate(image.startDate),
       end_date: formatCalendarDate(image.endDate),
       isDeleted: image.isDeleted,

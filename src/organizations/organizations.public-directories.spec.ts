@@ -131,6 +131,7 @@ describe('Public RO and NLI directories', () => {
           phoneNumber: '0120-1234567',
           emailAddress: 'director@example.gov.in',
           shortDescription: 'NLI summary',
+          shortDescriptionHi: 'एनएलआई सारांश',
           imageUrl: '/uploads/nli.jpg',
         },
       ],
@@ -152,6 +153,7 @@ describe('Public RO and NLI directories', () => {
         phone_number: '0120-1234567',
         email_address: 'director@example.gov.in',
         short_description: 'NLI summary',
+        short_description_hi: 'एनएलआई सारांश',
         image_url: '/uploads/nli.jpg',
       },
     ]);
@@ -167,6 +169,7 @@ describe('Public RO and NLI directories', () => {
       'phone_number',
       'email_address',
       'short_description',
+      'short_description_hi',
       'image_url',
     ]);
   });

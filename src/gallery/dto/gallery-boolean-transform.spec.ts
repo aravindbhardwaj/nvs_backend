@@ -10,12 +10,11 @@ describe('Gallery boolean transforms', () => {
     async (Dto) => {
       const dto = plainToInstance(
         Dto,
-        { isActive: 'false', visible_to_all: 'false' },
+        { isActive: 'false' },
         { enableImplicitConversion: true },
       );
 
       expect(dto.isActive).toBe(false);
-      expect(dto.visible_to_all).toBe(false);
       expect(await validate(dto, { skipMissingProperties: true })).toHaveLength(
         0,
       );
@@ -25,13 +24,11 @@ describe('Gallery boolean transforms', () => {
   it('rejects invalid multipart boolean values', async () => {
     const dto = plainToInstance(
       UpdateGalleryImageDto,
-      { isActive: 'not-a-boolean', visible_to_all: 'not-a-boolean' },
+      { isActive: 'not-a-boolean' },
       { enableImplicitConversion: true },
     );
 
     const errors = await validate(dto);
-    expect(errors.map((error) => error.property)).toEqual(
-      expect.arrayContaining(['isActive', 'visible_to_all']),
-    );
+    expect(errors.map((error) => error.property)).toContain('isActive');
   });
 });

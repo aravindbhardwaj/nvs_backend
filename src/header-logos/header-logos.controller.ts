@@ -49,7 +49,7 @@ const uploadOptions = {
 
 @Controller('api/header-logos')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.HEADQUARTER)
+@Roles(Role.SUPER_ADMIN, Role.HEADQUARTER)
 export class HeaderLogosController {
   constructor(private readonly service: HeaderLogosService) {}
 

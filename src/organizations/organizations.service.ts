@@ -2,10 +2,11 @@ import { getAuditRequestContext } from '../common/request-context/audit-request-
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Organization, Prisma } from '@prisma/client';
+import { Organization, Prisma, Role } from '@prisma/client';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
@@ -59,6 +60,7 @@ const publicJnvSelect = {
   organizationCode: true,
   schoolUrl: true,
   shortDescription: true,
+  shortDescriptionHi: true,
   imageUrl: true,
   address: true,
   addressHindi: true,
@@ -177,6 +179,7 @@ export class OrganizationsService {
       organization_name_en: string | null;
       organization_name_hi: string | null;
       short_description: string | null;
+      short_description_hi: string | null;
       image_url: string | null;
     }>
   > {
@@ -194,6 +197,7 @@ export class OrganizationsService {
           organizationNameEn: true,
           organizationNameHi: true,
           shortDescription: true,
+          shortDescriptionHi: true,
           imageUrl: true,
         },
         orderBy: { [sort]: order },
@@ -212,6 +216,7 @@ export class OrganizationsService {
         organization_name_en: organization.organizationNameEn,
         organization_name_hi: organization.organizationNameHi,
         short_description: organization.shortDescription,
+        short_description_hi: organization.shortDescriptionHi,
         image_url: organization.imageUrl,
       })),
       meta: PaginationUtil.buildMeta(page, limit, totalItems),
@@ -227,14 +232,35 @@ export class OrganizationsService {
     return this.toResponse(organization);
   }
 
-  async updateProfileByUuid(
+  async findOneByUuid(
     uuid: string,
-    dto: { short_description?: string | null; image_url?: string },
     actor: AuthenticatedUser,
   ): Promise<OrganizationResponseDto> {
-    if (dto.short_description === undefined && dto.image_url === undefined) {
+    const organization = await this.prisma.organization.findFirst({
+      where: { uuid, isDeleted: false },
+      include: organizationInclude,
+    });
+    if (!organization) throw new NotFoundException('Organization not found.');
+    this.assertProfileAccess(organization.id, actor);
+    return this.toResponse(organization);
+  }
+
+  async updateProfileByUuid(
+    uuid: string,
+    dto: {
+      short_description?: string | null;
+      short_description_hi?: string | null;
+      image_url?: string;
+    },
+    actor: AuthenticatedUser,
+  ): Promise<OrganizationResponseDto> {
+    if (
+      dto.short_description === undefined &&
+      dto.short_description_hi === undefined &&
+      dto.image_url === undefined
+    ) {
       throw new BadRequestException(
-        'At least one of short_description or image_url is required.',
+        'At least one of short_description, short_description_hi, or image_url is required.',
       );
     }
 
@@ -248,6 +274,7 @@ export class OrganizationsService {
         throw new NotFoundException(
           'Organization not found or has been deleted.',
         );
+      this.assertProfileAccess(existingOrganization.id, actor);
       previousImageUrl = existingOrganization.imageUrl;
 
       const updatedOrganization = await transaction.organization.update({
@@ -255,6 +282,9 @@ export class OrganizationsService {
         data: {
           ...(dto.short_description !== undefined
             ? { shortDescription: dto.short_description }
+            : {}),
+          ...(dto.short_description_hi !== undefined
+            ? { shortDescriptionHi: dto.short_description_hi }
             : {}),
           ...(dto.image_url !== undefined ? { imageUrl: dto.image_url } : {}),
           updatedById: actor.id,
@@ -280,6 +310,20 @@ export class OrganizationsService {
       await cleanupOrganizationProfileImageUrl(previousImageUrl);
 
     return this.toResponse(organization);
+  }
+
+  private assertProfileAccess(
+    organizationId: number,
+    actor: AuthenticatedUser,
+  ): void {
+    if (
+      actor.role !== Role.SUPER_ADMIN &&
+      actor.organizationId !== organizationId
+    ) {
+      throw new ForbiddenException(
+        'You can only view or update your own organization profile.',
+      );
+    }
   }
 
   async findPublicJnvs(
@@ -373,6 +417,7 @@ export class OrganizationsService {
           phoneNumber: true,
           emailAddress: true,
           shortDescription: true,
+          shortDescriptionHi: true,
           imageUrl: true,
         },
         orderBy: [{ organizationName: 'asc' }, { id: 'asc' }],
@@ -397,6 +442,7 @@ export class OrganizationsService {
         phone_number: organization.phoneNumber,
         email_address: organization.emailAddress,
         short_description: organization.shortDescription,
+        short_description_hi: organization.shortDescriptionHi,
         image_url: organization.imageUrl,
       })),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
@@ -425,6 +471,7 @@ export class OrganizationsService {
           address: true,
           addressHindi: true,
           shortDescription: true,
+          shortDescriptionHi: true,
           imageUrl: true,
           region: {
             select: {
@@ -501,6 +548,7 @@ export class OrganizationsService {
           stateNames: stateNames.length ? stateNames.join(', ') : null,
           stateNamesHi: stateNamesHi.length ? stateNamesHi.join(', ') : null,
           short_description: organization.shortDescription,
+          short_description_hi: organization.shortDescriptionHi,
           image_url: organization.imageUrl,
         };
       }),
@@ -1305,6 +1353,7 @@ export class OrganizationsService {
       phone_number: organization.phoneNumber,
       email_address: organization.emailAddress,
       short_description: organization.shortDescription,
+      short_description_hi: organization.shortDescriptionHi,
       image_url: organization.imageUrl,
       isFunctional: organization.isFunctional,
       parentOrganization: organization.parentOrganization
@@ -1379,6 +1428,7 @@ export class OrganizationsService {
       principal_email: principal?.email ?? null,
       principal_mobile: principal?.mobile ?? null,
       short_description: organization.shortDescription,
+      short_description_hi: organization.shortDescriptionHi,
       image_url: organization.imageUrl,
     };
   }
@@ -1411,6 +1461,7 @@ export class OrganizationsService {
       phone_number: organization.phoneNumber,
       email_address: organization.emailAddress,
       short_description: organization.shortDescription,
+      short_description_hi: organization.shortDescriptionHi,
       image_url: organization.imageUrl,
       isFunctional: organization.isFunctional,
       createdAt: organization.createdAt.toISOString(),

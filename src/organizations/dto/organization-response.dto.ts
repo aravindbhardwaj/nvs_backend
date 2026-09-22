@@ -34,6 +34,7 @@ export class OrganizationResponseDto {
   phone_number: string | null;
   email_address: string | null;
   short_description: string | null;
+  short_description_hi: string | null;
   image_url: string | null;
   isFunctional: boolean;
   parentOrganization: OrganizationReferenceDto | null;

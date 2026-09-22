@@ -10,4 +10,5 @@ export class GetPublicGalleryImagesQueryDto extends PaginationQueryDto {
   @Min(1)
   organization_id?: number;
   @IsOptional() @IsUUID() organization_uuid?: string;
+  @IsOptional() @IsUUID() gallery_uuid?: string;
 }
