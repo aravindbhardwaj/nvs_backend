@@ -13,7 +13,14 @@ describe('UsersService', () => {
     $transaction: jest.fn(),
   };
   const password = { hash: jest.fn() };
-  const service = new UsersService(prisma as never, password as never);
+  const decryption = {
+    decrypt: jest.fn().mockReturnValue('SecurePassword123!'),
+  };
+  const service = new UsersService(
+    prisma as never,
+    password as never,
+    decryption as never,
+  );
   const actor = {
     id: 1,
     email: 'super-admin@nvs.gov.in',

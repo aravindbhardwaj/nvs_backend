@@ -34,6 +34,7 @@ import { WhoIsWhoModule } from './who-is-who/who-is-who.module';
 import { HeaderLogosModule } from './header-logos/header-logos.module';
 import { CkeditorImagesModule } from './ckeditor-images/ckeditor-images.module';
 import { OrganizationLeadershipModule } from './organization-leadership/organization-leadership.module';
+import { PublicLastUpdatedModule } from './public-last-updated/public-last-updated.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { OrganizationLeadershipModule } from './organization-leadership/organiza
     HeaderLogosModule,
     CkeditorImagesModule,
     OrganizationLeadershipModule,
+    PublicLastUpdatedModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, AppService],

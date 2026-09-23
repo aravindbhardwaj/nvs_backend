@@ -1,6 +1,7 @@
 import { registerAs } from '@nestjs/config';
 
 export default registerAs('auth', () => ({
+  passwordPrivateKeyPath: process.env.PASSWORD_PRIVATE_KEY_PATH,
   bcrypt: {
     rounds: Number(process.env.BCRYPT_ROUNDS ?? 12),
   },

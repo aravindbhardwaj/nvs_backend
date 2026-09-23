@@ -33,6 +33,38 @@ $ npm install
 
 ## Database seed
 
+## Encrypted password requests
+
+Login, user creation, and password reset keep the JSON field name `password`, but
+its value must be Base64 encoded RSA-2048 OAEP ciphertext using SHA-256 (including
+MGF1 SHA-256). The server decrypts it before the existing bcrypt check or hash.
+Encrypt each request separately; RSA-OAEP uses fresh randomness automatically.
+HTTPS is still required.
+
+For local development, generate the key pair once:
+
+```bash
+mkdir -p .secrets
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/password-private.pem
+openssl pkey -in .secrets/password-private.pem -pubout -out .secrets/password-public.pem
+chmod 600 .secrets/password-private.pem
+```
+
+Set `PASSWORD_PRIVATE_KEY_PATH=.secrets/password-private.pem` in `.env`. Bundle
+the public PEM with the frontend. Keep the private PEM outside Git and provide
+its path through `PASSWORD_PRIVATE_KEY_PATH` in each deployed environment.
+
+For a Postman request, set its `encryptedPassword` collection variable to the
+output of this command before sending it:
+
+```bash
+printf '%s' 'NvsSeed@2026' | openssl pkeyutl -encrypt -pubin -inkey .secrets/password-public.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 | base64 -w0
+```
+
+For browser clients, import the public key with Web Crypto as `RSA-OAEP` and
+`SHA-256`, encrypt a UTF-8 password, then Base64 encode the ciphertext. The
+backend will reject plaintext or ciphertext made with a different key.
+
 After configuring `DATABASE_URL`, initialize the development data with:
 
 ```bash

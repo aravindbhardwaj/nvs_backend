@@ -49,7 +49,7 @@ describe('create DTO related UUID support', () => {
       {
         name: 'User',
         email: 'user@example.com',
-        password: 'secret',
+        password: Buffer.alloc(256).toString('base64'),
         organizationUuid: uuid,
         organization_type_uuid: secondUuid,
       },

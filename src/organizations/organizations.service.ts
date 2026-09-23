@@ -17,6 +17,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { GetOrganizationsQueryDto } from './dto/get-organizations-query.dto';
 import { GetPublicJnvsQueryDto } from './dto/get-public-jnvs-query.dto';
 import { GetPublicOrganizationsQueryDto } from './dto/get-public-organizations-query.dto';
+import { OrganizationContentUpdateResponseDto } from './dto/organization-content-update-response.dto';
 import { OrganizationResponseDto } from './dto/organization-response.dto';
 import { PublicJnvResponseDto } from './dto/public-jnv-response.dto';
 import { PublicNliResponseDto } from './dto/public-nli-response.dto';
@@ -166,6 +167,92 @@ export class OrganizationsService {
 
     return {
       items: organizations.map((organization) => this.toResponse(organization)),
+      meta: PaginationUtil.buildMeta(page, limit, totalItems),
+    };
+  }
+
+  async findWebsiteContentUpdates(
+    query: GetOrganizationsQueryDto,
+  ): Promise<PaginatedResponseDto<OrganizationContentUpdateResponseDto>> {
+    await this.resolveQueryRelations(query);
+    const { page, limit, sort, order } = query;
+    const where = this.buildWhere(query);
+    const [organizations, totalItems] = await this.prisma.$transaction([
+      this.prisma.organization.findMany({
+        where,
+        select: {
+          uuid: true,
+          organizationName: true,
+          createdAt: true,
+          organizationType: { select: { name: true } },
+          pages: {
+            select: { updatedAt: true },
+            orderBy: { updatedAt: 'desc' },
+            take: 1,
+          },
+          media: {
+            select: { updatedAt: true },
+            orderBy: { updatedAt: 'desc' },
+            take: 1,
+          },
+          banners: {
+            select: { updatedAt: true },
+            orderBy: { updatedAt: 'desc' },
+            take: 1,
+          },
+          galleries: {
+            select: { updatedAt: true },
+            orderBy: { updatedAt: 'desc' },
+            take: 1,
+          },
+          galleryImages: {
+            select: { updatedAt: true },
+            orderBy: { updatedAt: 'desc' },
+            take: 1,
+          },
+        },
+        orderBy: { [sort]: order },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.organization.count({ where }),
+    ]);
+
+    return {
+      items: organizations.map((organization) => {
+        const contentUpdatedDate =
+          organization.pages[0]?.updatedAt ?? organization.createdAt;
+        const mediaUpdatedDate =
+          organization.media[0]?.updatedAt ?? organization.createdAt;
+        const bannerUpdatedDate =
+          organization.banners[0]?.updatedAt ?? organization.createdAt;
+        const galleryDates = [
+          organization.galleries[0]?.updatedAt,
+          organization.galleryImages[0]?.updatedAt,
+        ].filter((date): date is Date => date instanceof Date);
+        const galleryUpdatedDate = galleryDates.length
+          ? new Date(Math.max(...galleryDates.map((date) => date.getTime())))
+          : organization.createdAt;
+        const contentDates = [
+          contentUpdatedDate,
+          mediaUpdatedDate,
+          bannerUpdatedDate,
+          galleryUpdatedDate,
+        ];
+
+        return {
+          organizationName: organization.organizationName,
+          organizationUuid: organization.uuid,
+          organizationTypeName: organization.organizationType.name,
+          content_updated_date: contentUpdatedDate,
+          media_updated_date: mediaUpdatedDate,
+          banner_updated_date: bannerUpdatedDate,
+          gallery_updated_date: galleryUpdatedDate,
+          lastUpdatedAt: new Date(
+            Math.max(...contentDates.map((date) => date.getTime())),
+          ),
+        };
+      }),
       meta: PaginationUtil.buildMeta(page, limit, totalItems),
     };
   }

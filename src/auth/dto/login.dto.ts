@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsString, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 const normalizeIdentifier = ({ value }: { value: unknown }): unknown =>
@@ -20,5 +26,6 @@ export class LoginDto {
 
   @IsString()
   @IsNotEmpty()
+  @Matches(/^[A-Za-z0-9+/]{342}==$/)
   password: string;
 }

@@ -7,6 +7,7 @@ import {
 import { Prisma, UserStatus } from '@prisma/client';
 
 import { PasswordService } from '../auth/services/password.service';
+import { PasswordDecryptionService } from '../auth/services/password-decryption.service';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
@@ -41,6 +42,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
+    private readonly passwordDecryptionService: PasswordDecryptionService,
   ) {}
 
   async resolveUuid(uuid: string): Promise<number> {
@@ -83,7 +85,9 @@ export class UsersService {
       organizationId,
       organizationTypeId,
     );
-    const passwordHash = await this.passwordService.hash(dto.password);
+    const passwordHash = await this.passwordService.hash(
+      this.passwordDecryptionService.decrypt(dto.password),
+    );
 
     const user = await this.prisma.$transaction(async (transaction) => {
       const createdUser = await transaction.user.create({
@@ -274,7 +278,9 @@ export class UsersService {
     actor: AuthenticatedUser,
   ): Promise<UserResponseDto> {
     const existingUser = await this.findActiveUser(id);
-    const passwordHash = await this.passwordService.hash(dto.password);
+    const passwordHash = await this.passwordService.hash(
+      this.passwordDecryptionService.decrypt(dto.password),
+    );
 
     const user = await this.prisma.$transaction(async (transaction) => {
       const updatedUser = await transaction.user.update({

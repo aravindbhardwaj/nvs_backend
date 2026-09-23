@@ -6,6 +6,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordService } from './services/password.service';
+import { PasswordDecryptionService } from './services/password-decryption.service';
 import { EffectivePermissionsService } from './services/effective-permissions.service';
 import { OrganizationOwnershipService } from './services/organization-ownership.service';
 import { RefreshTokenRepositoryService } from './services/refresh-token.repository.service';
@@ -42,6 +43,7 @@ import { RolesGuard } from './guards/roles.guard';
   providers: [
     AuthService,
     PasswordService,
+    PasswordDecryptionService,
     RefreshTokenRepositoryService,
     RefreshTokenService,
     JwtStrategy,
@@ -57,6 +59,7 @@ import { RolesGuard } from './guards/roles.guard';
     JwtModule,
     AuthService,
     PasswordService,
+    PasswordDecryptionService,
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,

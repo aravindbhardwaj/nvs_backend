@@ -8,6 +8,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Matches,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -39,7 +40,7 @@ export class CreateUserDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(128)
+  @Matches(/^[A-Za-z0-9+/]{342}==$/)
   password: string;
 
   @IsOptional()

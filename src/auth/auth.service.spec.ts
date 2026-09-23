@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from './services/password.service';
+import { PasswordDecryptionService } from './services/password-decryption.service';
 import { RefreshTokenService } from './services/refresh-token.service';
 
 describe('AuthService', () => {
@@ -23,6 +24,10 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: {} },
         { provide: ConfigService, useValue: {} },
         { provide: PasswordService, useValue: {} },
+        {
+          provide: PasswordDecryptionService,
+          useValue: { decrypt: jest.fn() },
+        },
         { provide: RefreshTokenService, useValue: {} },
       ],
     }).compile();
@@ -49,8 +54,9 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(user);
 
       await expect(
-        (service as unknown as { findUserByIdentifier(value: string): unknown })
-          .findUserByIdentifier('user@nvs.gov.in'),
+        (
+          service as unknown as { findUserByIdentifier(value: string): unknown }
+        ).findUserByIdentifier('user@nvs.gov.in'),
       ).resolves.toBe(user);
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
@@ -68,8 +74,9 @@ describe('AuthService', () => {
       prisma.user.findFirst.mockResolvedValue(user);
 
       await expect(
-        (service as unknown as { findUserByIdentifier(value: string): unknown })
-          .findUserByIdentifier('nvs-user'),
+        (
+          service as unknown as { findUserByIdentifier(value: string): unknown }
+        ).findUserByIdentifier('nvs-user'),
       ).resolves.toBe(user);
 
       expect(prisma.user.findFirst).toHaveBeenCalledWith({

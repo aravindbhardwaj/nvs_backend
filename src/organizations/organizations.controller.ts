@@ -177,6 +177,15 @@ export class OrganizationsController {
     };
   }
 
+  @Get('website-content-updates')
+  @Roles(Role.SUPER_ADMIN, Role.HEADQUARTER)
+  async findWebsiteContentUpdates(@Query() query: GetOrganizationsQueryDto) {
+    return {
+      message: 'Organization website content updates retrieved successfully.',
+      data: await this.organizationsService.findWebsiteContentUpdates(query),
+    };
+  }
+
   @Get('master')
   @RequirePermission('ORGANIZATION_VIEW')
   async findMaster(@Query() query: GetOrganizationsQueryDto) {

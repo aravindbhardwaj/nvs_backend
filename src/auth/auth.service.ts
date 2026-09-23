@@ -18,6 +18,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TokenRefreshResponseDto } from './dto/token-refresh-response.dto';
 
 import { PasswordService } from './services/password.service';
+import { PasswordDecryptionService } from './services/password-decryption.service';
 import { RefreshTokenService } from './services/refresh-token.service';
 import { roleFromOrganizationTypeCode } from './utils/organization-type-role.util';
 
@@ -40,6 +41,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly passwordService: PasswordService,
+    private readonly passwordDecryptionService: PasswordDecryptionService,
     private readonly refreshTokenService: RefreshTokenService,
   ) {}
   private async findUserByEmail(
@@ -209,6 +211,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
+    const password = this.passwordDecryptionService.decrypt(dto.password);
     const identifier = dto.email ?? dto.username!;
     const user = await this.findUserByIdentifier(identifier);
 
@@ -219,7 +222,7 @@ export class AuthService {
     await this.ensureUserCanLogin(user);
 
     const valid = await this.passwordService.compare(
-      dto.password,
+      password,
       user.passwordHash,
     );
 
