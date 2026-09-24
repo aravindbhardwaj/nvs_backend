@@ -116,11 +116,12 @@ export class OrganizationsService {
     dto: CreateOrganizationDto,
     actor: AuthenticatedUser,
   ): Promise<OrganizationResponseDto> {
-    await this.ensureValuesAreUnique(
-      dto.organizationName,
-      dto.organizationCode,
-    );
     const resolvedDto = await this.resolveCreateRelations(dto);
+    await this.ensureValuesAreUnique(
+      resolvedDto.organizationName,
+      resolvedDto.organizationCode,
+      resolvedDto.organizationTypeId,
+    );
     const normalized = await this.validateHierarchy(resolvedDto);
 
     const organization = await this.prisma.$transaction(async (transaction) => {
@@ -733,6 +734,7 @@ export class OrganizationsService {
     await this.ensureValuesAreUnique(
       mergedDto.organizationName,
       mergedDto.organizationCode,
+      mergedDto.organizationTypeId!,
       id,
     );
     const normalized = await this.validateHierarchy(mergedDto, id);
@@ -1103,12 +1105,15 @@ export class OrganizationsService {
   ): Promise<Prisma.OrganizationUncheckedCreateInput> {
     const districtId = dto.districtId ?? null;
     const studentsCount = dto.studentsCount ?? null;
-    const nliContactFields = [
+    const organizationContactFields = [
       dto.director_name_en,
       dto.director_name_hi,
       dto.phone_number,
       dto.email_address,
     ];
+    const supportsOrganizationContactFields =
+      organizationTypeCode === organizationTypeCodes.nli ||
+      organizationTypeCode === organizationTypeCodes.regionalOffice;
 
     if (districtId !== null)
       await this.ensureActiveDistrict(districtId, stateId);
@@ -1120,11 +1125,11 @@ export class OrganizationsService {
         'studentsCount is only applicable to JNV organizations.',
       );
     if (
-      organizationTypeCode !== organizationTypeCodes.nli &&
-      nliContactFields.some((value) => value != null)
+      !supportsOrganizationContactFields &&
+      organizationContactFields.some((value) => value != null)
     )
       throw new BadRequestException(
-        'Director, phone number, and email address fields are only applicable to NLI organizations.',
+        'Director, phone number, and email address fields are only applicable to NLI and Regional Office organizations.',
       );
 
     return {
@@ -1141,19 +1146,19 @@ export class OrganizationsService {
       estdYear: dto.estdYear ?? null,
       studentsCount,
       directorNameEn:
-        organizationTypeCode === organizationTypeCodes.nli
+        supportsOrganizationContactFields
           ? (dto.director_name_en ?? null)
           : null,
       directorNameHi:
-        organizationTypeCode === organizationTypeCodes.nli
+        supportsOrganizationContactFields
           ? (dto.director_name_hi ?? null)
           : null,
       phoneNumber:
-        organizationTypeCode === organizationTypeCodes.nli
+        supportsOrganizationContactFields
           ? (dto.phone_number ?? null)
           : null,
       emailAddress:
-        organizationTypeCode === organizationTypeCodes.nli
+        supportsOrganizationContactFields
           ? (dto.email_address ?? null)
           : null,
     };
@@ -1366,12 +1371,16 @@ export class OrganizationsService {
   private async ensureValuesAreUnique(
     name: string,
     code: string,
+    organizationTypeId: number,
     excludedId?: number,
   ): Promise<void> {
     const duplicate = await this.prisma.organization.findFirst({
       where: {
         ...(excludedId ? { id: { not: excludedId } } : {}),
-        OR: [{ organizationName: name }, { organizationCode: code }],
+        OR: [
+          { organizationName: name },
+          { organizationCode: code, organizationTypeId },
+        ],
       },
       select: { id: true },
     });
