@@ -43,7 +43,7 @@ describe('PublicLastUpdatedService', () => {
     });
     expect(await service.getLastUpdated(organizationUuid)).toEqual({
       organizationUuid,
-      lastUpdatedAt: '4 September 2026',
+      lastUpdatedAt: '04-09-2026',
     });
     expect(prisma.media.aggregate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -63,7 +63,7 @@ describe('PublicLastUpdatedService', () => {
     });
     expect(await service.getLastUpdated(organizationUuid)).toEqual({
       organizationUuid,
-      lastUpdatedAt: '20 September 2026',
+      lastUpdatedAt: '20-09-2026',
     });
   });
 

@@ -1,5 +1,6 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
@@ -7,11 +8,15 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { PrismaService } from './prisma/prisma.service';
-import { Logger } from '@nestjs/common';
 import { auditRequestContextMiddleware } from './common/request-context/audit-request-context';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  const requestBodyLimit = process.env.REQUEST_BODY_LIMIT?.trim() || '2mb';
+
+  app.use(json({ limit: requestBodyLimit }));
+  app.use(urlencoded({ extended: true, limit: requestBodyLimit }));
 
   app.use(auditRequestContextMiddleware);
 

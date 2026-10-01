@@ -12,12 +12,12 @@ describe('PublicLastUpdatedController', () => {
   it('keeps the response payload around the formatted date', async () => {
     service.getLastUpdated.mockResolvedValue({
       organizationUuid,
-      lastUpdatedAt: '14 August 2026',
+      lastUpdatedAt: '14-08-2026',
     });
 
     expect(await controller.getLastUpdated(organizationUuid)).toEqual({
       message: 'Public last updated date retrieved successfully.',
-      data: { organizationUuid, lastUpdatedAt: '14 August 2026' },
+      data: { organizationUuid, lastUpdatedAt: '14-08-2026' },
     });
   });
 

@@ -102,15 +102,19 @@ export class PublicLastUpdatedService {
       ...Object.values(galleries._max),
     ].filter((date): date is Date => date instanceof Date && date <= now);
     const lastUpdatedAt = dates.length
-      ? new Intl.DateTimeFormat('en-GB', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          timeZone: 'UTC',
-        }).format(new Date(Math.max(...dates.map((date) => date.getTime()))))
+      ? this.formatDate(
+          new Date(Math.max(...dates.map((date) => date.getTime()))),
+        )
       : null;
 
     return { organizationUuid, lastUpdatedAt };
+  }
+
+  private formatDate(date: Date): string {
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+
+    return `${day}-${month}-${date.getUTCFullYear()}`;
   }
 
   private mediaVisibility(
