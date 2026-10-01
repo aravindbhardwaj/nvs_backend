@@ -112,27 +112,89 @@ describe('MenusService', () => {
 
     await service.navigation({ organization_type_id: 4, menu_location: 1 });
 
-    expect(prisma.menu.findMany).toHaveBeenCalledWith({
-      where: {
-        menuLocation: 1,
-        isActive: true,
-        isDeleted: false,
-        OR: [
-          { organizationTypeId: 4 },
-          {
-            organizationType: {
-              code: { in: ['HEADQUARTER', 'REGIONAL_OFFICE'] },
+    expect(prisma.menu.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          menuLocation: 1,
+          isActive: true,
+          isDeleted: false,
+          OR: [
+            { organizationTypeId: 4 },
+            {
+              organizationType: {
+                code: { in: ['HEADQUARTER', 'REGIONAL_OFFICE'] },
+              },
+              showOnAllOrganizations: true,
             },
-            showOnAllOrganizations: true,
-          },
+          ],
+        },
+        orderBy: [
+          { display_order: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
         ],
+      }),
+    );
+  });
+
+  it('returns UUID and display details for menu relationships', () => {
+    const response = (service as any).toResponse({
+      id: 10,
+      uuid: 'menu-uuid',
+      organizationTypeId: 3,
+      organizationType: {
+        uuid: 'organization-type-uuid',
+        code: 'REGIONAL_OFFICE',
+        name: 'Regional Office',
       },
-      orderBy: [
-        { display_order: 'asc' },
-        { createdAt: 'desc' },
-        { id: 'desc' },
-      ],
+      menuLocation: 1,
+      parentMenuId: 5,
+      parentMenu: {
+        uuid: 'parent-menu-uuid',
+        titleEnglish: 'Parent',
+        titleHindi: 'मूल',
+      },
+      titleEnglish: 'Child',
+      titleHindi: 'चाइल्ड',
+      contentTypeId: 2,
+      contentType: {
+        uuid: 'content-type-uuid',
+        nameEnglish: 'Page',
+        nameHindi: 'पृष्ठ',
+      },
+      mediaTypeId: null,
+      mediaType: null,
+      externalUrl: null,
+      pageUrl: null,
+      tabularType: null,
+      tabularData: null,
+      linkTarget: 1,
+      display_order: 1,
+      isActive: true,
+      showOnAllOrganizations: false,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      isDeleted: false,
     });
+
+    expect(response).toEqual(
+      expect.objectContaining({
+        organization_type_uuid: 'organization-type-uuid',
+        organization_type: {
+          uuid: 'organization-type-uuid',
+          code: 'REGIONAL_OFFICE',
+          name: 'Regional Office',
+        },
+        parent_menu_uuid: 'parent-menu-uuid',
+        parent_menu: {
+          uuid: 'parent-menu-uuid',
+          title_english: 'Parent',
+          title_hindi: 'मूल',
+        },
+        content_type_uuid: 'content-type-uuid',
+        media_type_uuid: null,
+      }),
+    );
   });
 
   it.each([

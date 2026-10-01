@@ -41,9 +41,9 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  app.useGlobalInterceptors(new ResponseInterceptor());
-
   const prismaService = app.get(PrismaService);
+  app.useGlobalInterceptors(new ResponseInterceptor(prismaService));
+
   await prismaService.enableShutdownHooks(app);
 
   const port = Number(process.env.PORT) || 3000;

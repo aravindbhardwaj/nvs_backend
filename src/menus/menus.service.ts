@@ -18,6 +18,23 @@ import { MenuNavigationDto, MenuResponseDto } from './dto/menu-response.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import { LINK_TARGET } from './menu.constants';
 
+const menuRelations = {
+  organizationType: { select: { uuid: true, code: true, name: true } },
+  parentMenu: {
+    select: { uuid: true, titleEnglish: true, titleHindi: true },
+  },
+  contentType: {
+    select: { uuid: true, nameEnglish: true, nameHindi: true },
+  },
+  mediaType: {
+    select: { uuid: true, nameEnglish: true, nameHindi: true },
+  },
+} satisfies Prisma.MenuInclude;
+
+type MenuWithRelations = Prisma.MenuGetPayload<{
+  include: typeof menuRelations;
+}>;
+
 @Injectable()
 export class MenusService {
   constructor(private readonly prisma: PrismaService) {}
@@ -61,6 +78,7 @@ export class MenusService {
           createdById: actor.id,
           updatedById: actor.id,
         },
+        include: menuRelations,
       });
       await this.audit(transaction, actor.id, 'CREATE', created);
       return created;
@@ -83,6 +101,7 @@ export class MenusService {
     const [items, totalItems] = await this.prisma.$transaction([
       this.prisma.menu.findMany({
         where,
+        include: menuRelations,
         orderBy: [
           { display_order: 'asc' },
           { createdAt: 'desc' },
@@ -200,6 +219,7 @@ export class MenusService {
             : { showOnAllOrganizations: dto.show_on_all_organizations }),
           updatedById: actor.id,
         },
+        include: menuRelations,
       });
       await this.audit(transaction, actor.id, 'UPDATE', updated, existing);
       return updated;
@@ -217,6 +237,7 @@ export class MenusService {
       const updated = await transaction.menu.update({
         where: { id },
         data: { isActive, updatedById: actor.id },
+        include: menuRelations,
       });
       await this.audit(
         transaction,
@@ -270,6 +291,7 @@ export class MenusService {
               ],
             }),
       },
+      include: menuRelations,
       orderBy: [
         { display_order: 'asc' },
         { createdAt: 'desc' },
@@ -420,9 +442,10 @@ export class MenusService {
     };
   }
 
-  private async findMenu(id: number): Promise<Menu> {
+  private async findMenu(id: number): Promise<MenuWithRelations> {
     const menu = await this.prisma.menu.findFirst({
       where: { id, isDeleted: false },
+      include: menuRelations,
     });
     if (!menu)
       throw new NotFoundException('Menu not found or has been deleted.');
@@ -528,7 +551,7 @@ export class MenusService {
     };
   }
 
-  private toTree(menus: Menu[]): MenuNavigationDto[] {
+  private toTree(menus: MenuWithRelations[]): MenuNavigationDto[] {
     const items = new Map<number, MenuNavigationDto>();
     const roots: MenuNavigationDto[] = [];
     for (const menu of menus) items.set(menu.id, this.toNavigation(menu));
@@ -540,17 +563,47 @@ export class MenusService {
     return roots;
   }
 
-  private toResponse(menu: Menu): MenuResponseDto {
+  private toResponse(menu: MenuWithRelations): MenuResponseDto {
     return {
       id: menu.id,
       uuid: menu.uuid,
       organization_type_id: menu.organizationTypeId,
+      organization_type_uuid: menu.organizationType.uuid,
+      organization_type: {
+        uuid: menu.organizationType.uuid,
+        code: menu.organizationType.code,
+        name: menu.organizationType.name,
+      },
       menu_location: menu.menuLocation,
       parent_menu_id: menu.parentMenuId,
+      parent_menu_uuid: menu.parentMenu?.uuid ?? null,
+      parent_menu: menu.parentMenu
+        ? {
+            uuid: menu.parentMenu.uuid,
+            title_english: menu.parentMenu.titleEnglish,
+            title_hindi: menu.parentMenu.titleHindi,
+          }
+        : null,
       title_english: menu.titleEnglish,
       title_hindi: menu.titleHindi,
       content_type_id: menu.contentTypeId,
+      content_type_uuid: menu.contentType?.uuid ?? null,
+      content_type: menu.contentType
+        ? {
+            uuid: menu.contentType.uuid,
+            name_english: menu.contentType.nameEnglish,
+            name_hindi: menu.contentType.nameHindi,
+          }
+        : null,
       media_type_id: menu.mediaTypeId,
+      media_type_uuid: menu.mediaType?.uuid ?? null,
+      media_type: menu.mediaType
+        ? {
+            uuid: menu.mediaType.uuid,
+            name_english: menu.mediaType.nameEnglish,
+            name_hindi: menu.mediaType.nameHindi,
+          }
+        : null,
       external_url: menu.externalUrl,
       page_url: menu.pageUrl,
       tabular_type: menu.tabularType,
@@ -565,14 +618,16 @@ export class MenusService {
     };
   }
 
-  private toNavigation(menu: Menu): MenuNavigationDto {
+  private toNavigation(menu: MenuWithRelations): MenuNavigationDto {
     return {
       id: menu.id,
       uuid: menu.uuid,
       title_english: menu.titleEnglish,
       title_hindi: menu.titleHindi,
       content_type_id: menu.contentTypeId,
+      content_type_uuid: menu.contentType?.uuid ?? null,
       media_type_id: menu.mediaTypeId,
+      media_type_uuid: menu.mediaType?.uuid ?? null,
       external_url: menu.externalUrl,
       page_url: menu.pageUrl,
       tabular_type: menu.tabularType,

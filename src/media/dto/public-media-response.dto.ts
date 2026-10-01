@@ -12,6 +12,8 @@ export class PublicMediaResponseDto {
   title_hindi: string | null;
   description_english: string | null;
   description_hindi: string | null;
+  file_type: string | null;
+  file_size: string | null;
   is_new: boolean | null;
   start_date: string | null;
   end_date: string | null;

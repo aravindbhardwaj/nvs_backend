@@ -1457,6 +1457,8 @@ export class MediaService {
       title_hindi: media.titleHindi,
       description_english: media.descriptionEnglish,
       description_hindi: media.descriptionHindi,
+      file_type: media.mimeType,
+      file_size: media.fileSize?.toString() ?? null,
       is_new: media.isNew,
       start_date: formatCalendarDate(media.startDate),
       end_date: formatCalendarDate(media.endDate),

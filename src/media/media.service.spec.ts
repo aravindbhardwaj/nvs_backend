@@ -76,6 +76,34 @@ describe('MediaService', () => {
     }));
   });
 
+  it('includes file type and file size in the public response', () => {
+    const response = (service as any).toPublicResponse({
+      id: 1,
+      uuid: 'media-uuid',
+      sourceType: MediaSourceType.FILE,
+      externalUrl: null,
+      mediaTypeId: 1,
+      sharedMediaTypeIds: null,
+      titleEnglish: 'Notice',
+      titleHindi: null,
+      descriptionEnglish: null,
+      descriptionHindi: null,
+      mimeType: 'application/pdf',
+      fileSize: BigInt(1024),
+      isNew: false,
+      startDate: null,
+      endDate: null,
+      hindiFilePath: null,
+    });
+
+    expect(response).toEqual(
+      expect.objectContaining({
+        file_type: 'application/pdf',
+        file_size: '1024',
+      }),
+    );
+  });
+
   it.each([
     ['HEADQUARTER', 2],
     ['NLI', 3],
