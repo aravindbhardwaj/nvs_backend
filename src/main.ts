@@ -1,5 +1,6 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 
@@ -12,18 +13,16 @@ import { auditRequestContextMiddleware } from './common/request-context/audit-re
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const config = app.get(ConfigService);
 
-  const requestBodyLimit = process.env.REQUEST_BODY_LIMIT?.trim() || '2mb';
+  const requestBodyLimit = config.getOrThrow<string>('app.requestBodyLimit');
 
   app.use(json({ limit: requestBodyLimit }));
   app.use(urlencoded({ extended: true, limit: requestBodyLimit }));
 
   app.use(auditRequestContextMiddleware);
 
-  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const corsOrigins = config.getOrThrow<string[]>('app.corsOrigins');
 
   app.enableCors({
     origin: corsOrigins,
@@ -51,7 +50,7 @@ async function bootstrap() {
 
   await prismaService.enableShutdownHooks(app);
 
-  const port = Number(process.env.PORT) || 3000;
+  const port = config.getOrThrow<number>('app.port');
 
   await app.listen(port);
 

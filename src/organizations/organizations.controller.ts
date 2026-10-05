@@ -25,6 +25,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { getUploadConfiguration } from '../config/upload.config';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { GetOrganizationsQueryDto } from './dto/get-organizations-query.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
@@ -110,7 +111,7 @@ export class OrganizationsController {
     try {
       if (file) await validateOrganizationProfileImageContent(file);
       const configuredBaseUrl =
-        process.env.ORGANIZATION_PROFILE_IMAGE_BASE_URL?.replace(/\/$/, '');
+        getUploadConfiguration().organizationProfileImage.baseUrl;
       const baseUrl =
         configuredBaseUrl ?? `${request.protocol}://${request.get('host')}`;
       const imageUrl = file

@@ -5,11 +5,13 @@ import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { diskStorage } from 'multer';
 import { ALLOWED_ORGANIZATION_LEADER_IMAGE_TYPES } from './organization-leadership.constants';
+import { getUploadConfiguration } from '../config/upload.config';
+
+const uploadConfiguration = getUploadConfiguration();
 
 export const ORGANIZATION_LEADERSHIP_UPLOADS_ROOT = join(
   process.cwd(),
-  process.env.ORGANIZATION_LEADERSHIP_UPLOAD_PATH ??
-    'resources/organization_leadership_uploads',
+  uploadConfiguration.organizationLeadership.path,
 );
 
 export function validateOrganizationLeaderFile(

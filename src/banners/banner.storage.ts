@@ -6,10 +6,13 @@ import { extname, join } from 'node:path';
 import { diskStorage } from 'multer';
 
 import { ALLOWED_BANNER_TYPES } from './banner.constants';
+import { getUploadConfiguration } from '../config/upload.config';
+
+const uploadConfiguration = getUploadConfiguration();
 
 export const BANNER_UPLOADS_ROOT = join(
   process.cwd(),
-  process.env.BANNER_UPLOAD_PATH ?? 'resources/banner_uploads',
+  uploadConfiguration.banner.path,
 );
 
 export function validateBannerFile(file: Express.Multer.File): void {

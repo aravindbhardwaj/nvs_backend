@@ -11,6 +11,9 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CaptureVisitDto } from './dto/capture-visit.dto';
 import { VisitorReportQueryDto } from './dto/visitor-report-query.dto';
 import { VisitorAnalyticsService } from './visitor-analytics.service';
+import { getRateLimitConfiguration } from '../config/rate-limit.config';
+
+const visitorRateLimit = getRateLimitConfiguration().visitor;
 
 @Controller('api/visitor-analytics')
 export class VisitorAnalyticsController {
@@ -23,8 +26,8 @@ export class VisitorAnalyticsController {
   @UseGuards(ThrottlerGuard)
   @Throttle({
     default: {
-      ttl: Number(process.env.VISITOR_RATE_LIMIT_TTL_MS ?? 60_000),
-      limit: Number(process.env.VISITOR_RATE_LIMIT_MAX_REQUESTS ?? 100),
+      ttl: visitorRateLimit.ttl,
+      limit: visitorRateLimit.limit,
     },
   })
   async captureVisit(@Body() dto: CaptureVisitDto) {

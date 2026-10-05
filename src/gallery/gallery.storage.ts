@@ -6,10 +6,13 @@ import { extname, join } from 'node:path';
 import { diskStorage } from 'multer';
 
 import { ALLOWED_GALLERY_TYPES } from './gallery.constants';
+import { getUploadConfiguration } from '../config/upload.config';
+
+const uploadConfiguration = getUploadConfiguration();
 
 export const GALLERY_UPLOADS_ROOT = join(
   process.cwd(),
-  process.env.GALLERY_UPLOAD_PATH ?? 'resources/gallery_uploads',
+  uploadConfiguration.gallery.path,
 );
 
 export function validateGalleryFile(file: Express.Multer.File): void {

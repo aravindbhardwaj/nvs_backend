@@ -16,6 +16,7 @@ import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { Public } from '../auth/decorators/public.decorator';
+import { getUploadConfiguration } from '../config/upload.config';
 import {
   CKEDITOR_IMAGE_UPLOADS_ROOT,
   ckeditorImageStorage,
@@ -59,10 +60,7 @@ export class CkeditorImagesController {
       throw error;
     }
 
-    const configuredBaseUrl = process.env.CKEDITOR_IMAGE_BASE_URL?.replace(
-      /\/$/,
-      '',
-    );
+    const configuredBaseUrl = getUploadConfiguration().ckeditorImage.baseUrl;
     const baseUrl =
       configuredBaseUrl ?? `${request.protocol}://${request.get('host')}`;
     const url = `${baseUrl}/api/ckeditor-images/${file.filename}`;

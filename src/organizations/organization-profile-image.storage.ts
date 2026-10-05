@@ -4,6 +4,9 @@ import { mkdirSync } from 'node:fs';
 import { readFile, unlink } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { diskStorage } from 'multer';
+import { getUploadConfiguration } from '../config/upload.config';
+
+const uploadConfiguration = getUploadConfiguration();
 
 const ALLOWED_IMAGE_TYPES: Record<string, string[]> = {
   jpg: ['image/jpeg'],
@@ -14,8 +17,7 @@ const ALLOWED_IMAGE_TYPES: Record<string, string[]> = {
 
 export const ORGANIZATION_PROFILE_IMAGE_ROOT = join(
   process.cwd(),
-  process.env.ORGANIZATION_PROFILE_IMAGE_UPLOAD_PATH ??
-    'resources/organization_profile_images',
+  uploadConfiguration.organizationProfileImage.path,
 );
 export const MAX_ORGANIZATION_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;
 

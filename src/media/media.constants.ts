@@ -1,3 +1,5 @@
+import { getUploadConfiguration } from '../config/upload.config';
+
 export const ALLOWED_MEDIA_TYPES: Readonly<Record<string, readonly string[]>> =
   {
     pdf: ['application/pdf'],
@@ -13,10 +15,4 @@ export const ALLOWED_MEDIA_TYPES: Readonly<Record<string, readonly string[]>> =
     ],
   };
 
-const configuredUploadSize = Number(process.env.MAX_UPLOAD_SIZE);
-
-export const MAX_UPLOAD_SIZE =
-  Number.isSafeInteger(configuredUploadSize) && configuredUploadSize > 0
-    ? configuredUploadSize
-    : 10 * 1024 * 1024;
-import 'dotenv/config';
+export const MAX_UPLOAD_SIZE = getUploadConfiguration().media.maxSize;

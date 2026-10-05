@@ -4,6 +4,9 @@ import { mkdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { diskStorage } from 'multer';
+import { getUploadConfiguration } from '../config/upload.config';
+
+const uploadConfiguration = getUploadConfiguration();
 
 const ALLOWED_IMAGE_TYPES: Record<string, string[]> = {
   jpg: ['image/jpeg'],
@@ -14,7 +17,7 @@ const ALLOWED_IMAGE_TYPES: Record<string, string[]> = {
 
 export const CKEDITOR_IMAGE_UPLOADS_ROOT = join(
   process.cwd(),
-  process.env.CKEDITOR_IMAGE_UPLOAD_PATH ?? 'resources/ckeditor_image_uploads',
+  uploadConfiguration.ckeditorImage.path,
 );
 
 export const MAX_CKEDITOR_IMAGE_SIZE = 5 * 1024 * 1024;

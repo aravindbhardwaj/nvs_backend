@@ -29,6 +29,7 @@ import { ModalsModule } from './modals/modals.module';
 import { JnvPrincipalsModule } from './jnv-principals/jnv-principals.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import configuration from './config';
+import { validateEnvironment } from './config/env.validation';
 
 import { WhoIsWhoModule } from './who-is-who/who-is-who.module';
 import { HeaderLogosModule } from './header-logos/header-logos.module';
@@ -43,6 +44,7 @@ import { PublicLastUpdatedModule } from './public-last-updated/public-last-updat
       cache: true,
       expandVariables: true,
       load: configuration,
+      validate: validateEnvironment,
     }),
     PrismaModule,
     AuthModule,

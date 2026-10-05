@@ -5,10 +5,13 @@ import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { diskStorage } from 'multer';
 import { ALLOWED_JNV_PRINCIPAL_IMAGE_TYPES } from './jnv-principals.constants';
+import { getUploadConfiguration } from '../config/upload.config';
+
+const uploadConfiguration = getUploadConfiguration();
 
 export const JNV_PRINCIPAL_UPLOADS_ROOT = join(
   process.cwd(),
-  process.env.JNV_PRINCIPAL_UPLOAD_PATH ?? 'resources/jnv_principal_uploads',
+  uploadConfiguration.jnvPrincipal.path,
 );
 
 export function validateJnvPrincipalFile(file: Express.Multer.File): void {

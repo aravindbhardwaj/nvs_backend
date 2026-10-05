@@ -17,14 +17,17 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OrganizationOwnershipGuard } from './guards/organization-ownership.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { getRateLimitConfiguration } from '../config/rate-limit.config';
+
+const authRateLimit = getRateLimitConfiguration().auth;
 
 @Module({
   imports: [
     PrismaModule,
     ThrottlerModule.forRoot([
       {
-        ttl: Number(process.env.AUTH_RATE_LIMIT_TTL_MS ?? 60_000),
-        limit: Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS ?? 5),
+        ttl: authRateLimit.ttl,
+        limit: authRateLimit.limit,
       },
     ]),
     JwtModule.registerAsync({

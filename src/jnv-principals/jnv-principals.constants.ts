@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import { getUploadConfiguration } from '../config/upload.config';
 
 export const ALLOWED_JNV_PRINCIPAL_IMAGE_TYPES: Readonly<
   Record<string, readonly string[]>
@@ -9,8 +9,5 @@ export const ALLOWED_JNV_PRINCIPAL_IMAGE_TYPES: Readonly<
   webp: ['image/webp'],
 };
 
-const configuredSize = Number(process.env.JNV_PRINCIPAL_MAX_UPLOAD_SIZE);
 export const MAX_JNV_PRINCIPAL_IMAGE_SIZE =
-  Number.isSafeInteger(configuredSize) && configuredSize > 0
-    ? configuredSize
-    : 5 * 1024 * 1024;
+  getUploadConfiguration().jnvPrincipal.maxSize;

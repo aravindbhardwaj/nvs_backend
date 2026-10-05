@@ -5,10 +5,13 @@ import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { diskStorage } from 'multer';
 import { ALLOWED_LEADER_IMAGE_TYPES } from './leadership.constants';
+import { getUploadConfiguration } from '../config/upload.config';
+
+const uploadConfiguration = getUploadConfiguration();
 
 export const LEADERSHIP_UPLOADS_ROOT = join(
   process.cwd(),
-  process.env.LEADERSHIP_UPLOAD_PATH ?? 'resources/leadership_uploads',
+  uploadConfiguration.leadership.path,
 );
 
 export function validateLeaderFile(file: Express.Multer.File): void {

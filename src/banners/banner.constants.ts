@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import { getUploadConfiguration } from '../config/upload.config';
 
 export const ALLOWED_BANNER_TYPES: Readonly<Record<string, readonly string[]>> =
   {
@@ -8,9 +8,4 @@ export const ALLOWED_BANNER_TYPES: Readonly<Record<string, readonly string[]>> =
     webp: ['image/webp'],
   };
 
-const configuredUploadSize = Number(process.env.BANNER_MAX_UPLOAD_SIZE);
-
-export const MAX_BANNER_UPLOAD_SIZE =
-  Number.isSafeInteger(configuredUploadSize) && configuredUploadSize > 0
-    ? configuredUploadSize
-    : 5 * 1024 * 1024;
+export const MAX_BANNER_UPLOAD_SIZE = getUploadConfiguration().banner.maxSize;
