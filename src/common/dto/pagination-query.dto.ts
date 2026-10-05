@@ -24,10 +24,6 @@ export class PaginationQueryDto {
   @IsString()
   sort?: string;
 
-  // @IsOptional()
-  // @IsIn(['asc', 'desc'])
-  // order: 'asc' | 'desc' = 'asc';
-
   @IsOptional()
   @IsEnum(SortOrder)
   order: SortOrder = SortOrder.ASC;

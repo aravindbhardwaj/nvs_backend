@@ -37,7 +37,7 @@ describe('GalleryAlbumsService', () => {
       _count: { images: 0 },
     });
 
-    const result = await service.create({ titleEnglish: 'Events' }, actor);
+    await service.create({ titleEnglish: 'Events' }, actor);
 
     expect(ownership.assertAccess).toHaveBeenCalledWith(10, actor);
     expect(prisma.gallery.create).toHaveBeenCalledWith(

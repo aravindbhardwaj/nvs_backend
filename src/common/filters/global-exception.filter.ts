@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ArgumentsHost,
   Catch,
   ConflictException,
@@ -8,6 +9,7 @@ import {
   Logger,
   NotFoundException,
   PayloadTooLargeException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 
 import { Prisma } from '@prisma/client';
@@ -47,6 +49,36 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
         case 'P2025':
           exception = new NotFoundException('Record not found.');
+          break;
+
+        case 'P2003':
+          exception = new ConflictException(
+            'Operation conflicts with a related record.',
+          );
+          break;
+
+        case 'P2014':
+          exception = new ConflictException(
+            'Operation would violate a required relation.',
+          );
+          break;
+
+        case 'P2000':
+          exception = new BadRequestException(
+            'One or more values exceed the allowed length.',
+          );
+          break;
+
+        case 'P2024':
+          exception = new ServiceUnavailableException(
+            'Database is temporarily unavailable. Please try again later.',
+          );
+          break;
+
+        case 'P2034':
+          exception = new ConflictException(
+            'Transaction conflict. Please retry the request.',
+          );
           break;
       }
     }

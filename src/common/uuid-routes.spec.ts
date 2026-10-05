@@ -6,6 +6,7 @@ import {
   PATH_METADATA,
   GUARDS_METADATA,
 } from '@nestjs/common/constants';
+import { Role } from '@prisma/client';
 import { REQUIRED_PERMISSIONS_KEY } from '../auth/decorators/require-permission.decorator';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import { ORGANIZATION_OWNED_RESOURCE_KEY } from '../auth/decorators/organization-owned-resource.decorator';
@@ -60,11 +61,11 @@ for (const module of modules) {
 }
 
 describe('UUID route coverage and access metadata', () => {
-  it('covers all 78 remaining numeric resource routes', () =>
-    expect(routes).toHaveLength(78));
+  it('covers all 79 remaining numeric resource routes', () =>
+    expect(routes).toHaveLength(79));
   it.each(routes)(
     '$label retains verb and access policy',
-    ({ original, alias, path }) => {
+    ({ label, original, alias, path }) => {
       expect(alias).toBeDefined();
       expect(Reflect.getMetadata(PATH_METADATA, alias)).toBe(
         path.replace(/:(id|userId)/, 'uuid/:uuid'),
@@ -76,6 +77,19 @@ describe('UUID route coverage and access metadata', () => {
         ROLES_KEY,
         ORGANIZATION_OWNED_RESOURCE_KEY,
       ]) {
+        if (
+          key === ROLES_KEY &&
+          label === 'organizations.controller.ts:findOne'
+        ) {
+          expect(Reflect.getMetadata(key, alias)).toEqual([
+            Role.SUPER_ADMIN,
+            Role.HEADQUARTER,
+            Role.NLI,
+            Role.REGIONAL,
+            Role.JNV,
+          ]);
+          continue;
+        }
         expect(Reflect.getMetadata(key, alias)).toEqual(
           Reflect.getMetadata(key, original),
         );

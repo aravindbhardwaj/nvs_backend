@@ -1,4 +1,5 @@
 import { ArgumentsHost, BadRequestException, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { GlobalExceptionFilter } from './global-exception.filter';
 
@@ -77,4 +78,42 @@ describe('GlobalExceptionFilter', () => {
       }),
     );
   });
+
+  it.each([
+    ['P2000', 400, 'One or more values exceed the allowed length.', false],
+    ['P2003', 409, 'Operation conflicts with a related record.', false],
+    ['P2014', 409, 'Operation would violate a required relation.', false],
+    [
+      'P2024',
+      503,
+      'Database is temporarily unavailable. Please try again later.',
+      true,
+    ],
+    ['P2034', 409, 'Transaction conflict. Please retry the request.', false],
+  ])(
+    'returns $expectedStatus for Prisma $code errors',
+    (code, expectedStatus, message, shouldLog) => {
+      const logger = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+      const exception = new Prisma.PrismaClientKnownRequestError(
+        'Database operation failed.',
+        { code, clientVersion: 'test' },
+      );
+
+      new GlobalExceptionFilter().catch(exception, host);
+
+      if (shouldLog) expect(logger).toHaveBeenCalled();
+      else expect(logger).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(expectedStatus);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          statusCode: expectedStatus,
+          message,
+          path: '/api/pages/uuid/page-uuid/update',
+        }),
+      );
+    },
+  );
 });

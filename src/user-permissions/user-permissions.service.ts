@@ -10,7 +10,6 @@ import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.in
 import { PrismaService } from '../prisma/prisma.service';
 import { PermissionOverrideDto } from './dto/permission-override.dto';
 import { ReplaceUserPermissionsDto } from './dto/replace-user-permissions.dto';
-import { UserPermissionOverrideResponseDto } from './dto/user-permission-override-response.dto';
 import { UserPermissionsResponseDto } from './dto/user-permissions-response.dto';
 
 const userPermissionWithPermission = {
