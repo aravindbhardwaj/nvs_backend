@@ -12,6 +12,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { sanitizeRichText } from '../../common/security/html-sanitizer';
 import { PageStatus } from '@prisma/client';
 
 const trimValue = ({ value }: { value: unknown }): unknown =>
@@ -64,12 +65,12 @@ export class CreatePageDto {
   @IsString()
   shortDescriptionHindi?: string;
 
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   contentEnglish: string;
 
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   contentHindi: string;
@@ -99,12 +100,12 @@ export class CreatePageDto {
   @MaxLength(255)
   section2_label_hi?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content2_english?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content2_hindi?: string;
@@ -121,12 +122,12 @@ export class CreatePageDto {
   @MaxLength(255)
   section3_label_hi?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content3_english?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content3_hindi?: string;
@@ -143,12 +144,12 @@ export class CreatePageDto {
   @MaxLength(255)
   section4_label_hi?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content4_english?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content4_hindi?: string;

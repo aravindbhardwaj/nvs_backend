@@ -1541,9 +1541,12 @@ export class MediaService {
   }
 
   private sanitizeFilename(filename: string): string {
-    return basename(filename)
-      .replace(/[\x00-\x1f\\/:*?"<>|]/g, '_')
-      .slice(0, 255);
+    return (
+      basename(filename)
+        // eslint-disable-next-line no-control-regex -- control characters are invalid in filenames.
+        .replace(/[\x00-\x1f\\/:*?"<>|]/g, '_')
+        .slice(0, 255)
+    );
   }
 
   private extensionOf(filename: string): string {

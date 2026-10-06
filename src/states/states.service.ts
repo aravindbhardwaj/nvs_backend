@@ -15,8 +15,16 @@ export class StatesService {
   async findAll(
     query: GetStatesQueryDto,
   ): Promise<PaginatedResponseDto<StateResponseDto>> {
-    query.ro_id = await resolveRelatedId(query.ro_id, query.ro_uuid, 'Region',
-      (uuid) => this.prisma.region.findUnique({ where: { uuid }, select: { id: true } }));
+    query.ro_id = await resolveRelatedId(
+      query.ro_id,
+      query.ro_uuid,
+      'Region',
+      (uuid) =>
+        this.prisma.region.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    );
     const { page, limit, search, ro_id, sort, order } = query;
     const where: Prisma.StateWhereInput = {
       isActive: true,

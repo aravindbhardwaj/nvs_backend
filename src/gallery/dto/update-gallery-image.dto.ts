@@ -12,8 +12,10 @@ import {
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
-const boolean = ({ value, obj, key }: TransformFnParams) => {
-  const rawValue = (obj as Record<string, unknown>)?.[key] ?? value;
+const boolean = ({ value, obj, key }: TransformFnParams): unknown => {
+  const transformedValue = value as unknown;
+  const source = obj as unknown as Record<string, unknown> | null | undefined;
+  const rawValue = source?.[String(key)] ?? transformedValue;
   if (rawValue === true || rawValue === 'true') return true;
   if (rawValue === false || rawValue === 'false') return false;
   return rawValue;

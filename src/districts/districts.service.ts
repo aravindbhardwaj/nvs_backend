@@ -15,10 +15,23 @@ export class DistrictsService {
   async findAll(
     query: GetDistrictsQueryDto,
   ): Promise<PaginatedResponseDto<DistrictResponseDto>> {
-    query.stateId = await resolveRelatedId(query.stateId, query.stateUuid, 'State',
-      (uuid) => this.prisma.state.findUnique({ where: { uuid }, select: { id: true } }));
-    query.roId = await resolveRelatedId(query.roId, query.roUuid, 'Region',
-      (uuid) => this.prisma.region.findUnique({ where: { uuid }, select: { id: true } }));
+    query.stateId = await resolveRelatedId(
+      query.stateId,
+      query.stateUuid,
+      'State',
+      (uuid) =>
+        this.prisma.state.findUnique({ where: { uuid }, select: { id: true } }),
+    );
+    query.roId = await resolveRelatedId(
+      query.roId,
+      query.roUuid,
+      'Region',
+      (uuid) =>
+        this.prisma.region.findUnique({
+          where: { uuid },
+          select: { id: true },
+        }),
+    );
     const { page, limit, search, stateId, roId, isActive, sort, order } = query;
     const where: Prisma.DistrictWhereInput = {
       isActive,

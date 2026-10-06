@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Permission, Prisma, UserPermission } from '@prisma/client';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,9 +16,9 @@ const userPermissionWithPermission = {
   permission: true,
 } satisfies Prisma.UserPermissionInclude;
 
-type UserPermissionWithPermission = Prisma.UserPermissionGetPayload<{
-  include: typeof userPermissionWithPermission;
-}>;
+type UserPermissionWithPermission = UserPermission & { permission: Permission };
+type PermissionOverrideSource =
+  UserPermissionWithPermission | PermissionOverrideDto;
 
 @Injectable()
 export class UserPermissionsService {
@@ -131,7 +131,7 @@ export class UserPermissionsService {
 
   private async ensurePermissionsExist(
     overrides: PermissionOverrideDto[],
-  ): Promise<Prisma.PermissionGetPayload<Record<string, never>>[]> {
+  ): Promise<Permission[]> {
     const permissionIds = overrides.map(({ permissionId }) => permissionId!);
     const permissions = await this.prisma.permission.findMany({
       where: { id: { in: permissionIds } },
@@ -172,8 +172,8 @@ export class UserPermissionsService {
 
   private toResponse(
     userId: number,
-    overrides: UserPermissionWithPermission[] | PermissionOverrideDto[],
-    permissions?: Prisma.PermissionGetPayload<Record<string, never>>[],
+    overrides: PermissionOverrideSource[],
+    permissions?: Permission[],
   ): UserPermissionsResponseDto {
     const permissionById = new Map(
       permissions?.map((permission) => [permission.id, permission]),
@@ -182,7 +182,7 @@ export class UserPermissionsService {
       const permission =
         'permission' in override
           ? override.permission
-          : permissionById.get(override.permissionId);
+          : permissionById.get(override.permissionId!);
 
       if (!permission) {
         throw new BadRequestException(
@@ -211,8 +211,8 @@ export class UserPermissionsService {
 
   private toAuditValues(
     userId: number,
-    overrides: UserPermissionWithPermission[] | PermissionOverrideDto[],
-    permissions?: Prisma.PermissionGetPayload<Record<string, never>>[],
+    overrides: PermissionOverrideSource[],
+    permissions?: Permission[],
   ): Prisma.InputJsonValue {
     const permissionById = new Map(
       permissions?.map((permission) => [permission.id, permission]),
@@ -224,7 +224,7 @@ export class UserPermissionsService {
         const permission =
           'permission' in override
             ? override.permission
-            : permissionById.get(override.permissionId);
+            : permissionById.get(override.permissionId!);
 
         return {
           permissionId: override.permissionId,

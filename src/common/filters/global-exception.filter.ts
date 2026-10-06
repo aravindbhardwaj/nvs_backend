@@ -106,7 +106,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     }
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (status >= 500) {
       const error = exception instanceof Error ? exception : undefined;
       this.logger.error(
         `${request.method} ${request.originalUrl || request.url} - ${

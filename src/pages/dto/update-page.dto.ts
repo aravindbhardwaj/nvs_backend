@@ -10,6 +10,8 @@ import {
   Min,
 } from 'class-validator';
 
+import { sanitizeRichText } from '../../common/security/html-sanitizer';
+
 const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
@@ -53,13 +55,13 @@ export class UpdatePageDto {
   shortDescriptionHindi?: string;
 
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   contentEnglish?: string;
 
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   contentHindi?: string;
@@ -89,12 +91,12 @@ export class UpdatePageDto {
   @MaxLength(255)
   section2_label_hi?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content2_english?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content2_hindi?: string;
@@ -111,12 +113,12 @@ export class UpdatePageDto {
   @MaxLength(255)
   section3_label_hi?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content3_english?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content3_hindi?: string;
@@ -133,12 +135,12 @@ export class UpdatePageDto {
   @MaxLength(255)
   section4_label_hi?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content4_english?: string;
   @IsOptional()
-  @Transform(trimValue)
+  @Transform(({ value }) => sanitizeRichText(value))
   @IsString()
   @IsNotEmpty()
   content4_hindi?: string;

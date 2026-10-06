@@ -117,7 +117,10 @@ export class VisitorAnalyticsService {
     };
   }
 
-  async publicCount(organizationId?: number, organizationUuid?: string): Promise<{
+  async publicCount(
+    organizationId?: number,
+    organizationUuid?: string,
+  ): Promise<{
     total_visits: number;
     english_visits: number;
     hindi_visits: number;
@@ -140,8 +143,7 @@ export class VisitorAnalyticsService {
         0,
       ),
       english_visits: languageGroups.reduce(
-        (total, group) =>
-          total + (group.usedEnglish ? group._count._all : 0),
+        (total, group) => total + (group.usedEnglish ? group._count._all : 0),
         0,
       ),
       hindi_visits: languageGroups.reduce(

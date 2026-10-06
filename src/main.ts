@@ -59,4 +59,4 @@ async function bootstrap() {
   logger.log(`Application started on http://localhost:${port}`);
 }
 
-bootstrap();
+void bootstrap();

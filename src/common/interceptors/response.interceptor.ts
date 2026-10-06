@@ -137,7 +137,7 @@ const AUDIT_ENTITY_MAPPINGS: Record<string, UuidEntity> = {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== 'object') return false;
-  const prototype = Object.getPrototypeOf(value);
+  const prototype = Object.getPrototypeOf(value) as object | null;
   return prototype === Object.prototype || prototype === null;
 }
 
@@ -220,7 +220,9 @@ function addUuidFields<T>(
   uuidMaps: Map<UuidEntity, Map<number, string>>,
 ): T {
   if (Array.isArray(value))
-    return value.map((entry) => addUuidFields(entry, uuidMaps)) as T;
+    return (value as unknown[]).map((entry) =>
+      addUuidFields(entry, uuidMaps),
+    ) as unknown as T;
   if (!isPlainObject(value)) return value;
 
   const enriched: Record<string, unknown> = {};
@@ -274,15 +276,19 @@ export class ResponseInterceptor<T> implements NestInterceptor<
     next: CallHandler<T>,
   ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
-      mergeMap(async (response: any) => {
-        const data = response?.data ?? response;
+      mergeMap(async (response: T) => {
+        const responseObject = response as T & {
+          data?: unknown;
+          message?: string;
+        };
+        const data = responseObject?.data ?? response;
         const enrichedData = this.prisma
           ? await this.addResolvedUuidFields(data)
           : data;
         return {
           success: true,
-          message: response?.message ?? 'Success',
-          data: removeNumericIds(enrichedData),
+          message: responseObject?.message ?? 'Success',
+          data: removeNumericIds(enrichedData) as T,
           timestamp: new Date().toISOString(),
         };
       }),

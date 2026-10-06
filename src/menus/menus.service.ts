@@ -386,10 +386,11 @@ export class MenusService {
         throw new BadRequestException(
           'Menu hierarchy cannot contain a circular reference.',
         );
-      const current = await transaction.menu.findUnique({
-        where: { id: currentId },
-        select: { parentMenuId: true },
-      });
+      const current: { parentMenuId: number | null } | null =
+        await transaction.menu.findUnique({
+          where: { id: currentId },
+          select: { parentMenuId: true },
+        });
       currentId = current?.parentMenuId ?? null;
     }
   }
@@ -412,6 +413,7 @@ export class MenusService {
       throw new BadRequestException(
         'Only one of content_type_id, media_type_id, external_url, or tabular_type may be configured.',
       );
+    await Promise.resolve();
   }
 
   private buildWhere(query: GetMenusQueryDto): Prisma.MenuWhereInput {

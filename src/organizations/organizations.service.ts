@@ -1147,22 +1147,18 @@ export class OrganizationsService {
       districtId,
       estdYear: dto.estdYear ?? null,
       studentsCount,
-      directorNameEn:
-        supportsOrganizationContactFields
-          ? (dto.director_name_en ?? null)
-          : null,
-      directorNameHi:
-        supportsOrganizationContactFields
-          ? (dto.director_name_hi ?? null)
-          : null,
-      phoneNumber:
-        supportsOrganizationContactFields
-          ? (dto.phone_number ?? null)
-          : null,
-      emailAddress:
-        supportsOrganizationContactFields
-          ? (dto.email_address ?? null)
-          : null,
+      directorNameEn: supportsOrganizationContactFields
+        ? (dto.director_name_en ?? null)
+        : null,
+      directorNameHi: supportsOrganizationContactFields
+        ? (dto.director_name_hi ?? null)
+        : null,
+      phoneNumber: supportsOrganizationContactFields
+        ? (dto.phone_number ?? null)
+        : null,
+      emailAddress: supportsOrganizationContactFields
+        ? (dto.email_address ?? null)
+        : null,
     };
   }
 
