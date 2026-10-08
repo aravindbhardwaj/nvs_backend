@@ -31,6 +31,7 @@ describe('sanitizeRichText', () => {
 
     expect(result).toBe('<p>Safe</p><a href>link</a><img src>');
   });
+
   it('is applied to create and update page rich-text fields', () => {
     const unsafe = '<p onmouseover="alert(1)">Content</p><script>x</script>';
 
@@ -47,5 +48,44 @@ describe('sanitizeRichText', () => {
     expect(createDto.contentHindi).toBe('<p>Content</p>');
     expect(updateDto.content2_english).toBe('<p>Content</p>');
     expect(updateDto.content4_hindi).toBe('<p>Content</p>');
+  });
+
+  it('preserves a valid CKEditor chart configuration and canvas', () => {
+    const html =
+      '<div class="nvs-chart-embed" data-chart-config="{&quot;type&quot;:&quot;bar&quot;,&quot;title&quot;:&quot;&quot;,&quot;labels&quot;:[&quot;Label 1&quot;,&quot;Label 2&quot;,&quot;Label 3&quot;],&quot;datasets&quot;:[{&quot;label&quot;:&quot;Series 1&quot;,&quot;values&quot;:[1,2,3],&quot;color&quot;:&quot;#2563eb&quot;}]}">' +
+      '<canvas></canvas></div>';
+
+    expect(sanitizeRichText(html)).toBe(html);
+  });
+
+  it('removes malformed or invalid chart configuration', () => {
+    const malformed =
+      '<div class="nvs-chart-embed" data-chart-config="{bad json}"><canvas></canvas></div>';
+    const invalidValues =
+      '<div class="nvs-chart-embed" data-chart-config="{&quot;type&quot;:&quot;bar&quot;,&quot;title&quot;:&quot;&quot;,&quot;labels&quot;:[&quot;A&quot;],&quot;datasets&quot;:[{&quot;label&quot;:&quot;Series&quot;,&quot;values&quot;:[&quot;not-a-number&quot;],&quot;color&quot;:&quot;#2563eb&quot;}]}"><canvas></canvas></div>';
+
+    expect(sanitizeRichText(malformed)).toBe(
+      '<div class="nvs-chart-embed"><canvas></canvas></div>',
+    );
+    expect(sanitizeRichText(invalidValues)).toBe(
+      '<div class="nvs-chart-embed"><canvas></canvas></div>',
+    );
+  });
+
+  it('safely encodes HTML-like text inside chart configuration', () => {
+    const config = JSON.stringify({
+      type: 'bar',
+      title: '"><img src=x onerror=alert(1)>',
+      labels: ['A'],
+      datasets: [{ label: 'Series', values: [1], color: '#2563eb' }],
+    }).replace(/"/g, '&quot;');
+    const result = sanitizeRichText(
+      `<div class="nvs-chart-embed" data-chart-config="${config}"><canvas></canvas></div>`,
+    );
+
+    expect(result).toContain('data-chart-config="');
+    expect(result).not.toContain('<img');
+    expect(result).not.toContain('onerror="');
+    expect(result).toContain('<canvas></canvas>');
   });
 });
