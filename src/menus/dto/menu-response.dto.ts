@@ -48,6 +48,15 @@ export class MenuResponseDto {
 export class MenuNavigationDto {
   id: number;
   uuid: string;
+  organization_uuid: string | null;
+  organization_type_uuid: string;
+  source_organization_type: {
+    uuid: string;
+    code: string;
+    name: string;
+  };
+  show_on_all_organizations: boolean;
+  is_shared: boolean;
   title_english: string;
   title_hindi: string | null;
   content_type_id: number | null;

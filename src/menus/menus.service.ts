@@ -298,7 +298,24 @@ export class MenusService {
         { id: 'desc' },
       ],
     });
-    return this.toTree(menus);
+    const includesHeadquartersMenus = menus.some(
+      (menu) => menu.organizationType.code === 'HEADQUARTER',
+    );
+    const headquarters = includesHeadquartersMenus
+      ? await this.prisma.organization.findFirst({
+          where: {
+            isDeleted: false,
+            isFunctional: true,
+            organizationType: { code: 'HEADQUARTER', isActive: true },
+          },
+          select: { uuid: true },
+        })
+      : null;
+    return this.toTree(
+      menus,
+      query.organization_type_id,
+      headquarters?.uuid ?? null,
+    );
   }
 
   private async validateReferences(
@@ -553,10 +570,22 @@ export class MenusService {
     };
   }
 
-  private toTree(menus: MenuWithRelations[]): MenuNavigationDto[] {
+  private toTree(
+    menus: MenuWithRelations[],
+    requestedOrganizationTypeId?: number,
+    headquartersOrganizationUuid: string | null = null,
+  ): MenuNavigationDto[] {
     const items = new Map<number, MenuNavigationDto>();
     const roots: MenuNavigationDto[] = [];
-    for (const menu of menus) items.set(menu.id, this.toNavigation(menu));
+    for (const menu of menus)
+      items.set(
+        menu.id,
+        this.toNavigation(
+          menu,
+          requestedOrganizationTypeId,
+          headquartersOrganizationUuid,
+        ),
+      );
     for (const menu of menus) {
       const item = items.get(menu.id)!;
       if (menu.parentMenuId === null) roots.push(item);
@@ -620,10 +649,28 @@ export class MenusService {
     };
   }
 
-  private toNavigation(menu: MenuWithRelations): MenuNavigationDto {
+  private toNavigation(
+    menu: MenuWithRelations,
+    requestedOrganizationTypeId?: number,
+    headquartersOrganizationUuid: string | null = null,
+  ): MenuNavigationDto {
     return {
       id: menu.id,
       uuid: menu.uuid,
+      organization_uuid:
+        menu.organizationType.code === 'HEADQUARTER'
+          ? headquartersOrganizationUuid
+          : null,
+      organization_type_uuid: menu.organizationType.uuid,
+      source_organization_type: {
+        uuid: menu.organizationType.uuid,
+        code: menu.organizationType.code,
+        name: menu.organizationType.name,
+      },
+      show_on_all_organizations: menu.showOnAllOrganizations,
+      is_shared:
+        requestedOrganizationTypeId !== undefined &&
+        menu.organizationTypeId !== requestedOrganizationTypeId,
       title_english: menu.titleEnglish,
       title_hindi: menu.titleHindi,
       content_type_id: menu.contentTypeId,

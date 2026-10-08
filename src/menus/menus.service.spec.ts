@@ -5,6 +5,7 @@ import { MenusService } from './menus.service';
 describe('MenusService', () => {
   const prisma = {
     organizationType: { findFirst: jest.fn() },
+    organization: { findFirst: jest.fn() },
     menu: { findMany: jest.fn() },
   };
   const service = new MenusService(prisma as never);
@@ -57,6 +58,14 @@ describe('MenusService', () => {
     const menus = [
       {
         id: 1,
+        uuid: 'parent-uuid',
+        organizationTypeId: 1,
+        organizationType: {
+          uuid: 'headquarters-uuid',
+          code: 'HEADQUARTER',
+          name: 'Headquarters',
+        },
+        showOnAllOrganizations: true,
         parentMenuId: null,
         titleEnglish: 'Parent',
         titleHindi: null,
@@ -68,6 +77,14 @@ describe('MenusService', () => {
       },
       {
         id: 2,
+        uuid: 'child-uuid',
+        organizationTypeId: 1,
+        organizationType: {
+          uuid: 'headquarters-uuid',
+          code: 'HEADQUARTER',
+          name: 'Headquarters',
+        },
+        showOnAllOrganizations: true,
         parentMenuId: 1,
         titleEnglish: 'Child',
         titleHindi: null,
@@ -79,6 +96,14 @@ describe('MenusService', () => {
       },
       {
         id: 3,
+        uuid: 'grandchild-uuid',
+        organizationTypeId: 1,
+        organizationType: {
+          uuid: 'headquarters-uuid',
+          code: 'HEADQUARTER',
+          name: 'Headquarters',
+        },
+        showOnAllOrganizations: true,
         parentMenuId: 2,
         titleEnglish: 'Grandchild',
         titleHindi: null,
@@ -91,7 +116,25 @@ describe('MenusService', () => {
         display_order: 1,
       },
     ];
-    const tree = (service as any).toTree(menus);
+    const tree = (service as any).toTree(
+      menus,
+      3,
+      'headquarters-organization-uuid',
+    );
+    expect(tree[0]).toEqual(
+      expect.objectContaining({
+        organization_uuid: 'headquarters-organization-uuid',
+        organization_type_uuid: 'headquarters-uuid',
+        source_organization_type: {
+          uuid: 'headquarters-uuid',
+          code: 'HEADQUARTER',
+          name: 'Headquarters',
+        },
+        show_on_all_organizations: true,
+        is_shared: true,
+      }),
+    );
+    expect(tree[0].children[0].is_shared).toBe(true);
     expect(tree[0].children[0].children[0].external_url).toBe(
       'https://example.com',
     );
@@ -133,6 +176,63 @@ describe('MenusService', () => {
           { createdAt: 'desc' },
           { id: 'desc' },
         ],
+      }),
+    );
+  });
+
+  it('returns the Headquarters organization UUID for shared Headquarters menus', async () => {
+    prisma.organizationType.findFirst.mockResolvedValue({
+      id: 3,
+      code: 'REGIONAL_OFFICE',
+      isActive: true,
+    });
+    prisma.menu.findMany.mockResolvedValue([
+      {
+        id: 1,
+        uuid: 'menu-uuid',
+        organizationTypeId: 1,
+        organizationType: {
+          uuid: 'headquarters-type-uuid',
+          code: 'HEADQUARTER',
+          name: 'Headquarters',
+        },
+        showOnAllOrganizations: true,
+        parentMenuId: null,
+        titleEnglish: 'About Us',
+        titleHindi: null,
+        contentTypeId: null,
+        contentType: null,
+        mediaTypeId: null,
+        mediaType: null,
+        externalUrl: null,
+        pageUrl: '/about-us',
+        tabularType: false,
+        tabularData: null,
+        linkTarget: 1,
+        display_order: 1,
+      },
+    ]);
+    prisma.organization.findFirst.mockResolvedValue({
+      uuid: 'headquarters-organization-uuid',
+    });
+
+    const navigation = await service.navigation({
+      organization_type_id: 3,
+      menu_location: 1,
+    });
+
+    expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+      where: {
+        isDeleted: false,
+        isFunctional: true,
+        organizationType: { code: 'HEADQUARTER', isActive: true },
+      },
+      select: { uuid: true },
+    });
+    expect(navigation[0]).toEqual(
+      expect.objectContaining({
+        organization_uuid: 'headquarters-organization-uuid',
+        is_shared: true,
       }),
     );
   });
