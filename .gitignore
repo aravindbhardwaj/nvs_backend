@@ -4,7 +4,8 @@
 /build
 /resources
 /docs
-/postman
+/postman/*
+!/postman/NVS Backend API.postman_collection.json
 
 # Logs
 logs

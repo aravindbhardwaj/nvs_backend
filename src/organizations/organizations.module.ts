@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
+import { PageSynchronizationModule } from '../page-synchronization/page-synchronization.module';
 
 import { OrganizationsController } from './organizations.controller';
 import { PublicJnvsController } from './public-jnvs.controller';
@@ -8,7 +9,7 @@ import { PublicOrganizationsController } from './public-organizations.controller
 import { OrganizationsService } from './organizations.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, PageSynchronizationModule],
   controllers: [
     OrganizationsController,
     PublicJnvsController,

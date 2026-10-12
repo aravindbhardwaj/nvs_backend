@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Organization, Prisma, Role } from '@prisma/client';
 
@@ -13,6 +14,7 @@ import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PaginationUtil } from '../common/utils/pagination.util';
 import { resolveRelatedId } from '../common/utils/resolve-related-id.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { PageSynchronizationService } from '../page-synchronization/page-synchronization.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { GetOrganizationsQueryDto } from './dto/get-organizations-query.dto';
 import { GetPublicJnvsQueryDto } from './dto/get-public-jnvs-query.dto';
@@ -100,7 +102,11 @@ type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    private readonly pageSynchronization?: PageSynchronizationService,
+  ) {}
 
   async resolveUuid(uuid: string): Promise<number> {
     // Resolve deleted records too; existing operations enforce visibility and state.
@@ -124,7 +130,7 @@ export class OrganizationsService {
     );
     const normalized = await this.validateHierarchy(resolvedDto);
 
-    const organization = await this.prisma.$transaction(async (transaction) => {
+    const result = await this.prisma.$transaction(async (transaction) => {
       const createdOrganization = await transaction.organization.create({
         data: { ...normalized, createdById: actor.id, updatedById: actor.id },
         include: organizationInclude,
@@ -140,10 +146,20 @@ export class OrganizationsService {
           newValues: this.toAuditValues(createdOrganization),
         },
       });
-      return createdOrganization;
+      const synchronizationJobId = this.pageSynchronization
+        ? await this.pageSynchronization.createForNewOrganization(
+            transaction,
+            createdOrganization,
+            actor.id,
+          )
+        : null;
+      return { organization: createdOrganization, synchronizationJobId };
     });
 
-    return this.toResponse(organization);
+    if (result.synchronizationJobId)
+      this.pageSynchronization?.schedulePendingJobs();
+
+    return this.toResponse(result.organization);
   }
 
   async findAll(
