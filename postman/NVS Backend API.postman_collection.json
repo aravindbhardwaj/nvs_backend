@@ -3201,6 +3201,81 @@
               }
             }
           ]
+        },
+        {
+          "name": "Archive by UUID",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/media/uuid/{{mediaUuid}}/archive"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Media archived', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.test('Archive metadata returned', () => {",
+                  "    pm.expect(data.is_archived).to.eql(true);",
+                  "    pm.expect(data.archived_at).to.be.a('string');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List archived public media",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/public/media?organization_uuid={{targetOrganizationUuid}}&media_type_uuid={{mediaTypeUuid}}&is_archived=true&page=1&limit=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Archived media listed', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const items = pm.response.json().data.items;",
+                  "  pm.test('Every item is archived', () => items.forEach(item => pm.expect(item.is_archived).to.eql(true)));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public archived media download",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/public/media/uuid/{{mediaUuid}}/download?organization_uuid={{targetOrganizationUuid}}&is_archived=true"
+          }
+        },
+        {
+          "name": "Restore archived media by UUID",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/media/uuid/{{mediaUuid}}/archive/restore"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Archived media restored', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('Archive status cleared', () => pm.expect(pm.response.json().data.is_archived).to.eql(false));",
+                  "}"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -6663,6 +6738,13 @@
             },
             "method": "GET",
             "url": "{{baseUrl}}/api/public/organizations/{{organizationUuid}}/last-updated"
+          }
+        },
+        {
+          "name": "Public Archived Media",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/public/media?organization_uuid={{organizationUuid}}&media_type_uuid={{mediaTypeUuid}}&is_archived=true&page=1&limit=20"
           }
         }
       ]

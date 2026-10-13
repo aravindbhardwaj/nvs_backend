@@ -475,6 +475,7 @@ describe('MediaService', () => {
       expect.objectContaining({
         where: {
           isDeleted: false,
+          isArchived: false,
           isActive: true,
           AND: [
             {

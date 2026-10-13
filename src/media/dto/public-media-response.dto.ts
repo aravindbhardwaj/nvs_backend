@@ -20,3 +20,9 @@ export class PublicMediaResponseDto {
   download_url: string | null;
   hindi_download_url: string | null;
 }
+
+export class ArchivedPublicMediaResponseDto extends PublicMediaResponseDto {
+  is_archived: true;
+  archived_at: Date;
+  archived_by: number | null;
+}

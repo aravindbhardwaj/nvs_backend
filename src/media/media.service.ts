@@ -28,8 +28,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateExternalMediaDto } from './dto/create-external-media.dto';
 import { GetMediaQueryDto } from './dto/get-media-query.dto';
 import { GetPublicMediaQueryDto } from './dto/get-public-media-query.dto';
-import { MediaResponseDto } from './dto/media-response.dto';
-import { PublicMediaResponseDto } from './dto/public-media-response.dto';
+import {
+  MediaArchivalResponseDto,
+  MediaResponseDto,
+} from './dto/media-response.dto';
+import {
+  ArchivedPublicMediaResponseDto,
+  PublicMediaResponseDto,
+} from './dto/public-media-response.dto';
 import { SharedMediaPlacementDto } from './dto/shared-media-placement.dto';
 import { UpdateMediaDto } from './dto/update-media.dto';
 import { UploadMediaDto } from './dto/upload-media.dto';
@@ -463,7 +469,7 @@ export class MediaService {
   ): Promise<MediaResponseDto> {
     const media = await this.prisma.$transaction(async (transaction) => {
       const existing = await transaction.media.findFirst({
-        where: { id, isDeleted: false },
+        where: { id, isDeleted: false, isArchived: false },
       });
       if (!existing)
         throw new NotFoundException(
@@ -527,6 +533,145 @@ export class MediaService {
       media,
       await this.sharedMediaPlacementNames([media]),
     );
+  }
+
+  async archiveByUuid(
+    uuid: string,
+    actor: AuthenticatedUser,
+  ): Promise<MediaArchivalResponseDto> {
+    const media = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.media.findFirst({
+        where: { uuid, isDeleted: false },
+      });
+      if (!existing) throw new NotFoundException('Media not found.');
+      this.ownership.assertAccess(existing.organizationId, actor);
+      if (existing.isArchived) return existing;
+
+      const archived = await transaction.media.update({
+        where: { id: existing.id },
+        data: {
+          isArchived: true,
+          archivedAt: new Date(),
+          archivedById: actor.id,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(
+        transaction,
+        actor.id,
+        'ARCHIVE',
+        archived,
+        existing,
+      );
+      return archived;
+    });
+    return this.toArchivalResponse(media);
+  }
+
+  async restoreArchivedByUuid(
+    uuid: string,
+    actor: AuthenticatedUser,
+  ): Promise<MediaArchivalResponseDto> {
+    const media = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.media.findFirst({
+        where: { uuid, isDeleted: false },
+      });
+      if (!existing) throw new NotFoundException('Media not found.');
+      this.ownership.assertAccess(existing.organizationId, actor);
+      if (!existing.isArchived) return existing;
+
+      const restored = await transaction.media.update({
+        where: { id: existing.id },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedById: null,
+          updatedById: actor.id,
+        },
+      });
+      await this.createAuditLog(
+        transaction,
+        actor.id,
+        'RESTORE',
+        restored,
+        existing,
+      );
+      return restored;
+    });
+    return this.toArchivalResponse(media);
+  }
+
+  async archiveEligibleMedia(
+    cutoff: Date,
+    systemUserId: number,
+    batchSize: number,
+  ): Promise<number> {
+    const systemUser = await this.prisma.user.findFirst({
+      where: { id: systemUserId, isDeleted: false, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (!systemUser)
+      throw new Error(
+        'MEDIA_ARCHIVE_SYSTEM_USER_ID must identify an active user.',
+      );
+
+    let archivedCount = 0;
+    while (true) {
+      const processed = await this.prisma.$transaction(async (transaction) => {
+        const eligible = await transaction.media.findMany({
+          where: {
+            isArchived: false,
+            isDeleted: false,
+            updatedAt: { lte: cutoff },
+          },
+          orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+          take: batchSize,
+        });
+        let count = 0;
+        for (const existing of eligible) {
+          const result = await transaction.media.updateMany({
+            where: {
+              id: existing.id,
+              isArchived: false,
+              isDeleted: false,
+              updatedAt: { lte: cutoff },
+            },
+            data: {
+              isArchived: true,
+              archivedAt: new Date(),
+              archivedById: systemUserId,
+              updatedById: systemUserId,
+            },
+          });
+          if (result.count === 0) continue;
+          const archived = await transaction.media.findUniqueOrThrow({
+            where: { id: existing.id },
+          });
+          await this.createAuditLog(
+            transaction,
+            systemUserId,
+            'ARCHIVE',
+            archived,
+            existing,
+          );
+          count += 1;
+        }
+        return count;
+      });
+      archivedCount += processed;
+      if (processed < batchSize) return archivedCount;
+    }
+  }
+
+  private async toArchivalResponse(
+    media: Media,
+  ): Promise<MediaArchivalResponseDto> {
+    return {
+      ...this.toResponse(media, await this.sharedMediaPlacementNames([media])),
+      is_archived: media.isArchived,
+      archived_at: media.archivedAt,
+      archived_by: media.archivedById,
+    };
   }
 
   async cleanupUploadedFiles(
@@ -660,7 +805,11 @@ export class MediaService {
 
   async findPublic(
     query: GetPublicMediaQueryDto,
-  ): Promise<PaginatedResponseDto<PublicMediaResponseDto>> {
+  ): Promise<
+    PaginatedResponseDto<
+      PublicMediaResponseDto | ArchivedPublicMediaResponseDto
+    >
+  > {
     const organizationReference = query.organization_uuid;
     await this.resolvePublicQueryRelations(query);
     const where = await this.publicWhere(query);
@@ -680,12 +829,19 @@ export class MediaService {
     const placementNames = await this.sharedMediaPlacementNames(media);
     return {
       items: media.map((item) =>
-        this.toPublicResponse(
-          item,
-          organizationReference ?? query.organization_id?.toString(),
-          placementNames,
-          organizationReference !== undefined,
-        ),
+        query.is_archived
+          ? this.toArchivedPublicResponse(
+              item,
+              organizationReference ?? query.organization_id?.toString(),
+              placementNames,
+              organizationReference !== undefined,
+            )
+          : this.toPublicResponse(
+              item,
+              organizationReference ?? query.organization_id?.toString(),
+              placementNames,
+              organizationReference !== undefined,
+            ),
       ),
       meta: PaginationUtil.buildMeta(query.page, query.limit, totalItems),
     };
@@ -728,6 +884,7 @@ export class MediaService {
   async publicDownload(
     id: number,
     organizationId?: number,
+    isArchived = false,
   ): Promise<{
     stream: ReturnType<typeof createReadStream>;
     filename: string;
@@ -743,7 +900,10 @@ export class MediaService {
     const media = await this.prisma.media.findFirst({
       where: {
         id,
-        ...(await this.publicWhere({ organization_id: organizationId })),
+        ...(await this.publicWhere({
+          organization_id: organizationId,
+          is_archived: isArchived,
+        })),
       },
     });
     if (!media) throw new NotFoundException('Public media not found.');
@@ -764,6 +924,7 @@ export class MediaService {
   async publicDownloadHindi(
     id: number,
     organizationId?: number,
+    isArchived = false,
   ): Promise<{
     stream: ReturnType<typeof createReadStream>;
     filename: string;
@@ -779,7 +940,10 @@ export class MediaService {
     const media = await this.prisma.media.findFirst({
       where: {
         id,
-        ...(await this.publicWhere({ organization_id: organizationId })),
+        ...(await this.publicWhere({
+          organization_id: organizationId,
+          is_archived: isArchived,
+        })),
       },
     });
     if (!media) throw new NotFoundException('Public media not found.');
@@ -806,7 +970,7 @@ export class MediaService {
 
   private async findActiveMedia(id: number): Promise<Media> {
     const media = await this.prisma.media.findFirst({
-      where: { id, isDeleted: false },
+      where: { id, isDeleted: false, isArchived: false },
     });
     if (!media)
       throw new NotFoundException('Media not found or has been deleted.');
@@ -822,6 +986,7 @@ export class MediaService {
       where: {
         id,
         isDeleted: false,
+        isArchived: false,
         ...(visibilityWhere ? { AND: [visibilityWhere] } : {}),
       },
     });
@@ -1065,6 +1230,7 @@ export class MediaService {
   ): Promise<Prisma.MediaWhereInput> {
     const where: Prisma.MediaWhereInput = {
       isDeleted: query.isDeleted ?? false,
+      isArchived: false,
       ...(query.mediaTypeId
         ? { OR: this.mediaTypeMatchWhere(query.mediaTypeId) }
         : {}),
@@ -1215,16 +1381,23 @@ export class MediaService {
   }
 
   private async publicWhere(
-    query: Pick<GetPublicMediaQueryDto, 'organization_id' | 'media_type_id'>,
+    query: Pick<
+      GetPublicMediaQueryDto,
+      'organization_id' | 'media_type_id' | 'is_archived'
+    >,
     importantLink?: ImportantLinkField,
   ): Promise<Prisma.MediaWhereInput> {
+    const archived = query.is_archived ?? false;
     const today = toCalendarDate(new Date().toISOString().slice(0, 10));
-    const dateConditions: Prisma.MediaWhereInput[] = [
-      { OR: [{ startDate: null }, { startDate: { lte: today } }] },
-      { OR: [{ endDate: null }, { endDate: { gte: today } }] },
-    ];
+    const dateConditions: Prisma.MediaWhereInput[] = archived
+      ? []
+      : [
+          { OR: [{ startDate: null }, { startDate: { lte: today } }] },
+          { OR: [{ endDate: null }, { endDate: { gte: today } }] },
+        ];
     const where: Prisma.MediaWhereInput = {
       isDeleted: false,
+      isArchived: archived,
       isActive: true,
       ...(query.media_type_id
         ? { OR: this.mediaTypeMatchWhere(query.media_type_id) }
@@ -1433,6 +1606,33 @@ export class MediaService {
       isDeleted: media.isDeleted,
       deletedAt: media.deletedAt?.toISOString() ?? null,
       deletedById: media.deletedById,
+      isArchived: media.isArchived,
+      archivedAt: media.archivedAt?.toISOString() ?? null,
+      archivedById: media.archivedById,
+    };
+  }
+
+  private toArchivedPublicResponse(
+    media: Media,
+    organizationReference?: string,
+    placementNames: Map<number, string> = new Map(),
+    useOrganizationUuid = false,
+  ): ArchivedPublicMediaResponseDto {
+    const response = this.toPublicResponse(
+      media,
+      organizationReference,
+      placementNames,
+      useOrganizationUuid,
+    );
+    const addArchiveParameter = (url: string | null): string | null =>
+      url ? url + (url.includes('?') ? '&' : '?') + 'is_archived=true' : null;
+    return {
+      ...response,
+      download_url: addArchiveParameter(response.download_url),
+      hindi_download_url: addArchiveParameter(response.hindi_download_url),
+      is_archived: true,
+      archived_at: media.archivedAt!,
+      archived_by: media.archivedById,
     };
   }
 

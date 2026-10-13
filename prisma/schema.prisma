@@ -252,6 +252,7 @@ model User {
   deletedPages                     Page[]                   @relation("PageDeletedBy")
   createdMedia                     Media[]                  @relation("MediaCreatedBy")
   updatedMedia                     Media[]                  @relation("MediaUpdatedBy")
+  archivedMedia                    Media[]                  @relation("MediaArchivedBy")
   deletedMedia                     Media[]                  @relation("MediaDeletedBy")
   createdBanners                   Banner[]                 @relation("BannerCreatedBy")
   updatedBanners                   Banner[]                 @relation("BannerUpdatedBy")
@@ -467,6 +468,9 @@ model Media {
   createdById           Int?            @map("created_by")
   updatedById           Int?            @map("updated_by")
   isDeleted             Boolean         @default(false) @map("is_deleted")
+  isArchived            Boolean         @default(false) @map("is_archived")
+  archivedAt            DateTime?       @map("archived_at")
+  archivedById          Int?            @map("archived_by")
   deletedAt             DateTime?       @map("deleted_at")
   deletedById           Int?            @map("deleted_by")
 
@@ -475,6 +479,7 @@ model Media {
   createdBy    User?        @relation("MediaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy    User?        @relation("MediaUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   deletedBy    User?        @relation("MediaDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  archivedBy   User?        @relation("MediaArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([mediaTypeId])
@@ -485,6 +490,8 @@ model Media {
   @@index([organizationId, visibleToAll])
   @@index([createdAt])
   @@index([isDeleted])
+  @@index([isArchived, isDeleted, updatedAt])
+  @@index([mediaTypeId, isArchived, isDeleted])
   @@map("nvs_media")
 }
 

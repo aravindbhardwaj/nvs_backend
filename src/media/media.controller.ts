@@ -98,6 +98,32 @@ export class MediaController {
     return this.findOne(id, user);
   }
 
+  @Post('uuid/:uuid/archive')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_DELETE')
+  async archiveByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Media archived successfully.',
+      data: await this.mediaService.archiveByUuid(uuid, user),
+    };
+  }
+
+  @Post('uuid/:uuid/archive/restore')
+  @HttpCode(200)
+  @RequirePermission('MEDIA_UPLOAD')
+  async restoreArchivedByUuid(
+    @Param('uuid', ParseUUIDPipe) uuid: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return {
+      message: 'Archived media restored successfully.',
+      data: await this.mediaService.restoreArchivedByUuid(uuid, user),
+    };
+  }
+
   @Post('uuid/:uuid/file')
   @HttpCode(200)
   @RequirePermission('MEDIA_UPLOAD')

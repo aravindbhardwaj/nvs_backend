@@ -1,7 +1,9 @@
 import {
   Controller,
+  DefaultValuePipe,
   Get,
   Param,
+  ParseBoolPipe,
   ParseIntPipe,
   ParseUUIDPipe,
   Query,
@@ -23,10 +25,17 @@ export class PublicMediaController {
     @Param('uuid', ParseUUIDPipe) uuid: string,
     @Query('organization_id') organizationId: string | undefined,
     @Query('organization_uuid') organizationUuid: string | undefined,
+    @Query('is_archived', new DefaultValuePipe(false), ParseBoolPipe)
+    isArchived: boolean,
     @Res() response: Response,
   ): Promise<void> {
     const id = await this.media.resolveUuid(uuid);
-    return this.download(id, organizationUuid ?? organizationId, response);
+    return this.download(
+      id,
+      organizationUuid ?? organizationId,
+      isArchived,
+      response,
+    );
   }
 
   @Get('uuid/:uuid/download/hindi')
@@ -34,10 +43,17 @@ export class PublicMediaController {
     @Param('uuid', ParseUUIDPipe) uuid: string,
     @Query('organization_id') organizationId: string | undefined,
     @Query('organization_uuid') organizationUuid: string | undefined,
+    @Query('is_archived', new DefaultValuePipe(false), ParseBoolPipe)
+    isArchived: boolean,
     @Res() response: Response,
   ): Promise<void> {
     const id = await this.media.resolveUuid(uuid);
-    return this.downloadHindi(id, organizationUuid ?? organizationId, response);
+    return this.downloadHindi(
+      id,
+      organizationUuid ?? organizationId,
+      isArchived,
+      response,
+    );
   }
 
   @Get()
@@ -76,11 +92,14 @@ export class PublicMediaController {
   async download(
     @Param('id', ParseIntPipe) id: number,
     @Query('organization_id') organizationId: string | undefined,
+    @Query('is_archived', new DefaultValuePipe(false), ParseBoolPipe)
+    isArchived: boolean,
     @Res() response: Response,
   ): Promise<void> {
     const document = await this.media.publicDownload(
       id,
       await this.media.resolveOrganizationReference(organizationId),
+      isArchived,
     );
     response.setHeader('Content-Type', document.mimeType);
     response.setHeader(
@@ -95,11 +114,14 @@ export class PublicMediaController {
   async downloadHindi(
     @Param('id', ParseIntPipe) id: number,
     @Query('organization_id') organizationId: string | undefined,
+    @Query('is_archived', new DefaultValuePipe(false), ParseBoolPipe)
+    isArchived: boolean,
     @Res() response: Response,
   ): Promise<void> {
     const document = await this.media.publicDownloadHindi(
       id,
       await this.media.resolveOrganizationReference(organizationId),
+      isArchived,
     );
     response.setHeader('Content-Type', document.mimeType);
     response.setHeader(

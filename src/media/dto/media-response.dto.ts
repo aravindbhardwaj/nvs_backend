@@ -41,3 +41,9 @@ export class MediaResponseDto {
   updatedAt: Date;
   isDeleted: boolean;
 }
+
+export class MediaArchivalResponseDto extends MediaResponseDto {
+  is_archived: boolean;
+  archived_at: Date | null;
+  archived_by: number | null;
+}
