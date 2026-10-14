@@ -12,7 +12,6 @@ const trimValue = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 export class CreateRegionDto {
-  @ValidateIf((dto: CreateRegionDto) => dto.state_uuids === undefined)
   @IsDefined()
   @Transform(trimValue)
   @IsString()
@@ -45,6 +44,8 @@ export class CreateRegionDto {
   @IsNotEmpty()
   dcRoNameHi?: string | null;
 
+  @ValidateIf((dto: CreateRegionDto) => dto.state_uuids === undefined)
+  @IsDefined()
   @Transform(trimValue)
   @IsString()
   @IsNotEmpty()

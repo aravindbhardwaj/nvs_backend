@@ -28,7 +28,7 @@ describe('RegionsService', () => {
       findMany: jest.fn(),
       count: jest.fn(),
     },
-    state: { count: jest.fn() },
+    state: { count: jest.fn(), findMany: jest.fn() },
     $transaction: jest.fn(),
   };
   const service = new RegionsService(prisma as never);
@@ -66,6 +66,10 @@ describe('RegionsService', () => {
     );
     prisma.region.findFirst.mockResolvedValue(null);
     prisma.state.count.mockResolvedValue(3);
+    prisma.state.findMany.mockResolvedValue([
+      { id: 1, uuid: '11111111-1111-4111-8111-111111111111' },
+      { id: 5, uuid: '55555555-5555-4555-8555-555555555555' },
+    ]);
     transaction.region.create.mockResolvedValue(region);
     transaction.region.update.mockResolvedValue(region);
   });
@@ -126,7 +130,7 @@ describe('RegionsService', () => {
     );
   });
 
-  it('requires state_ids in the create request DTO', async () => {
+  it('requires either state_ids or state_uuids in the create request DTO', async () => {
     const errors = await validate(
       plainToInstance(CreateRegionDto, {
         regionName: 'Bhopal Region',
@@ -135,6 +139,52 @@ describe('RegionsService', () => {
     );
 
     expect(errors.some((error) => error.property === 'state_ids')).toBe(true);
+  });
+
+  it('accepts a create request containing only state_uuids', async () => {
+    const errors = await validate(
+      plainToInstance(CreateRegionDto, {
+        regionName: 'Bhopal Region',
+        regionCode: 'BHOPAL',
+        state_uuids:
+          '11111111-1111-4111-8111-111111111111,55555555-5555-4555-8555-555555555555',
+      }),
+    );
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it('resolves state_uuids to state IDs when creating a region', async () => {
+    prisma.state.count.mockResolvedValue(2);
+    transaction.region.create.mockResolvedValue({
+      ...region,
+      stateIds: '1,5',
+    });
+
+    await service.create(
+      {
+        regionName: 'Bhopal Region',
+        regionCode: 'BHOPAL',
+        state_uuids:
+          '11111111-1111-4111-8111-111111111111,55555555-5555-4555-8555-555555555555',
+      },
+      actor,
+    );
+
+    expect(prisma.state.findMany).toHaveBeenCalledWith({
+      where: {
+        uuid: {
+          in: [
+            '11111111-1111-4111-8111-111111111111',
+            '55555555-5555-4555-8555-555555555555',
+          ],
+        },
+      },
+      select: { id: true, uuid: true },
+    });
+    expect(transaction.region.create).toHaveBeenCalledWith(
+      containing({ data: containing({ stateIds: '1,5' }) }),
+    );
   });
 
   it('normalizes duplicate State IDs before creating a region', async () => {
